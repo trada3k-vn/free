@@ -314,7 +314,7 @@ module.exports = async function (req, res) {
                 if (advanced.status === 'failed') {
                     return res.status(422).json({
                         ...payload,
-                        error: String(advanced.lastError || advanced.message || 'Khong lay duoc cookie PASS nao tu kho noi bo.').trim() || 'Khong lay duoc cookie PASS nao tu kho noi bo.'
+                        error: String(advanced.lastError || advanced.message || 'Khong lay duoc cookie PASS nao tu Google Sheet.').trim() || 'Khong lay duoc cookie PASS nao tu Google Sheet.'
                     });
                 }
                 return res.status(200).json(payload);

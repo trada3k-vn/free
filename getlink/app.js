@@ -503,8 +503,9 @@ function setSheetAccessImportControlsEnabled(enabled) {
     ['creatorImportCookiesFromSheetBtn', 'currentImportCookiesFromSheetBtn'].forEach((id) => {
         const button = el(id);
         if (!button) return;
-        button.disabled = false;
-        button.title = '';
+        const isEnabled = enabled !== false;
+        button.disabled = !isEnabled;
+        button.title = isEnabled ? '' : 'Google Sheet đang bị tắt trong cài đặt admin.';
     });
 }
 
@@ -2274,13 +2275,13 @@ async function applySheetImportResult(scope = 'current', data = {}) {
         context.renderCards(results);
         context.setInfoState(
             `${unfilledSlots.length > 0
-                ? 'Đã nhập một phần cookie PASS từ kho nội bộ.'
-                : 'Đã nhập xong cookie từ kho nội bộ.'}${timingText ? ` ${timingText}` : ''}`,
+                ? 'Đã nhập một phần cookie PASS từ Google Sheet.'
+                : 'Đã nhập xong cookie từ Google Sheet.'}${timingText ? ` ${timingText}` : ''}`,
             unfilledSlots.length > 0 || skipped.length > 0 ? 'warning' : 'success'
         );
     } else {
         context.renderCards([]);
-        context.setInfoState(`Không tìm được cookie PASS nào từ kho nội bộ.${timingText ? ` ${timingText}` : ''}`, 'warning');
+        context.setInfoState(`Không tìm được cookie PASS nào từ Google Sheet.${timingText ? ` ${timingText}` : ''}`, 'warning');
     }
 
     setSheetImportState(
@@ -2291,7 +2292,7 @@ async function applySheetImportResult(scope = 'current', data = {}) {
     clearSheetImportSelections(scope);
 
     if (assigned.length > 0) {
-        const autoSaveText = 'Đã nhập cookie PASS từ kho nội bộ, đang tự lưu...';
+        const autoSaveText = 'Đã nhập cookie PASS từ Google Sheet, đang tự lưu...';
         setSheetImportState(scope, autoSaveText, 'loading');
         context.setInfoState(autoSaveText, 'loading');
         context.setPrimaryState(autoSaveText, 'loading');
@@ -2360,17 +2361,24 @@ function getSheetImportContext(scope = 'current') {
 async function importCookiesFromSheet(scope = 'current') {
     const context = getSheetImportContext(scope);
     if (!context.share || !context.share.id) {
-        if (scope === 'create') setShareState('Hãy tạo link ID server trước khi nhập cookie từ kho nội bộ.', 'warning');
-        else setAdminSearchState('Hãy tìm link ID trước khi nhập cookie từ kho nội bộ.', 'warning');
+        if (scope === 'create') setShareState('Hãy tạo link ID server trước khi nhập cookie từ Google Sheet.', 'warning');
+        else setAdminSearchState('Hãy tìm link ID trước khi nhập cookie từ Google Sheet.', 'warning');
+        return;
+    }
+
+    if (!isSheetAccessEnabled()) {
+        const message = 'Truy cập Google Sheet đang được tắt trong cài đặt admin.';
+        setSheetImportState(scope, message, 'warning');
+        context.setInfoState(message, 'warning');
         return;
     }
 
     const slots = getSelectedSheetImportSlots(scope);
 
     const btn = el(scope === 'create' ? 'creatorImportCookiesFromSheetBtn' : 'currentImportCookiesFromSheetBtn');
-    setButtonBusy(btn, true, 'Đang lấy kho...');
-    setSheetImportState(scope, `Đang lấy ${slots.length} cookie PASS từ kho nội bộ...`, 'loading');
-    context.setInfoState('Đang lấy cookie từ kho nội bộ...', 'loading');
+    setButtonBusy(btn, true, 'Đang lấy từ Sheet...');
+    setSheetImportState(scope, `Đang lấy ${slots.length} cookie PASS từ Google Sheet...`, 'loading');
+    context.setInfoState('Đang lấy cookie từ Google Sheet...', 'loading');
 
     try {
         let data = await apiRequest('/api/getlink-admin/sheet-cookie-import', 'POST', {
@@ -2396,7 +2404,7 @@ async function importCookiesFromSheet(scope = 'current') {
                 const text = buildGetlinkOperationText(
                     payload,
                     elapsedMs,
-                    `Đang lấy ${slots.length} cookie PASS từ kho nội bộ...`
+                    `Đang lấy ${slots.length} cookie PASS từ Google Sheet...`
                 );
                 setSheetImportState(scope, text, 'loading');
                 context.setInfoState(text, 'loading');
@@ -2421,13 +2429,13 @@ async function importCookiesFromSheet(scope = 'current') {
     } catch (error) {
         clearSheetImportOperationMeta(scope);
         const timingText = formatAutoFixTimings(error && error.responseData ? error.responseData.timings : null);
-        const message = error.message || 'Không nhập được cookie từ kho nội bộ.';
+        const message = error.message || 'Không nhập được cookie từ Google Sheet.';
         setSheetImportState(scope, timingText ? `${message} | ${timingText}` : message, 'error');
         context.setInfoState(timingText ? `${message} ${timingText}` : message, 'error');
     } finally {
         clearActiveGetlinkOperationTimer(`sheet-import-${scope}`);
         setButtonBusy(btn, false);
-        setSheetAccessImportControlsEnabled(true);
+        setSheetAccessImportControlsEnabled(isSheetAccessEnabled());
     }
 }
 
@@ -3698,7 +3706,7 @@ function normalizeOverloadFixErrorMessage(error) {
     if (normalized.includes('khong lay du') && normalized.includes('cookie pass tu google sheet')
         || normalized.includes('không lấy đủ') && normalized.includes('cookie pass từ google sheet')
         || normalized.includes('khong lay du') && normalized.includes('cookie pass tu kho noi bo')) {
-        return `Không lấy đủ cookie sống từ kho nội bộ để tự ${config.actionLabel}. Vui lòng bấm CẦN HỖ TRỢ / BẢO HÀNH để được hỗ trợ.`;
+        return `Không lấy đủ cookie sống từ Google Sheet để tự ${config.actionLabel}. Vui lòng bấm CẦN HỖ TRỢ / BẢO HÀNH để được hỗ trợ.`;
     }
     if (normalized.includes('apps script')
         || normalized.includes('timeout')
@@ -3974,15 +3982,15 @@ async function resumePendingSheetImportOperation(scope = 'current') {
 
     const btn = el(scope === 'create' ? 'creatorImportCookiesFromSheetBtn' : 'currentImportCookiesFromSheetBtn');
     const timerKey = `sheet-import-${scope}`;
-    setButtonBusy(btn, true, 'Đang lấy kho...');
+    setButtonBusy(btn, true, 'Đang lấy từ Sheet...');
 
     let snapshot = {
         status: 'pending',
-        message: 'Đang nối lại tiến độ nhập cookie từ kho nội bộ...',
+        message: 'Đang nối lại tiến độ nhập cookie từ Google Sheet...',
         timings: null
     };
     const renderPending = (payload) => {
-        const text = buildGetlinkOperationText(payload, Date.now() - Number(meta.startedAt || Date.now()), 'Đang nối lại tiến độ nhập cookie từ kho nội bộ...');
+        const text = buildGetlinkOperationText(payload, Date.now() - Number(meta.startedAt || Date.now()), 'Đang nối lại tiến độ nhập cookie từ Google Sheet...');
         setSheetImportState(scope, text, 'loading');
         context.setInfoState(text, 'loading');
     };
@@ -4004,7 +4012,7 @@ async function resumePendingSheetImportOperation(scope = 'current') {
         await applySheetImportResult(scope, snapshot);
     } catch (error) {
         const timingText = formatAutoFixTimings(error && error.responseData ? error.responseData.timings : null);
-        const message = error.message || 'Không thể nối lại tiến độ nhập cookie từ kho nội bộ.';
+        const message = error.message || 'Không thể nối lại tiến độ nhập cookie từ Google Sheet.';
         setSheetImportState(scope, timingText ? `${message} | ${timingText}` : message, 'error');
         context.setInfoState(timingText ? `${message} ${timingText}` : message, 'error');
         clearSheetImportOperationMeta(scope);
@@ -4157,7 +4165,7 @@ async function rotateOverloadShareCookie() {
                     buildGetlinkOperationText(
                         payload,
                         Date.now() - operationMeta.startedAt,
-                        'Đang lấy cookie mới từ kho nội bộ rồi thay cookie chính...'
+                        'Đang lấy cookie mới từ Google Sheet rồi thay cookie chính...'
                     ),
                     'loading'
                 );

@@ -19,7 +19,6 @@ const {
 const { evaluateGetlinkCookie } = require('./_getlink-cookie-health');
 const {
     createSheetImportOperation,
-    createPoolImportOperation,
     advanceGetlinkOperation,
     shapeOperationPayload
 } = require('./_getlink-operation-store');
@@ -1029,13 +1028,13 @@ module.exports = async function (req, res) {
             const slots = normalizeSheetSlots(body && body.slots);
             const scope = String(body && body.scope ? body.scope : '').trim();
             const shareId = String(body && body.shareId ? body.shareId : '').trim();
-            const operation = await createPoolImportOperation(slots, scope, { shareId });
+            const operation = await createSheetImportOperation(slots, scope, { shareId });
             const advanced = await advanceGetlinkOperation(operation);
             const payload = shapeOperationPayload(advanced);
             if (advanced.status === 'failed') {
                 return res.status(422).json({
                     ...payload,
-                    error: String(advanced.lastError || advanced.message || 'Khong nhap duoc cookie tu kho noi bo.').trim() || 'Khong nhap duoc cookie tu kho noi bo.'
+                    error: String(advanced.lastError || advanced.message || 'Khong nhap duoc cookie tu Google Sheet.').trim() || 'Khong nhap duoc cookie tu Google Sheet.'
                 });
             }
             return res.status(200).json(payload);

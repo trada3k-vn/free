@@ -384,11 +384,15 @@ function shapeOperationPayload(operation = {}) {
     return payload;
 }
 
-async function createSheetImportOperation(slots = [], scope = '') {
-    const state = createSheetImportState(slots);
+async function createSheetImportOperation(slots = [], scope = '', options = {}) {
+    const shareId = String(options && options.shareId ? options.shareId : '').trim();
+    const state = createSheetImportState(slots, {
+        seenCookies: shareId ? await getExistingShareCookiesById(shareId) : []
+    });
     return createGetlinkOperation({
         type: 'sheet_import',
         scope,
+        shareId,
         message: state.message,
         state
     });
@@ -454,7 +458,8 @@ async function advanceGetlinkOperation(operationInput = {}) {
     }
 
     try {
-        if (operation.type === 'sheet_import' && !(await isSheetAccessEnabled())) {
+        const sheetBackedOperation = ['sheet_import', 'auto_fix', 'overload_fix'].includes(operation.type);
+        if (sheetBackedOperation && !(await isSheetAccessEnabled())) {
             operation.status = 'failed';
             operation.phase = 'blocked';
             operation.message = 'Truy cap Google Sheet dang duoc tat trong admin.';
@@ -464,7 +469,7 @@ async function advanceGetlinkOperation(operationInput = {}) {
 
         operation.status = 'running';
         const currentState = resolveOperationState(operation);
-        const poolBackedOperation = ['auto_fix', 'overload_fix', 'pool_import'].includes(operation.type);
+        const poolBackedOperation = operation.type === 'pool_import';
         if (poolBackedOperation) currentState.usageScope = currentState.usageScope || getPoolUsageScope(operation, currentState);
         let nextState = poolBackedOperation
             ? await fillOperationFromCookiePool(currentState)
@@ -475,7 +480,7 @@ async function advanceGetlinkOperation(operationInput = {}) {
             if ((Array.isArray(nextResult.assigned) ? nextResult.assigned.length : 0) === 0) {
                 operation.status = 'failed';
                 operation.phase = 'completed';
-                operation.message = 'Khong lay duoc cookie PASS nao tu kho noi bo.';
+                operation.message = 'Khong lay duoc cookie PASS nao tu Google Sheet.';
                 operation.lastError = operation.message;
                 operation.state = nextState;
                 return saveGetlinkOperation(operation);
@@ -507,7 +512,7 @@ async function advanceGetlinkOperation(operationInput = {}) {
                 if (assignedCount < requiredCount) {
                     operation.status = 'failed';
                     operation.phase = 'completed';
-                    operation.message = `Khong lay du ${requiredCount} cookie PASS tu kho noi bo de sua loi qua tai.`;
+                    operation.message = `Khong lay du ${requiredCount} cookie PASS tu Google Sheet de sua loi qua tai.`;
                     operation.lastError = operation.message;
                     operation.state = nextState;
                     return saveGetlinkOperation(operation);
