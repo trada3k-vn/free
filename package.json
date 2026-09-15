@@ -1,0 +1,13 @@
+{
+  "name": "free-main-nf",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "playwright-core": "^1.52.0",
+    "xlsx": "^0.18.5"
+  }
+}
