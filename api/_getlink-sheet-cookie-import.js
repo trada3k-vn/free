@@ -1,17 +1,19 @@
-const https = require('https');
 const { sanitizeCookieRaw } = require('./_getlink-share-store');
 const { evaluateGetlinkCookie } = require('./_getlink-cookie-health');
 const { readSheetAppsScriptUrl } = require('./_getlink-warning-config-store');
+const {
+    resolveAppsScriptUrlOrThrow,
+    requestAppsScriptJsonWithRetry
+} = require('./_getlink-apps-script-client');
 
 const ENV_GETLINK_SHEET_APPS_SCRIPT_URL = String(process.env.GETLINK_SHEET_APPS_SCRIPT_URL || '').trim();
 const GETLINK_SHEET_FETCH_LIMIT = Math.max(20, Math.min(5000, Number(process.env.GETLINK_SHEET_FETCH_LIMIT || 5000) || 5000));
 const GETLINK_SHEET_BATCH_SIZE = Math.max(20, Math.min(500, Number(process.env.GETLINK_SHEET_BATCH_SIZE || 100) || 100));
 const GETLINK_SHEET_CANDIDATE_BATCH = Math.max(1, Math.min(20, Number(process.env.GETLINK_SHEET_CANDIDATE_BATCH || 3) || 3));
 const GETLINK_SHEET_CHECK_CONCURRENCY = Math.max(1, Math.min(10, Number(process.env.GETLINK_SHEET_CHECK_CONCURRENCY || 3) || 3));
-const GETLINK_SHEET_HTTP_TIMEOUT_MS = Math.max(5000, Math.min(240000, Number(process.env.GETLINK_SHEET_HTTP_TIMEOUT_MS || 200000) || 200000));
+const GETLINK_SHEET_HTTP_TIMEOUT_MS = Math.max(5000, Math.min(300000, Number(process.env.GETLINK_SHEET_HTTP_TIMEOUT_MS || 300000) || 300000));
 const GETLINK_COOKIE_CHECK_TIMEOUT_MS = Math.max(5000, Math.min(120000, Number(process.env.GETLINK_COOKIE_CHECK_TIMEOUT_MS || 25000) || 25000));
 const ALLOWED_SHEET_SLOTS = new Set(['primary', 'backup1', 'backup2']);
-const MAX_APPS_SCRIPT_REDIRECTS = 5;
 const MAX_SHEET_DEBUG_SAMPLES = 8;
 
 function withTimeout(promise, timeoutMs, message) {
@@ -35,140 +37,9 @@ function withTimeout(promise, timeoutMs, message) {
     });
 }
 
-function buildAppsScriptInvalidResponseError(statusCode = 0, responseBody = '', contentType = '') {
-    const bodyText = String(responseBody || '').trim();
-    const typeText = String(contentType || '').trim().toLowerCase();
-    const isHtml = typeText.includes('text/html') || /^<!doctype html/i.test(bodyText) || /^<html/i.test(bodyText);
-    let message = 'Apps Script tra ve du lieu khong hop le.';
-
-    if (statusCode === 404) {
-        message = 'Apps Script URL khong hop le hoac ban chua deploy dung Web App /exec.';
-    } else if (statusCode === 401 || statusCode === 403) {
-        message = 'Apps Script bi chan quyen. Hay deploy Web App voi quyen truy cap phu hop.';
-    } else if (isHtml) {
-        message = 'Apps Script dang tra ve HTML thay vi JSON. Hay kiem tra lai URL /exec va deploy Web App.';
-    }
-
-    const error = new Error(message);
-    error.httpStatus = 502;
-    return error;
-}
-
-function parseAppsScriptJsonResponse(statusCode = 0, responseBody = '', contentType = '') {
-    try {
-        return JSON.parse(String(responseBody || '{}'));
-    } catch (error) {
-        throw buildAppsScriptInvalidResponseError(statusCode, responseBody, contentType);
-    }
-}
-
-function resolveAppsScriptUrlOrThrow(rawUrl = '') {
-    const url = String(rawUrl || '').trim();
-    if (!url) {
-        const error = new Error('Chua cau hinh Apps Script URL cho Google Sheet.');
-        error.httpStatus = 500;
-        throw error;
-    }
-
-    let parsed = null;
-    try {
-        parsed = new URL(url);
-    } catch (error) {
-        const err = new Error('Apps Script URL khong hop le. Hay dung Web App URL dang https://script.google.com/macros/s/.../exec.');
-        err.httpStatus = 500;
-        throw err;
-    }
-
-    if (parsed.protocol !== 'https:' || parsed.hostname !== 'script.google.com' || !/\/macros\/s\/[^/]+\/exec\/?$/.test(parsed.pathname)) {
-        const err = new Error('Apps Script URL phai la Web App /exec, vi du https://script.google.com/macros/s/.../exec.');
-        err.httpStatus = 500;
-        throw err;
-    }
-
-    return parsed.toString();
-}
-
 async function getConfiguredAppsScriptUrl() {
     const adminUrl = await readSheetAppsScriptUrl();
     return resolveAppsScriptUrlOrThrow(adminUrl || ENV_GETLINK_SHEET_APPS_SCRIPT_URL);
-}
-
-function getJsonFromAbsoluteUrl(rawUrl, redirectCount = 0) {
-    return new Promise((resolve, reject) => {
-        let parsedUrl;
-        try {
-            parsedUrl = new URL(String(rawUrl || '').trim());
-        } catch (error) {
-            reject(new Error('GETLINK_SHEET_APPS_SCRIPT_URL is invalid.'));
-            return;
-        }
-
-        const req = https.request({
-            protocol: parsedUrl.protocol,
-            hostname: parsedUrl.hostname,
-            port: parsedUrl.port || 443,
-            path: `${parsedUrl.pathname || '/'}${parsedUrl.search || ''}`,
-            method: 'GET'
-        }, (res) => {
-            const statusCode = Number(res.statusCode || 0);
-            const location = String(res.headers.location || '').trim();
-            const contentType = String(res.headers['content-type'] || '').trim();
-
-            if (statusCode >= 300 && statusCode < 400 && location) {
-                if (redirectCount >= MAX_APPS_SCRIPT_REDIRECTS) {
-                    const err = new Error('Apps Script redirect qua nhieu lan.');
-                    err.httpStatus = 502;
-                    reject(err);
-                    return;
-                }
-
-                const nextUrl = new URL(location, parsedUrl).toString();
-                res.resume();
-                getJsonFromAbsoluteUrl(nextUrl, redirectCount + 1).then(resolve).catch(reject);
-                return;
-            }
-
-            let data = '';
-            res.on('data', (chunk) => { data += chunk; });
-            res.on('end', () => {
-                if (statusCode < 200 || statusCode >= 300) {
-                    let parsed = null;
-                    try {
-                        parsed = parseAppsScriptJsonResponse(statusCode, data, contentType);
-                    } catch (invalidError) {
-                        reject(invalidError);
-                        return;
-                    }
-
-                    const err = new Error(String(parsed && parsed.error ? parsed.error : 'Apps Script request failed.').trim() || 'Apps Script request failed.');
-                    err.httpStatus = 502;
-                    reject(err);
-                    return;
-                }
-
-                let parsed = null;
-                try {
-                    parsed = parseAppsScriptJsonResponse(statusCode, data, contentType);
-                } catch (invalidError) {
-                    reject(invalidError);
-                    return;
-                }
-
-                resolve(parsed);
-            });
-        });
-
-        req.setTimeout(GETLINK_SHEET_HTTP_TIMEOUT_MS, () => {
-            req.destroy(new Error(`Apps Script timeout sau ${GETLINK_SHEET_HTTP_TIMEOUT_MS}ms.`));
-        });
-        req.on('error', (error) => {
-            const message = error && error.message ? error.message : 'Unknown error';
-            const err = new Error(`Khong ket noi duoc Apps Script: ${message}`);
-            err.httpStatus = /timeout/i.test(message) ? 504 : 502;
-            reject(err);
-        });
-        req.end();
-    });
 }
 
 function normalizeSheetSlots(input) {
@@ -221,24 +92,15 @@ function getNextSheetUsageMark(mark = '') {
 }
 
 async function callGetlinkSheetScript(action, payload = {}) {
-    const url = new URL(await getConfiguredAppsScriptUrl());
-    url.searchParams.set('action', String(action || '').trim());
-    Object.entries(payload || {}).forEach(([key, value]) => {
-        if (value === undefined || value === null) return;
-        url.searchParams.set(key, String(value));
-    });
-
-    const response = await withTimeout(
-        getJsonFromAbsoluteUrl(url.toString()),
-        GETLINK_SHEET_HTTP_TIMEOUT_MS,
-        `Apps Script timeout sau ${GETLINK_SHEET_HTTP_TIMEOUT_MS}ms.`
+    const response = await requestAppsScriptJsonWithRetry(
+        await getConfiguredAppsScriptUrl(),
+        {
+            action,
+            payload,
+            timeoutMs: GETLINK_SHEET_HTTP_TIMEOUT_MS
+        }
     );
-    if (response && response.success === false) {
-        const error = new Error(String(response.error || response.message || 'Apps Script request failed.').trim() || 'Apps Script request failed.');
-        error.httpStatus = 502;
-        throw error;
-    }
-    return response && typeof response === 'object' ? response : {};
+    return response.data;
 }
 
 async function listGetlinkSheetRows(options = {}) {

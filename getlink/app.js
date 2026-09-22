@@ -4,6 +4,7 @@ const TV2_URL = 'https://www.netflix.com/tv2';
 const SUPPORT_FANPAGE_URL = 'https://www.facebook.com/trada3k.vn/';
 const GETLINK_ADMIN_AUTH_STORAGE_KEY = 'getlink_admin_auth_v1';
 const GETLINK_OPERATION_POLL_INTERVAL_MS = 1800;
+const GETLINK_LOADING_REASSURANCE_DELAY_MS = 10000;
 const GETLINK_SHEET_IMPORT_OPERATION_STORAGE_PREFIX = 'getlink_sheet_import_operation_';
 const GETLINK_AUTO_FIX_OPERATION_STORAGE_KEY = 'getlink_auto_fix_operation';
 const DEFAULT_GETLINK_WARNING_MESSAGE = 'LƯU Ý';
@@ -150,13 +151,23 @@ let disclaimerDismissed = false;
 let disclaimerReadyAt = 0;
 let disclaimerTimer = null;
 let disclaimerEligibilityResolved = false;
+let runtimeMaxStreams = '';
+let upgradeNoticeVisible = false;
+let upgradeNoticeShown = false;
+let upgradeNoticePending = false;
+let upgradeNoticeReadyAt = 0;
+let upgradeNoticeTimer = null;
 let isInlineEditMode = false;
 let overloadFixReadyAt = 0;
 let overloadFixTimer = null;
 let overloadFixBusy = false;
+let overloadFixLoadingTimer = null;
+let overloadFixLoadingStartedAt = 0;
 let activeFixMode = 'overload';
 let entryAlertState = null;
 let supportModalState = null;
+let supportLoadingTimer = null;
+let supportLoadingStartedAt = 0;
 let shareAutoFixBusy = false;
 let warningBannerConfig = {
     message: DEFAULT_GETLINK_WARNING_MESSAGE,
@@ -273,6 +284,96 @@ function clearRuntimeProfiles() {
     renderRuntimeProfileState();
 }
 
+function setRuntimeMaxStreams(value = '') {
+    runtimeMaxStreams = String(value || '').trim();
+}
+
+function shouldShowUpgradeNotice() {
+    return canShowPromotionalPopups() && runtimeMaxStreams === '2';
+}
+
+function refreshUpgradeNoticeButton() {
+    const checkbox = el('upgradeNoticeUnderstood');
+    const dismissBtn = el('upgradeNoticeDismissBtn');
+    if (!checkbox || !dismissBtn) return;
+    dismissBtn.disabled = !(Date.now() >= upgradeNoticeReadyAt && checkbox.checked);
+}
+
+function setUpgradeNoticeState(text, mode = 'idle') {
+    const node = el('upgradeNoticeCountdown');
+    if (!node) return;
+    node.textContent = String(text || '').trim();
+    setStateClass(node, mode);
+}
+
+function openUpgradeNoticeModal() {
+    if (!shouldShowUpgradeNotice() || upgradeNoticeShown || upgradeNoticeVisible) return;
+    upgradeNoticePending = false;
+    upgradeNoticeShown = true;
+    upgradeNoticeVisible = true;
+    const modal = el('upgradeNoticeModal');
+    const checkbox = el('upgradeNoticeUnderstood');
+    upgradeNoticeReadyAt = Date.now() + 3000;
+    if (checkbox) checkbox.checked = false;
+    setUpgradeNoticeState('Vui lòng chờ 3 giây để bỏ qua popup.', 'warning');
+    refreshUpgradeNoticeButton();
+
+    if (upgradeNoticeTimer) window.clearInterval(upgradeNoticeTimer);
+    upgradeNoticeTimer = window.setInterval(() => {
+        const remainMs = Math.max(0, upgradeNoticeReadyAt - Date.now());
+        if (remainMs > 0) {
+            setUpgradeNoticeState(`Vui lòng chờ ${Math.ceil(remainMs / 1000)} giây để bỏ qua popup.`, 'warning');
+        } else {
+            const understood = !!el('upgradeNoticeUnderstood')?.checked;
+            setUpgradeNoticeState(
+                understood ? 'Bạn có thể bấm Bỏ qua để tiếp tục.' : 'Hãy tick vào “Tôi đã hiểu” để bỏ qua popup.',
+                understood ? 'success' : 'warning'
+            );
+            window.clearInterval(upgradeNoticeTimer);
+            upgradeNoticeTimer = null;
+        }
+        refreshUpgradeNoticeButton();
+    }, 150);
+
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.setAttribute('aria-hidden', 'false');
+    }
+}
+
+function closeUpgradeNoticeModal() {
+    const modal = el('upgradeNoticeModal');
+    if (upgradeNoticeTimer) {
+        window.clearInterval(upgradeNoticeTimer);
+        upgradeNoticeTimer = null;
+    }
+    upgradeNoticeVisible = false;
+    upgradeNoticeReadyAt = 0;
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.setAttribute('aria-hidden', 'true');
+    }
+    const checkbox = el('upgradeNoticeUnderstood');
+    const dismissBtn = el('upgradeNoticeDismissBtn');
+    if (checkbox) checkbox.checked = false;
+    if (dismissBtn) dismissBtn.disabled = true;
+    updateReadyState();
+}
+
+function requestUpgradeNotice() {
+    if (!shouldShowUpgradeNotice() || upgradeNoticeShown) return;
+    if (!disclaimerEligibilityResolved) {
+        upgradeNoticePending = true;
+        return;
+    }
+    const disclaimerModal = el('disclaimerModal');
+    if (disclaimerModal && !disclaimerModal.classList.contains('hidden')) {
+        upgradeNoticePending = true;
+        return;
+    }
+    openUpgradeNoticeModal();
+}
+
 function extractProfilesFromChecks(checks = [], resolvedSlot = '') {
     const list = Array.isArray(checks) ? checks : [];
     const slot = String(resolvedSlot || '').trim();
@@ -303,10 +404,51 @@ function getDefaultSupportModalContent() {
         closable: true,
         showAutoFix: false,
         isLoading: false,
-        loadingText: 'Đang tiến hành sửa lỗi tự động, vui lòng đợi trong giây lát.',
+        loadingText: 'Hệ thống đang xử lý, bạn đợi xíu nha.',
+        loadingStartedAt: 0,
         reloadOnClose: false,
         fanpageText: support.fanpageText
     };
+}
+
+function clearSupportLoadingTimer() {
+    if (supportLoadingTimer) {
+        window.clearTimeout(supportLoadingTimer);
+        supportLoadingTimer = null;
+    }
+}
+
+function syncSupportLoadingNotice(content = {}) {
+    const loadingWrap = el('supportModalLoading');
+    const loadingLate = el('supportModalLoadingLate');
+    if (!content.isLoading) {
+        clearSupportLoadingTimer();
+        supportLoadingStartedAt = 0;
+        if (loadingLate) loadingLate.classList.add('hidden');
+        return;
+    }
+
+    const explicitStartedAt = Math.max(0, Number(content.loadingStartedAt || 0) || 0);
+    if (supportLoadingStartedAt > 0 && explicitStartedAt > 0) {
+        supportLoadingStartedAt = Math.min(supportLoadingStartedAt, explicitStartedAt);
+    } else {
+        supportLoadingStartedAt = explicitStartedAt || supportLoadingStartedAt || Date.now();
+    }
+
+    const showLateNotice = () => {
+        if (loadingLate) loadingLate.classList.remove('hidden');
+        supportLoadingTimer = null;
+    };
+    const remainingMs = Math.max(0, GETLINK_LOADING_REASSURANCE_DELAY_MS - (Date.now() - supportLoadingStartedAt));
+    clearSupportLoadingTimer();
+    if (remainingMs <= 0) {
+        showLateNotice();
+        return;
+    }
+
+    if (loadingLate) loadingLate.classList.add('hidden');
+    supportLoadingTimer = window.setTimeout(showLateNotice, remainingMs);
+    if (loadingWrap) loadingWrap.setAttribute('data-loading-started-at', String(supportLoadingStartedAt));
 }
 
 function renderSupportModalContent(payload = null) {
@@ -335,6 +477,7 @@ function renderSupportModalContent(payload = null) {
     if (bh247) bh247.textContent = getContentConfig().support.bh247Text;
     if (loadingWrap) loadingWrap.classList.toggle('hidden', !content.isLoading);
     if (loadingText) loadingText.textContent = String(content.loadingText || '').trim();
+    syncSupportLoadingNotice(content);
     if (actions) actions.classList.toggle('hidden', !!content.isLoading);
     if (closeBtn) closeBtn.classList.toggle('hidden', !content.closable);
     if (autoFixBtn) {
@@ -891,6 +1034,59 @@ function setOverloadFixState(text, mode = 'idle') {
     if (!node) return;
     node.textContent = String(text || '').trim();
     setStateClass(node, mode);
+}
+
+function clearOverloadFixLoadingTimer() {
+    if (overloadFixLoadingTimer) {
+        window.clearTimeout(overloadFixLoadingTimer);
+        overloadFixLoadingTimer = null;
+    }
+    overloadFixLoadingStartedAt = 0;
+}
+
+function startOverloadFixLoading(startedAt = Date.now()) {
+    const loading = el('overloadFixLoading');
+    const countdown = el('overloadFixCountdown');
+    const lateNotice = el('overloadFixLoadingLate');
+    const loadingText = el('overloadFixLoadingText');
+    const explicitStartedAt = Math.max(0, Number(startedAt || 0) || 0);
+    if (overloadFixLoadingStartedAt > 0 && explicitStartedAt > 0) {
+        overloadFixLoadingStartedAt = Math.min(overloadFixLoadingStartedAt, explicitStartedAt);
+    } else {
+        overloadFixLoadingStartedAt = explicitStartedAt || overloadFixLoadingStartedAt || Date.now();
+    }
+    if (overloadFixLoadingTimer) {
+        window.clearTimeout(overloadFixLoadingTimer);
+        overloadFixLoadingTimer = null;
+    }
+    if (loading) loading.classList.remove('hidden');
+    if (countdown) countdown.classList.add('hidden');
+    if (lateNotice) lateNotice.classList.add('hidden');
+    if (loadingText) {
+        const config = getFixModeConfig(activeFixMode);
+        loadingText.textContent = config.loadingText || 'Hệ thống đang kiểm tra và sửa lỗi cho bạn.';
+    }
+
+    const showLateNotice = () => {
+        if (lateNotice) lateNotice.classList.remove('hidden');
+        overloadFixLoadingTimer = null;
+    };
+    const remainingMs = Math.max(0, GETLINK_LOADING_REASSURANCE_DELAY_MS - (Date.now() - overloadFixLoadingStartedAt));
+    if (remainingMs <= 0) {
+        showLateNotice();
+        return;
+    }
+    overloadFixLoadingTimer = window.setTimeout(showLateNotice, remainingMs);
+}
+
+function stopOverloadFixLoading() {
+    clearOverloadFixLoadingTimer();
+    const loading = el('overloadFixLoading');
+    const countdown = el('overloadFixCountdown');
+    const lateNotice = el('overloadFixLoadingLate');
+    if (loading) loading.classList.add('hidden');
+    if (lateNotice) lateNotice.classList.add('hidden');
+    if (countdown) countdown.classList.remove('hidden');
 }
 
 function getFixModeConfig(mode = 'overload') {
@@ -1833,8 +2029,10 @@ async function checkRuntimeCookieHealth() {
         if (getRuntimeCookie() === cookie) {
             if (account) {
                 setRuntimeProfiles(account.profiles || '');
+                setRuntimeMaxStreams(account.max_streams || '');
             } else {
                 setRuntimeProfiles('Không rõ');
+                setRuntimeMaxStreams('');
             }
         }
         if (account && isPaymentHoldYes(account.on_payment_hold)) {
@@ -1857,7 +2055,10 @@ async function checkRuntimeCookieHealth() {
             detailMessage: ''
         };
     } catch (error) {
-        if (getRuntimeCookie() === cookie) setRuntimeProfiles('Không rõ');
+        if (getRuntimeCookie() === cookie) {
+            setRuntimeProfiles('Không rõ');
+            setRuntimeMaxStreams('');
+        }
         const reason = parseBlockedReasonFromError(error);
         if (reason === 'sbd') {
             return {
@@ -2264,6 +2465,7 @@ function setRuntimeCookie(rawCookie, options = {}) {
     const profiles = String(options.profiles || '').trim();
 
     runtimeCookie = next;
+    setRuntimeMaxStreams('');
     clearCookieBlockedState();
     if (next) {
         if (profiles) setRuntimeProfiles(profiles);
@@ -2742,6 +2944,7 @@ function openOverloadFixModal(mode = 'overload') {
 function closeOverloadFixModal(force = false) {
     if (!force && overloadFixBusy) return;
     const modal = el('overloadFixModal');
+    stopOverloadFixLoading();
     if (overloadFixTimer) {
         window.clearInterval(overloadFixTimer);
         overloadFixTimer = null;
@@ -2945,13 +3148,14 @@ async function autoFixShareCookies() {
     shareAutoFixBusy = true;
     openSupportModal({
         eyebrow: 'Sửa lỗi tự động',
-        title: 'Đang tiến hành sửa lỗi tự động',
-        message: 'Hệ thống đang tiến hành tự động sửa lỗi.',
+        title: 'Đang sửa lỗi cho bạn',
+        message: 'Hệ thống đang xử lý, bạn đợi xíu nha.',
         showBh247: false,
         closable: false,
         showAutoFix: false,
         isLoading: true,
-        loadingText: 'Đang tiến hành sửa lỗi tự động, vui lòng đợi trong giây lát.'
+        loadingText: 'Hệ thống đang kiểm tra và sửa lỗi cho bạn.',
+        loadingStartedAt: Date.now()
     });
 
     try {
@@ -2968,33 +3172,29 @@ async function autoFixShareCookies() {
             });
             saveAutoFixOperationMeta(operationMeta);
 
-            const renderPending = (payload) => {
-                const text = buildGetlinkOperationText(
-                    payload,
-                    Date.now() - operationMeta.startedAt,
-                    'Đang tiến hành sửa lỗi tự động, vui lòng đợi trong giây lát.'
-                );
+            const renderPending = () => {
                 openSupportModal({
                     eyebrow: 'Sửa lỗi tự động',
-                    title: 'Đang tiến hành sửa lỗi tự động',
-                    message: 'Hệ thống đang tiến hành tự động sửa lỗi.',
+                    title: 'Đang sửa lỗi cho bạn',
+                    message: 'Hệ thống đang xử lý, bạn đợi xíu nha.',
                     showBh247: false,
                     closable: false,
                     showAutoFix: false,
                     isLoading: true,
-                    loadingText: text
+                    loadingText: 'Hệ thống đang kiểm tra và sửa lỗi cho bạn.',
+                    loadingStartedAt: operationMeta.startedAt
                 });
             };
 
-            renderPending(data);
+            renderPending();
             startActiveGetlinkOperationTimer(operationKey, () => {
-                renderPending(data);
+                renderPending();
             });
 
             while (String(data && data.status || '').trim() === 'pending') {
                 await sleep(GETLINK_OPERATION_POLL_INTERVAL_MS);
                 data = await pollGetlinkOperation(operationMeta.operationId, operationMeta.operationToken);
-                renderPending(data);
+                renderPending();
             }
 
             clearActiveGetlinkOperationTimer(operationKey);
@@ -3137,27 +3337,28 @@ async function resumePendingAutoFixOperation() {
         timings: null
     };
 
-    const renderPending = (payload) => {
+    const renderPending = () => {
         openSupportModal({
             eyebrow: 'Sửa lỗi tự động',
-            title: 'Đang tiến hành sửa lỗi tự động',
-            message: 'Hệ thống đang tiếp tục sửa lỗi tự động.',
+            title: 'Đang sửa lỗi cho bạn',
+            message: 'Hệ thống đang tiếp tục xử lý, bạn đợi xíu nha.',
             showBh247: false,
             closable: false,
             showAutoFix: false,
             isLoading: true,
-            loadingText: buildGetlinkOperationText(payload, Date.now() - Number(meta.startedAt || Date.now()), 'Đang nối lại tiến độ sửa lỗi tự động...')
+            loadingText: 'Hệ thống đang tiếp tục kiểm tra và sửa lỗi cho bạn.',
+            loadingStartedAt: Number(meta.startedAt || Date.now())
         });
     };
 
     try {
-        renderPending(snapshot);
+        renderPending();
         startActiveGetlinkOperationTimer('auto-fix', () => {
-            renderPending(snapshot);
+            renderPending();
         });
         while (String(snapshot && snapshot.status || '').trim() === 'pending') {
             snapshot = await pollGetlinkOperation(meta.operationId, meta.operationToken);
-            renderPending(snapshot);
+            renderPending();
             if (String(snapshot && snapshot.status || '').trim() === 'pending') {
                 await sleep(GETLINK_OPERATION_POLL_INTERVAL_MS);
             }
@@ -3258,7 +3459,7 @@ async function rotateOverloadShareCookie() {
     setButtonBusy(triggerBtn, activeFixMode === 'overload', config.busyLabel);
     setButtonBusy(householdBtn, activeFixMode === 'household', config.busyLabel);
     setButtonBusy(confirmBtn, true, config.busyLabel);
-    setOverloadFixState(config.loadingText, 'loading');
+    startOverloadFixLoading(Date.now());
 
     try {
         let data = await apiRequest(`/api/getlink-shares/${encodeURIComponent(shareId)}/overload-fix`, 'POST');
@@ -3273,26 +3474,19 @@ async function rotateOverloadShareCookie() {
                 startedAt: Date.now()
             });
 
-            const renderPending = (payload) => {
-                setOverloadFixState(
-                    buildGetlinkOperationText(
-                        payload,
-                        Date.now() - operationMeta.startedAt,
-                        'Đang lấy cookie mới từ Google Sheet rồi thay cookie chính...'
-                    ),
-                    'loading'
-                );
+            const renderPending = () => {
+                startOverloadFixLoading(operationMeta.startedAt);
             };
 
-            renderPending(data);
+            renderPending();
             startActiveGetlinkOperationTimer(operationKey, () => {
-                renderPending(data);
+                renderPending();
             });
 
             while (String(data && data.status || '').trim() === 'pending') {
                 await sleep(GETLINK_OPERATION_POLL_INTERVAL_MS);
                 data = await pollGetlinkOperation(operationMeta.operationId, operationMeta.operationToken);
-                renderPending(data);
+                renderPending();
             }
 
             clearActiveGetlinkOperationTimer(operationKey);
@@ -3305,11 +3499,13 @@ async function rotateOverloadShareCookie() {
         applyOverloadFixSuccess(data);
     } catch (error) {
         clearActiveGetlinkOperationTimer('overload-fix');
+        stopOverloadFixLoading();
         const message = normalizeOverloadFixErrorMessage(error);
         setLookupState(message, 'error');
         setOverloadFixState(message, 'error');
     } finally {
         clearActiveGetlinkOperationTimer('overload-fix');
+        stopOverloadFixLoading();
         overloadFixBusy = false;
         setButtonBusy(triggerBtn, false);
         setButtonBusy(householdBtn, false);
@@ -3501,6 +3697,7 @@ async function runEntryCookieHealthCheck() {
     resetEntryAlertState();
     setLookupState('Cookie hợp lệ. Hãy chọn thiết bị để tiếp tục.', 'success');
     updateReadyState();
+    requestUpgradeNotice();
 }
 
 async function applyCookieFromQuery() {
@@ -4224,6 +4421,31 @@ function bindEvents() {
         disclaimerDismissBtn.addEventListener('click', () => {
             if (!closeDisclaimerModal()) return;
             updateReadyState();
+            if (upgradeNoticePending) openUpgradeNoticeModal();
+        });
+    }
+
+    const upgradeNoticeCheckbox = el('upgradeNoticeUnderstood');
+    if (upgradeNoticeCheckbox) {
+        upgradeNoticeCheckbox.addEventListener('change', () => {
+            if (Date.now() >= upgradeNoticeReadyAt) {
+                setUpgradeNoticeState(
+                    upgradeNoticeCheckbox.checked
+                        ? 'Bạn có thể bấm Bỏ qua để tiếp tục.'
+                        : 'Hãy tick vào “Tôi đã hiểu” để bỏ qua popup.',
+                    upgradeNoticeCheckbox.checked ? 'success' : 'warning'
+                );
+            }
+            refreshUpgradeNoticeButton();
+        });
+    }
+
+    const upgradeNoticeDismissBtn = el('upgradeNoticeDismissBtn');
+    if (upgradeNoticeDismissBtn) {
+        upgradeNoticeDismissBtn.addEventListener('click', () => {
+            if (upgradeNoticeDismissBtn.disabled || Date.now() < upgradeNoticeReadyAt) return;
+            if (!el('upgradeNoticeUnderstood')?.checked) return;
+            closeUpgradeNoticeModal();
         });
     }
 
