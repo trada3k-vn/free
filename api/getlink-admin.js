@@ -31,6 +31,7 @@ const {
     resolveAppsScriptUrlOrThrow: validateAppsScriptUrl,
     requestAppsScriptJsonWithRetry
 } = require('./_getlink-apps-script-client');
+const { listSuccessfulFixHistory, resetFixLimit, getFixLimitState } = require('./_getlink-fix-history-store');
 
 const FIREBASE_API_KEY = String(process.env.FIREBASE_API_KEY || 'AIzaSyAVV-3HxGFpT_eiAri1SGPWGwu3EL8On58').trim();
 const ENV_GETLINK_SHEET_APPS_SCRIPT_URL = String(process.env.GETLINK_SHEET_APPS_SCRIPT_URL || '').trim();
@@ -120,6 +121,7 @@ async function probeAppsScriptHealth(rawUrl = '') {
             contentType: response.contentType,
             elapsedMs: Date.now() - startedAt,
             attempts: response.attempts,
+            redirectSeen: response.redirectSeen === true,
             message: String(response.data && (response.data.message || response.data.error) ? (response.data.message || response.data.error) : '').trim()
         };
     } catch (error) {
@@ -129,6 +131,7 @@ async function probeAppsScriptHealth(rawUrl = '') {
             contentType: String(error && error.contentType ? error.contentType : '').trim(),
             elapsedMs: Date.now() - startedAt,
             attempts: Number(error && error.attempts || 1),
+            redirectSeen: error && error.redirectSeen === true,
             message: String(error && error.message ? error.message : 'Apps Script probe failed').trim()
         };
     }
@@ -699,6 +702,36 @@ module.exports = async function (req, res) {
                 });
             }
             return res.status(200).json(payload);
+        }
+
+        const historyMatch = pathname.match(/^\/api\/getlink-admin\/shares\/([^/]+)\/fix-history$/);
+        if (historyMatch && req.method === 'GET') {
+            const shareId = decodeURIComponent(historyMatch[1] || '');
+            if (!isValidShareId(shareId)) return res.status(400).json({ error: 'Invalid share id' });
+            const parsedUrl = new URL(req.url, 'http://localhost');
+            const sort = String(parsedUrl.searchParams.get('sort') || 'desc').toLowerCase() === 'asc' ? 'asc' : 'desc';
+            const history = await listSuccessfulFixHistory(shareId, sort);
+            return res.status(200).json({
+                success: true,
+                shareId,
+                ...history
+            });
+        }
+
+        const resetFixLimitMatch = pathname.match(/^\/api\/getlink-admin\/shares\/([^/]+)\/fix-limit-reset$/);
+        if (resetFixLimitMatch && req.method === 'POST') {
+            const shareId = decodeURIComponent(resetFixLimitMatch[1] || '');
+            if (!isValidShareId(shareId)) return res.status(400).json({ error: 'Invalid share id' });
+            const record = await readShareById(shareId);
+            if (!record) return res.status(404).json({ error: 'Share link not found' });
+            const reset = await resetFixLimit(shareId, adminUser.email);
+            const limit = await getFixLimitState(shareId);
+            return res.status(200).json({
+                success: true,
+                shareId,
+                reset,
+                limit
+            });
         }
 
         if (pathname === '/api/getlink-admin/search' && req.method === 'POST') {

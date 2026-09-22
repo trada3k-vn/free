@@ -17,7 +17,12 @@ const {
     advanceGetlinkOperation,
     shapeOperationPayload
 } = require('./_getlink-operation-store');
-const { isSheetAccessEnabled } = require('./_getlink-warning-config-store');
+const {
+    isSheetAccessEnabled,
+    readWarningConfig,
+    isFixModeEnabled
+} = require('./_getlink-warning-config-store');
+const { normalizeFixMode, recordSuccessfulFix, assertFixLimitAllowed } = require('./_getlink-fix-history-store');
 
 function setCors(res) {
     res.setHeader('Access-Control-Allow-Credentials', true);
@@ -217,7 +222,17 @@ module.exports = async function (req, res) {
                     return res.status(410).json({ error: 'Share link has expired' });
                 }
 
+                const fixStartedAt = new Date().toISOString();
+                await assertFixLimitAllowed(shareId);
                 const rotated = await rotateShareCookies(shareId, 'guest-overload-fix');
+                await recordSuccessfulFix({
+                    shareId,
+                    fixMode: 'overload',
+                    operationId: `legacy-${Date.now()}`,
+                    startedAt: fixStartedAt,
+                    completedAt: new Date().toISOString(),
+                    actor: 'guest'
+                });
                 return res.status(200).json({
                     success: true,
                     id: rotated.id,
@@ -232,6 +247,12 @@ module.exports = async function (req, res) {
             if (overloadFixMatch) {
                 const shareId = decodeURIComponent(overloadFixMatch[1] || '');
                 if (!isValidShareId(shareId)) return res.status(400).json({ error: 'Invalid share id' });
+                const body = parseBody(req.body);
+                const fixMode = normalizeFixMode(body && body.fixMode);
+                const warningConfig = await readWarningConfig();
+                if (!isFixModeEnabled(warningConfig, fixMode)) {
+                    return res.status(403).json({ error: 'Tính năng sửa lỗi này đang được tắt trong admin.' });
+                }
 
                 const record = await readShareById(shareId);
                 if (!record) return res.status(404).json({ error: 'Share link not found' });
@@ -242,6 +263,7 @@ module.exports = async function (req, res) {
                     return res.status(410).json({ error: 'Share link has expired' });
                 }
 
+                await assertFixLimitAllowed(shareId);
                 const health = await checkShareCookiesHealth(record);
                 if (health.liveCount <= 0) {
                     return res.status(422).json({
@@ -252,7 +274,16 @@ module.exports = async function (req, res) {
                 }
 
                 if (health.liveCount >= 2) {
+                    const fixStartedAt = new Date().toISOString();
                     const rotated = await rotateShareCookies(shareId, 'guest-overload-fix-direct');
+                    await recordSuccessfulFix({
+                        shareId,
+                        fixMode,
+                        operationId: `direct-${Date.now()}`,
+                        startedAt: fixStartedAt,
+                        completedAt: new Date().toISOString(),
+                        actor: 'guest'
+                    });
                     return res.status(200).json({
                         success: true,
                         status: 'completed',
@@ -287,7 +318,7 @@ module.exports = async function (req, res) {
                 }
 
                 const refillSlots = health.liveCount === 1 ? deadSlots.slice(0, 1) : deadSlots;
-                const operation = await createOverloadFixOperation(shareId, refillSlots, health.liveCount);
+                const operation = await createOverloadFixOperation(shareId, refillSlots, health.liveCount, fixMode);
                 const advanced = await advanceGetlinkOperation(operation);
                 const payload = shapeOperationPayload(advanced);
                 if (advanced.status === 'failed') {
@@ -332,6 +363,9 @@ module.exports = async function (req, res) {
 
         return res.status(404).json({ error: 'Not found' });
     } catch (error) {
-        return res.status(error.httpStatus || 500).json({ error: error.message || 'Internal server error' });
+        const payload = { error: error.message || 'Internal server error' };
+        if (error.code) payload.code = error.code;
+        if (error.limit) payload.limit = error.limit;
+        return res.status(error.httpStatus || 500).json(payload);
     }
 };

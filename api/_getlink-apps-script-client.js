@@ -16,7 +16,7 @@ function buildAppsScriptInvalidResponseError(statusCode = 0, responseBody = '', 
     let message = 'Apps Script tra ve du lieu khong hop le.';
 
     if (statusCode === 404) {
-        message = 'Apps Script URL khong hop le hoac ban chua deploy dung Web App /exec.';
+        message = 'Apps Script tra ve HTTP 404 sau khi goi Web App. Da thu lai; neu van lap lai, hay kiem tra lai deploy Web App /exec.';
     } else if (statusCode === 401 || statusCode === 403) {
         message = 'Apps Script bi chan quyen. Hay deploy Web App voi quyen truy cap phu hop.';
     } else if (isHtml) {
@@ -27,6 +27,7 @@ function buildAppsScriptInvalidResponseError(statusCode = 0, responseBody = '', 
     error.httpStatus = 502;
     error.statusCode = statusCode;
     error.contentType = contentType;
+    error.isAppsScriptHttpResponse = true;
     return error;
 }
 
@@ -66,7 +67,7 @@ function resolveAppsScriptUrlOrThrow(rawUrl = '') {
 
 function isNonRetryableResponseError(error = null) {
     const statusCode = Number(error && (error.statusCode || error.httpStatus) || 0);
-    if ([401, 403, 404].includes(statusCode)) return true;
+    if ([401, 403].includes(statusCode)) return true;
 
     const message = String(error && error.message ? error.message : '').trim().toLowerCase();
     return [
@@ -81,6 +82,7 @@ function isRetryableAppsScriptError(error = null) {
     if (isNonRetryableResponseError(error)) return false;
 
     const statusCode = Number(error && error.statusCode || 0);
+    if (statusCode === 404) return true;
     if (statusCode >= 400 && statusCode < 500) return false;
     return true;
 }
@@ -97,6 +99,7 @@ function getRetryDelayMs(attemptNumber = 1) {
 function getJsonFromAbsoluteUrl(rawUrl, options = {}) {
     const redirectCount = Math.max(0, Number(options.redirectCount || 0) || 0);
     const timeoutMs = Math.max(1, Number(options.timeoutMs || DEFAULT_TIMEOUT_MS) || DEFAULT_TIMEOUT_MS);
+    const redirectSeen = options.redirectSeen === true;
 
     return new Promise((resolve, reject) => {
         let parsedUrl;
@@ -124,6 +127,7 @@ function getJsonFromAbsoluteUrl(rawUrl, options = {}) {
                     error.httpStatus = 502;
                     error.statusCode = statusCode;
                     error.contentType = contentType;
+                    error.redirectSeen = true;
                     reject(error);
                     return;
                 }
@@ -132,7 +136,8 @@ function getJsonFromAbsoluteUrl(rawUrl, options = {}) {
                 res.resume();
                 getJsonFromAbsoluteUrl(nextUrl, {
                     redirectCount: redirectCount + 1,
-                    timeoutMs
+                    timeoutMs,
+                    redirectSeen: true
                 }).then(resolve).catch(reject);
                 return;
             }
@@ -147,14 +152,20 @@ function getJsonFromAbsoluteUrl(rawUrl, options = {}) {
                     } catch (invalidError) {
                         invalidError.statusCode = statusCode;
                         invalidError.contentType = contentType;
+                        invalidError.redirectSeen = redirectSeen;
                         reject(invalidError);
                         return;
                     }
 
-                    const error = new Error(String(parsed && parsed.error ? parsed.error : 'Apps Script request failed.').trim() || 'Apps Script request failed.');
+                    const errorMessage = statusCode === 404
+                        ? 'Apps Script tra ve HTTP 404 sau khi goi Web App. Da thu lai; neu van lap lai, hay kiem tra lai deploy Web App /exec.'
+                        : String(parsed && parsed.error ? parsed.error : 'Apps Script request failed.').trim() || 'Apps Script request failed.';
+                    const error = new Error(errorMessage);
                     error.httpStatus = 502;
                     error.statusCode = statusCode;
                     error.contentType = contentType;
+                    error.isAppsScriptHttpResponse = true;
+                    error.redirectSeen = redirectSeen;
                     reject(error);
                     return;
                 }
@@ -165,6 +176,7 @@ function getJsonFromAbsoluteUrl(rawUrl, options = {}) {
                 } catch (invalidError) {
                     invalidError.statusCode = statusCode;
                     invalidError.contentType = contentType;
+                    invalidError.redirectSeen = redirectSeen;
                     reject(invalidError);
                     return;
                 }
@@ -172,7 +184,8 @@ function getJsonFromAbsoluteUrl(rawUrl, options = {}) {
                 resolve({
                     data: parsed,
                     statusCode,
-                    contentType
+                    contentType,
+                    redirectSeen
                 });
             });
         });
@@ -188,6 +201,7 @@ function getJsonFromAbsoluteUrl(rawUrl, options = {}) {
             const normalized = new Error(`Khong ket noi duoc Apps Script: ${message}`);
             normalized.httpStatus = /timeout/i.test(message) ? 504 : 502;
             normalized.statusCode = Number(error && error.statusCode || 0);
+            normalized.redirectSeen = redirectSeen;
             reject(normalized);
         });
         req.end();
@@ -220,6 +234,8 @@ async function requestAppsScriptJsonWithRetry(rawUrl, options = {}) {
                 error.httpStatus = 502;
                 error.statusCode = response.statusCode;
                 error.contentType = response.contentType;
+                error.isAppsScriptHttpResponse = true;
+                error.redirectSeen = response.redirectSeen === true;
                 throw error;
             }
 
@@ -227,7 +243,10 @@ async function requestAppsScriptJsonWithRetry(rawUrl, options = {}) {
                 logger('[getlink apps script] request succeeded after retry', {
                     action,
                     attempt,
-                    maxAttempts: MAX_ATTEMPTS
+                    maxAttempts: MAX_ATTEMPTS,
+                    statusCode: response.statusCode,
+                    redirectSeen: response.redirectSeen === true,
+                    retrying: false
                 });
             }
 
@@ -235,6 +254,7 @@ async function requestAppsScriptJsonWithRetry(rawUrl, options = {}) {
                 data,
                 statusCode: response.statusCode,
                 contentType: response.contentType,
+                redirectSeen: response.redirectSeen === true,
                 attempts: attempt
             };
         } catch (rawError) {
@@ -248,6 +268,7 @@ async function requestAppsScriptJsonWithRetry(rawUrl, options = {}) {
                 attempt,
                 maxAttempts: MAX_ATTEMPTS,
                 statusCode: Number(error.statusCode || 0),
+                redirectSeen: error.redirectSeen === true,
                 retrying: shouldRetry
             });
 

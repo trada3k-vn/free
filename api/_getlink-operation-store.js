@@ -15,6 +15,7 @@ const {
     normalizeSheetSlots
 } = require('./_getlink-sheet-cookie-import');
 const { isSheetAccessEnabled } = require('./_getlink-warning-config-store');
+const { normalizeFixMode, recordSuccessfulFix } = require('./_getlink-fix-history-store');
 
 const FIREBASE_PROJECT_ID = 'trada3k-c402a';
 const FIREBASE_API_KEY = 'AIzaSyAVV-3HxGFpT_eiAri1SGPWGwu3EL8On58';
@@ -257,9 +258,11 @@ function normalizeOverloadFixState(input = {}, slotsFallback = []) {
     const source = input && typeof input === 'object' ? input : {};
     return {
         ...baseState,
+        fixMode: normalizeFixMode(source.fixMode),
         liveCountPrecheck: Math.max(0, Number(source.liveCountPrecheck || 0) || 0),
         shareUpdated: source.shareUpdated === true,
         rotated: source.rotated === true,
+        historyRecorded: source.historyRecorded === true,
         finalCookieStr: String(source.finalCookieStr || '').trim(),
         finalShare: buildOperationShareSnapshot(source.finalShare)
     };
@@ -342,12 +345,13 @@ async function createAutoFixOperation(shareId = '') {
     });
 }
 
-async function createOverloadFixOperation(shareId = '', slots = [], liveCountPrecheck = 0) {
+async function createOverloadFixOperation(shareId = '', slots = [], liveCountPrecheck = 0, fixMode = 'overload') {
     const state = normalizeOverloadFixState({
         ...createSheetImportState(slots, {
             seenCookies: await getExistingShareCookiesById(shareId)
         }),
-        liveCountPrecheck
+        liveCountPrecheck,
+        fixMode
     }, normalizeSheetSlots(slots));
     return createGetlinkOperation({
         type: 'overload_fix',
@@ -448,6 +452,18 @@ async function advanceGetlinkOperation(operationInput = {}) {
                 nextState.phase = 'completed';
                 nextState.message = `Da bo sung ${requiredCount} cookie moi va sua loi qua tai thanh cong.`;
                 nextResult = buildSheetImportResult(nextState);
+            }
+
+            if (nextResult.status === 'completed' && nextState.rotated === true && nextState.historyRecorded !== true) {
+                await recordSuccessfulFix({
+                    shareId: operation.shareId,
+                    fixMode: nextState.fixMode,
+                    operationId: operation.id,
+                    startedAt: operation.createdAt,
+                    completedAt: new Date().toISOString(),
+                    actor: 'guest'
+                });
+                nextState.historyRecorded = true;
             }
         }
 

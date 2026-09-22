@@ -8,6 +8,8 @@ const DEFAULT_WARNING_CONFIG = {
     message: 'Hiện tại gói xài chung này đang lỗi và rất thiếu ổn định, hãy cân nhắc nhắn vào page để chuyển đổi sang loại xài riêng mới (Ô riên,g mã pin riêng...) nhé!',
     submessage: 'Chỉ chênh 9K so với giá cũ'
 };
+DEFAULT_WARNING_CONFIG.overloadFixEnabled = true;
+DEFAULT_WARNING_CONFIG.householdFixEnabled = true;
 DEFAULT_WARNING_CONFIG.sheetAppsScriptUrl = '';
 
 function httpRequest(options, body) {
@@ -79,6 +81,18 @@ function normalizeSheetAccessEnabled(input = {}, fallback = DEFAULT_SHEET_ACCESS
     return fallback !== false;
 }
 
+function normalizeBooleanSetting(input = {}, key = '', fallback = true) {
+    if (!input || !Object.prototype.hasOwnProperty.call(input, key)) return fallback !== false;
+    const value = input[key];
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase();
+        if (['false', '0', 'off'].includes(normalized)) return false;
+        if (['true', '1', 'on'].includes(normalized)) return true;
+    }
+    return value !== false;
+}
+
 function normalizeWarningConfig(input = {}, options = {}) {
     const source = input && typeof input === 'object' ? input : {};
     const allowPartialFallback = !(options && options.allowPartialFallback === false);
@@ -86,15 +100,19 @@ function normalizeWarningConfig(input = {}, options = {}) {
     const submessage = sanitizeWarningText(source.submessage);
     const sheetAccessEnabled = normalizeSheetAccessEnabled(source);
     const sheetAppsScriptUrl = sanitizeSheetAppsScriptUrl(source.sheetAppsScriptUrl);
+    const overloadFixEnabled = normalizeBooleanSetting(source, 'overloadFixEnabled', true);
+    const householdFixEnabled = normalizeBooleanSetting(source, 'householdFixEnabled', true);
     if (!message && !submessage && allowPartialFallback) {
-        return { ...DEFAULT_WARNING_CONFIG, sheetAccessEnabled, sheetAppsScriptUrl };
+        return { ...DEFAULT_WARNING_CONFIG, sheetAccessEnabled, sheetAppsScriptUrl, overloadFixEnabled, householdFixEnabled };
     }
     return {
         message,
         submessage,
         content: sanitizeContentObject(source.content),
         sheetAccessEnabled,
-        sheetAppsScriptUrl
+        sheetAppsScriptUrl,
+        overloadFixEnabled,
+        householdFixEnabled
     };
 }
 
@@ -107,12 +125,16 @@ function validateWarningConfigInput(input = {}) {
     const sheetAccessEnabled = normalizeSheetAccessEnabled(source);
     const hasSheetAppsScriptUrl = Object.prototype.hasOwnProperty.call(source, 'sheetAppsScriptUrl');
     const sheetAppsScriptUrl = sanitizeSheetAppsScriptUrl(source.sheetAppsScriptUrl);
-    if (!message && !submessage && Object.keys(content).length === 0 && !hasSheetAccessFlag && !hasSheetAppsScriptUrl) {
+    const overloadFixEnabled = normalizeBooleanSetting(source, 'overloadFixEnabled', true);
+    const householdFixEnabled = normalizeBooleanSetting(source, 'householdFixEnabled', true);
+    const hasFixFlags = Object.prototype.hasOwnProperty.call(source, 'overloadFixEnabled')
+        || Object.prototype.hasOwnProperty.call(source, 'householdFixEnabled');
+    if (!message && !submessage && Object.keys(content).length === 0 && !hasSheetAccessFlag && !hasSheetAppsScriptUrl && !hasFixFlags) {
         const error = new Error('Noi dung popup khong duoc de trong hoan toan.');
         error.httpStatus = 400;
         throw error;
     }
-    return { message, submessage, content, sheetAccessEnabled, sheetAppsScriptUrl };
+    return { message, submessage, content, sheetAccessEnabled, sheetAppsScriptUrl, overloadFixEnabled, householdFixEnabled };
 }
 
 function mapWarningConfigFieldsToRecord(fields = {}) {
@@ -130,7 +152,9 @@ function mapWarningConfigFieldsToRecord(fields = {}) {
         submessage: parseFirestoreString(fields.submessage),
         content,
         sheetAccessEnabled: parseFirestoreBoolean(fields.sheetAccessEnabled),
-        sheetAppsScriptUrl: parseFirestoreString(fields.sheetAppsScriptUrl)
+        sheetAppsScriptUrl: parseFirestoreString(fields.sheetAppsScriptUrl),
+        overloadFixEnabled: parseFirestoreBoolean(fields.overloadFixEnabled, true),
+        householdFixEnabled: parseFirestoreBoolean(fields.householdFixEnabled, true)
     });
 }
 
@@ -141,7 +165,9 @@ function mapWarningConfigRecordToFields(record = {}) {
         submessage: toStringValue(normalized.submessage),
         contentJson: toStringValue(JSON.stringify(normalized.content || {})),
         sheetAccessEnabled: toBooleanValue(normalized.sheetAccessEnabled),
-        sheetAppsScriptUrl: toStringValue(normalized.sheetAppsScriptUrl)
+        sheetAppsScriptUrl: toStringValue(normalized.sheetAppsScriptUrl),
+        overloadFixEnabled: toBooleanValue(normalized.overloadFixEnabled),
+        householdFixEnabled: toBooleanValue(normalized.householdFixEnabled)
     };
 }
 
@@ -208,6 +234,12 @@ async function readSheetAppsScriptUrl() {
     return sanitizeSheetAppsScriptUrl(config && config.sheetAppsScriptUrl);
 }
 
+function isFixModeEnabled(config = {}, mode = 'overload') {
+    return mode === 'household'
+        ? config.householdFixEnabled !== false
+        : config.overloadFixEnabled !== false;
+}
+
 module.exports = {
     DEFAULT_WARNING_CONFIG,
     normalizeWarningConfig,
@@ -215,5 +247,6 @@ module.exports = {
     saveWarningConfig,
     isSheetAccessEnabled,
     readSheetAppsScriptUrl,
-    sanitizeSheetAppsScriptUrl
+    sanitizeSheetAppsScriptUrl,
+    isFixModeEnabled
 };

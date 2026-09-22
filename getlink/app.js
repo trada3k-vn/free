@@ -135,6 +135,9 @@ let adminTabManuallySelected = false;
 let runtimeCookie = '';
 let runtimeShareDesktopOnly = false;
 let currentAdminShare = null;
+let currentFixHistory = null;
+let fixHistoryExpanded = false;
+let fixHistorySort = 'desc';
 let createdAdminShare = null;
 let pendingShareIdFromUrl = '';
 let autoLoadedAdminShareId = '';
@@ -173,7 +176,9 @@ let warningBannerConfig = {
     message: DEFAULT_GETLINK_WARNING_MESSAGE,
     submessage: DEFAULT_GETLINK_WARNING_SUBMESSAGE,
     sheetAccessEnabled: DEFAULT_SHEET_ACCESS_ENABLED,
-    sheetAppsScriptUrl: ''
+    sheetAppsScriptUrl: '',
+    overloadFixEnabled: true,
+    householdFixEnabled: true
 };
 let warningBannerConfigLoaded = false;
 const activeGetlinkOperationTimers = new Map();
@@ -585,13 +590,17 @@ function normalizeWarningBannerConfig(input = {}, options = {}) {
         ? !['false', '0', 'off'].includes(rawSheetAccessEnabled.trim().toLowerCase())
         : rawSheetAccessEnabled !== false;
     const sheetAppsScriptUrl = String(source.sheetAppsScriptUrl || '').trim();
+    const overloadFixEnabled = source.overloadFixEnabled !== false;
+    const householdFixEnabled = source.householdFixEnabled !== false;
     if (!message && !submessage && !allowBlank) {
         return {
             message: DEFAULT_GETLINK_WARNING_MESSAGE,
             submessage: DEFAULT_GETLINK_WARNING_SUBMESSAGE,
             content: mergeContentDefaults(DEFAULT_GETLINK_CONTENT, source.content),
             sheetAccessEnabled,
-            sheetAppsScriptUrl
+            sheetAppsScriptUrl,
+            overloadFixEnabled,
+            householdFixEnabled
         };
     }
     return {
@@ -599,12 +608,19 @@ function normalizeWarningBannerConfig(input = {}, options = {}) {
         submessage,
         content: mergeContentDefaults(DEFAULT_GETLINK_CONTENT, source.content),
         sheetAccessEnabled,
-        sheetAppsScriptUrl
+        sheetAppsScriptUrl,
+        overloadFixEnabled,
+        householdFixEnabled
     };
 }
 
 function isSheetAccessEnabled() {
     return normalizeWarningBannerConfig(warningBannerConfig).sheetAccessEnabled !== false;
+}
+
+function isFixModeEnabled(mode = 'overload') {
+    const config = normalizeWarningBannerConfig(warningBannerConfig);
+    return mode === 'household' ? config.householdFixEnabled !== false : config.overloadFixEnabled !== false;
 }
 
 function setSheetAccessImportControlsEnabled(enabled) {
@@ -749,6 +765,14 @@ function populateAdminWarningConfigInputs(config = null) {
     if (sheetAppsScriptUrlInput && document.activeElement !== sheetAppsScriptUrlInput) {
         sheetAppsScriptUrlInput.value = normalized.sheetAppsScriptUrl || '';
     }
+    const overloadFixEnabledInput = el('adminOverloadFixEnabledInput');
+    const householdFixEnabledInput = el('adminHouseholdFixEnabledInput');
+    if (overloadFixEnabledInput && document.activeElement !== overloadFixEnabledInput) {
+        overloadFixEnabledInput.checked = normalized.overloadFixEnabled !== false;
+    }
+    if (householdFixEnabledInput && document.activeElement !== householdFixEnabledInput) {
+        householdFixEnabledInput.checked = normalized.householdFixEnabled !== false;
+    }
     setInputValue('adminDisclaimerEyebrowInput', content.disclaimer.eyebrow);
     setInputValue('adminDisclaimerTitleInput', content.disclaimer.title);
     setInputValue('adminDisclaimerLeadInput', content.disclaimer.lead);
@@ -812,6 +836,8 @@ function getAdminWarningConfigInputValues() {
         submessage: submessageInput ? submessageInput.value : '',
         sheetAccessEnabled: el('adminSheetAccessEnabledInput')?.checked !== false,
         sheetAppsScriptUrl: el('adminSheetAppsScriptUrlInput')?.value || '',
+        overloadFixEnabled: el('adminOverloadFixEnabledInput')?.checked !== false,
+        householdFixEnabled: el('adminHouseholdFixEnabledInput')?.checked !== false,
         content: {
             disclaimer: {
                 eyebrow: el('adminDisclaimerEyebrowInput')?.value || '',
@@ -2622,12 +2648,14 @@ function updateOverloadFixVisibility() {
     const householdButton = el('householdFixBtn');
     const visible = shouldShowOverloadFix();
     if (button) {
-        button.classList.toggle('hidden', !visible);
-        button.disabled = !visible || overloadFixBusy;
+        const enabled = visible && isFixModeEnabled('overload');
+        button.classList.toggle('hidden', !enabled);
+        button.disabled = !enabled || overloadFixBusy;
     }
     if (householdButton) {
-        householdButton.classList.toggle('hidden', !visible);
-        householdButton.disabled = !visible || overloadFixBusy;
+        const enabled = visible && isFixModeEnabled('household');
+        householdButton.classList.toggle('hidden', !enabled);
+        householdButton.disabled = !enabled || overloadFixBusy;
     }
 }
 
@@ -2987,6 +3015,23 @@ function syncAdminImmediateModals() {
 function normalizeOverloadFixErrorMessage(error) {
     const rawMessage = String(error && error.message ? error.message : '').trim();
     const config = getFixModeConfig(activeFixMode);
+    const responseData = error && error.responseData && typeof error.responseData === 'object' ? error.responseData : {};
+    const limit = responseData && responseData.limit && typeof responseData.limit === 'object' ? responseData.limit : null;
+    const code = String((responseData && responseData.code) || (error && error.code) || '').trim();
+    if (Number(error && error.httpStatus ? error.httpStatus : 0) === 429) {
+        if (code === 'FIX_LIMIT_REACHED' || (limit && limit.limited === true)) {
+            const max24h = limit ? Math.max(1, Number(limit.max24h || 4) || 4) : 4;
+            return `Link này đã dùng hết ${max24h} lần sửa lỗi thành công trong 24h, vui lòng liên hệ hỗ trợ.`;
+        }
+        const cooldownUntilMs = limit ? (Date.parse(String(limit.cooldownUntil || '').trim()) || 0) : 0;
+        if (code === 'FIX_COOLDOWN' || cooldownUntilMs > Date.now()) {
+            const minutes = cooldownUntilMs > Date.now()
+                ? Math.max(1, Math.ceil((cooldownUntilMs - Date.now()) / 60000))
+                : 5;
+            return `Link này vừa sửa lỗi thành công, vui lòng thử lại sau ${minutes} phút.`;
+        }
+        return rawMessage || config.fallbackError;
+    }
     if (!rawMessage) return config.fallbackError;
 
     const normalized = rawMessage.toLowerCase();
@@ -3436,12 +3481,14 @@ async function rotateOverloadShareCookie() {
         setLookupState('Chỉ dùng được tính năng này khi mở bằng link share hợp lệ.', 'warning');
         return;
     }
-    if (!isSheetAccessEnabled()) {
+    if (!isSheetAccessEnabled() || !isFixModeEnabled(activeFixMode)) {
         closeOverloadFixModal(true);
         openSupportModal({
             eyebrow: 'Thông báo / Hỗ trợ',
             title: 'Sửa lỗi tự động đang tắt',
-            message: 'Truy cập Google Sheet đang được tắt trong admin. Vui lòng nhắn fanpage để được hỗ trợ.',
+            message: !isSheetAccessEnabled()
+                ? 'Truy cập Google Sheet đang được tắt trong admin. Vui lòng nhắn fanpage để được hỗ trợ.'
+                : 'Tính năng sửa lỗi này đang được tắt trong admin. Vui lòng nhắn fanpage để được hỗ trợ.',
             showBh247: true,
             closable: false,
             showAutoFix: false,
@@ -3462,7 +3509,9 @@ async function rotateOverloadShareCookie() {
     startOverloadFixLoading(Date.now());
 
     try {
-        let data = await apiRequest(`/api/getlink-shares/${encodeURIComponent(shareId)}/overload-fix`, 'POST');
+        let data = await apiRequest(`/api/getlink-shares/${encodeURIComponent(shareId)}/overload-fix`, 'POST', {
+            fixMode: activeFixMode
+        });
         const operationKey = 'overload-fix';
         let operationMeta = null;
 
@@ -3883,8 +3932,152 @@ function renderAdminWorkspace() {
     updateOverloadFixVisibility();
 }
 
+function formatFixHistoryDateTime(value = '') {
+    const ms = parseDateMs(value);
+    if (!ms) return 'Không rõ thời gian';
+    return new Intl.DateTimeFormat('vi-VN', {
+        timeZone: 'Asia/Ho_Chi_Minh',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    }).format(new Date(ms));
+}
+
+function setFixHistoryState(text, mode = 'idle') {
+    const node = el('adminFixHistoryState');
+    if (!node) return;
+    node.textContent = String(text || '').trim();
+    setStateClass(node, mode);
+}
+
+function formatFixLimitText(limit = null) {
+    const source = limit && typeof limit === 'object' ? limit : {};
+    const count24h = Math.max(0, Number(source.count24h || 0) || 0);
+    const max24h = Math.max(1, Number(source.max24h || 4) || 4);
+    const remaining = Math.max(0, Number(source.remaining || (max24h - count24h)) || 0);
+    const parts = [`Limit 24h: ${count24h}/${max24h}`, `Còn ${remaining} lượt`];
+    const cooldownUntilMs = Date.parse(String(source.cooldownUntil || '').trim()) || 0;
+    if (cooldownUntilMs > Date.now()) {
+        const minutes = Math.max(1, Math.ceil((cooldownUntilMs - Date.now()) / 60000));
+        parts.push(`Chờ ${minutes} phút`);
+    }
+    if (source.limited === true) parts.push('Đã chạm limit');
+    return parts.join(' • ');
+}
+
+function renderFixHistory(history = null) {
+    const summary = el('adminFixHistorySummary');
+    const list = el('adminFixHistoryList');
+    const content = el('adminFixHistoryContent');
+    const toggle = el('adminFixHistoryToggleBtn');
+    const resetBtn = el('adminFixLimitResetBtn');
+    currentFixHistory = history;
+
+    if (!currentAdminShare || !adminAuthenticated) {
+        if (summary) summary.textContent = 'Chưa tải lịch sử.';
+        if (list) list.innerHTML = '';
+        if (content) content.classList.add('hidden');
+        if (toggle) toggle.textContent = 'Xem lịch sử';
+        if (resetBtn) resetBtn.classList.add('hidden');
+        return;
+    }
+
+    const counts = history && history.counts ? history.counts : { overload: 0, household: 0, total: 0 };
+    const limit = history && history.limit ? history.limit : null;
+    if (summary) {
+        const historyText = `Quá tải: ${Number(counts.overload || 0)} lần thành công • Hộ gia đình: ${Number(counts.household || 0)} lần thành công`;
+        summary.textContent = limit ? `${historyText} • ${formatFixLimitText(limit)}` : historyText;
+    }
+    if (content) content.classList.toggle('hidden', !fixHistoryExpanded);
+    if (toggle) toggle.textContent = fixHistoryExpanded ? 'Thu gọn' : 'Xem lịch sử';
+    if (resetBtn) {
+        resetBtn.classList.toggle('hidden', !(limit && limit.limited === true));
+        resetBtn.title = limit && limit.limited === true ? 'Reset limit sửa lỗi cho link này' : '';
+    }
+    if (!list || !fixHistoryExpanded) return;
+
+    const items = Array.isArray(history && history.items) ? history.items : [];
+    if (items.length === 0) {
+        list.innerHTML = '<p class="admin-warning">Link này chưa có lần sửa lỗi thành công nào.</p>';
+        return;
+    }
+
+    list.innerHTML = items.map((item) => {
+        const mode = String(item && item.fixMode || '').trim() === 'household'
+            ? 'Sửa lỗi hộ gia đình'
+            : 'Sửa lỗi quá tải';
+        const timestamp = item && (item.completedAt || item.startedAt);
+        return `
+            <div class="admin-fix-history-row">
+                <div>
+                    <strong>${escapeHtml(mode)}</strong>
+                    <span>Hoàn tất: ${escapeHtml(formatFixHistoryDateTime(timestamp))}</span>
+                </div>
+                <span>Thành công</span>
+            </div>
+        `;
+    }).join('');
+}
+
+async function loadFixHistory(options = {}) {
+    if (!adminAuthenticated || !currentAdminShare || !currentAdminShare.id) return;
+    const sort = options.sort === 'asc' || options.sort === 'desc' ? options.sort : fixHistorySort;
+    fixHistorySort = sort;
+    const select = el('adminFixHistorySortSelect');
+    if (select) select.value = sort;
+    setFixHistoryState('Đang tải lịch sử sửa lỗi...', 'loading');
+    try {
+        const data = await apiRequest(
+            `/api/getlink-admin/shares/${encodeURIComponent(currentAdminShare.id)}/fix-history?sort=${encodeURIComponent(sort)}`,
+            'GET'
+        );
+        renderFixHistory(data || { items: [], counts: { overload: 0, household: 0, total: 0 }, limit: null });
+        setFixHistoryState(
+            Array.isArray(data && data.items) && data.items.length > 0
+                ? `Đã tải ${data.items.length} lần sửa lỗi thành công.`
+                : 'Chưa có lịch sử sửa lỗi thành công.',
+            'success'
+        );
+    } catch (error) {
+        setFixHistoryState(error.message || 'Không tải được lịch sử sửa lỗi.', 'error');
+        renderFixHistory({ items: [], counts: { overload: 0, household: 0, total: 0 } });
+    }
+}
+
+async function toggleFixHistory() {
+    if (!currentAdminShare || !adminAuthenticated) return;
+    fixHistoryExpanded = !fixHistoryExpanded;
+    renderFixHistory(currentFixHistory);
+    if (fixHistoryExpanded) await loadFixHistory();
+}
+
+async function adminResetFixLimit() {
+    if (!currentAdminShare || !currentAdminShare.id || !adminAuthenticated) return;
+    const btn = el('adminFixLimitResetBtn');
+    setButtonBusy(btn, true, 'Đang reset...');
+    try {
+        await apiRequest(`/api/getlink-admin/shares/${encodeURIComponent(currentAdminShare.id)}/fix-limit-reset`, 'POST');
+        setFixHistoryState('Đã reset limit sửa lỗi cho link này.', 'success');
+        await loadFixHistory({ sort: fixHistorySort });
+    } catch (error) {
+        setFixHistoryState(error.message || 'Không reset được limit sửa lỗi.', 'error');
+    } finally {
+        setButtonBusy(btn, false);
+    }
+}
+
 function renderAdminShare(share = null) {
+    const previousShareId = currentAdminShare && currentAdminShare.id ? String(currentAdminShare.id) : '';
+    const nextShareId = share && share.id ? String(share.id) : '';
     currentAdminShare = share;
+    if (previousShareId !== nextShareId) {
+        currentFixHistory = null;
+        fixHistoryExpanded = false;
+    }
     const card = el('adminShareResult');
     const summaryBox = el('currentShareSummaryBox');
     if (!card) return;
@@ -3893,6 +4086,9 @@ function renderAdminShare(share = null) {
         card.classList.add('hidden');
         if (summaryBox) summaryBox.classList.add('hidden');
         isInlineEditMode = false;
+        fixHistoryExpanded = false;
+        currentFixHistory = null;
+        renderFixHistory(null);
         setShareCookieViewOutputs({ primary: '', backup1: '', backup2: '' });
         setShareNoteInput('currentShareNoteInput', '');
         setShareNoteInput('adminShareNoteInput', '');
@@ -3928,9 +4124,11 @@ function renderAdminShare(share = null) {
     setShareCookieViewOutputs(shareCookies);
     resetShareCookieSlotStates();
     renderCurrentShareSummary(share);
+    renderFixHistory(currentFixHistory);
     setInlineEditMode(isInlineEditMode && isViewingPendingShare());
 
     card.classList.remove('hidden');
+    if (adminAuthenticated) loadFixHistory({ sort: fixHistorySort });
 }
 
 async function adminSaveExpiry(payload = null, options = {}) {
@@ -4655,6 +4853,22 @@ function bindEvents() {
 
     const adminReloadWarningConfigBtn = el('adminReloadWarningConfigBtn');
     if (adminReloadWarningConfigBtn) adminReloadWarningConfigBtn.addEventListener('click', () => loadWarningBannerConfig({ silent: false }));
+
+    const adminFixHistoryToggleBtn = el('adminFixHistoryToggleBtn');
+    if (adminFixHistoryToggleBtn) adminFixHistoryToggleBtn.addEventListener('click', toggleFixHistory);
+
+    const adminFixHistoryReloadBtn = el('adminFixHistoryReloadBtn');
+    if (adminFixHistoryReloadBtn) adminFixHistoryReloadBtn.addEventListener('click', () => loadFixHistory());
+
+    const adminFixLimitResetBtn = el('adminFixLimitResetBtn');
+    if (adminFixLimitResetBtn) adminFixLimitResetBtn.addEventListener('click', adminResetFixLimit);
+
+    const adminFixHistorySortSelect = el('adminFixHistorySortSelect');
+    if (adminFixHistorySortSelect) {
+        adminFixHistorySortSelect.addEventListener('change', () => loadFixHistory({
+            sort: adminFixHistorySortSelect.value
+        }));
+    }
 
     const adminTestSheetConfigBtn = el('adminTestSheetConfigBtn');
     if (adminTestSheetConfigBtn) adminTestSheetConfigBtn.addEventListener('click', adminTestSheetConfig);

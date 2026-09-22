@@ -29,6 +29,14 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    match /settings/getlink_fix_history/items/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /settings/getlink_fix_limits/items/{docId} {
+      allow read, write: if isAdmin();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

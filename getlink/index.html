@@ -509,6 +509,82 @@
             color: #facc15;
         }
 
+        .admin-fix-history-box {
+            margin-top: 0.7rem;
+            padding: 0.72rem;
+            background: rgba(15, 23, 42, 0.28);
+        }
+
+        .admin-fix-history-head,
+        .admin-fix-history-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+        }
+
+        .admin-fix-history-head {
+            justify-content: space-between;
+        }
+
+        .admin-fix-history-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .admin-fix-history-toolbar {
+            margin-top: 0.65rem;
+        }
+
+        .admin-fix-history-toolbar label {
+            font-size: 0.78rem;
+            color: #dce8ff;
+            font-weight: 700;
+        }
+
+        .admin-fix-history-toolbar .text-input {
+            width: auto;
+            min-width: 9.5rem;
+        }
+
+        .admin-fix-history-list {
+            display: grid;
+            gap: 0.45rem;
+            margin-top: 0.65rem;
+            max-height: 18rem;
+            overflow-y: auto;
+        }
+
+        .admin-fix-history-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 0.65rem;
+            align-items: center;
+            padding: 0.6rem 0.7rem;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 10px;
+            background: rgba(15, 23, 42, 0.38);
+        }
+
+        .admin-fix-history-row strong {
+            display: block;
+            color: #f8fbff;
+            font-size: 0.8rem;
+        }
+
+        .admin-fix-history-row span {
+            color: #c8d5ee;
+            font-size: 0.75rem;
+        }
+
+        @media (max-width: 560px) {
+            .admin-fix-history-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
         .admin-settings-box {
             margin-top: 0.9rem;
         }
@@ -1686,13 +1762,37 @@
                                     </div>
                                     <div id="currentSheetImportState" class="state-text state-idle hidden sheet-import-state"></div>
                                 </div>
-                                <div class="share-summary-actions">
-                                    <button id="editCurrentShareBtn" class="btn btn-primary" type="button">Sửa</button>
-                                    <button id="viewCheckAllShareCookiesBtn" class="btn btn-ghost" type="button">Check toàn bộ</button>
-                                    <button id="saveCurrentShareBtn" class="btn btn-primary hidden" type="button">Lưu</button>
-                                    <button id="cancelCurrentShareEditBtn" class="btn btn-ghost hidden" type="button">Hủy</button>
-                                </div>
-                            </div>
+                                 <div class="share-summary-actions">
+                                     <button id="editCurrentShareBtn" class="btn btn-primary" type="button">Sửa</button>
+                                     <button id="viewCheckAllShareCookiesBtn" class="btn btn-ghost" type="button">Check toàn bộ</button>
+                                     <button id="saveCurrentShareBtn" class="btn btn-primary hidden" type="button">Lưu</button>
+                                     <button id="cancelCurrentShareEditBtn" class="btn btn-ghost hidden" type="button">Hủy</button>
+                                 </div>
+                                 <div class="share-box admin-fix-history-box">
+                                     <div class="admin-fix-history-head">
+                                         <div>
+                                             <h4 class="share-box-title">Lịch sử sửa lỗi của link</h4>
+                                             <p id="adminFixHistorySummary" class="admin-warning">Chưa tải lịch sử.</p>
+                                         </div>
+                                         <div class="admin-fix-history-actions">
+                                             <button id="adminFixLimitResetBtn" class="btn btn-primary hidden" type="button">Reset limit</button>
+                                             <button id="adminFixHistoryToggleBtn" class="btn btn-ghost" type="button">Xem lịch sử</button>
+                                         </div>
+                                     </div>
+                                     <div id="adminFixHistoryContent" class="hidden">
+                                         <div class="admin-fix-history-toolbar">
+                                             <label for="adminFixHistorySortSelect">Sắp xếp</label>
+                                             <select id="adminFixHistorySortSelect" class="text-input">
+                                                 <option value="desc">Mới đến cũ</option>
+                                                 <option value="asc">Cũ đến mới</option>
+                                             </select>
+                                             <button id="adminFixHistoryReloadBtn" class="btn btn-ghost" type="button">Tải lại</button>
+                                         </div>
+                                         <div id="adminFixHistoryState" class="state-text state-idle">Bấm Xem lịch sử để tải dữ liệu.</div>
+                                         <div id="adminFixHistoryList" class="admin-fix-history-list"></div>
+                                     </div>
+                                 </div>
+                             </div>
                         </section>
                     </div>
 
@@ -2083,6 +2183,29 @@
                                 <button id="adminTestSheetConfigBtn" class="btn btn-ghost" type="button">Test Sheet</button>
                                 <div id="adminSheetConfigState" class="state-text state-idle"></div>
                             </div>
+                        </div>
+                        <div class="admin-settings-section">
+                            <p class="admin-settings-section-title">Nut sua loi</p>
+                            <label class="admin-toggle-field" for="adminOverloadFixEnabledInput">
+                                <span class="admin-toggle-copy">
+                                    <span class="admin-toggle-title">Hien nut sua loi qua tai</span>
+                                    <span class="admin-toggle-hint">Tat cong tac nay se an nut sua loi qua tai tren trang khach.</span>
+                                </span>
+                                <span class="admin-toggle-switch">
+                                    <input id="adminOverloadFixEnabledInput" type="checkbox" checked>
+                                    <span class="admin-toggle-slider"></span>
+                                </span>
+                            </label>
+                            <label class="admin-toggle-field" for="adminHouseholdFixEnabledInput">
+                                <span class="admin-toggle-copy">
+                                    <span class="admin-toggle-title">Hien nut sua loi ho gia dinh</span>
+                                    <span class="admin-toggle-hint">Tat cong tac nay se an nut sua loi ho gia dinh tren trang khach.</span>
+                                </span>
+                                <span class="admin-toggle-switch">
+                                    <input id="adminHouseholdFixEnabledInput" type="checkbox" checked>
+                                    <span class="admin-toggle-slider"></span>
+                                </span>
+                            </label>
                         </div>
                         <div class="admin-settings-section">
                             <p class="admin-settings-section-title">Banner canh bao co dinh</p>
