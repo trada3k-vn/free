@@ -455,15 +455,23 @@ async function advanceGetlinkOperation(operationInput = {}) {
             }
 
             if (nextResult.status === 'completed' && nextState.rotated === true && nextState.historyRecorded !== true) {
-                await recordSuccessfulFix({
-                    shareId: operation.shareId,
-                    fixMode: nextState.fixMode,
-                    operationId: operation.id,
-                    startedAt: operation.createdAt,
-                    completedAt: new Date().toISOString(),
-                    actor: 'guest'
-                });
-                nextState.historyRecorded = true;
+                operation.state = nextState;
+                operation.phase = nextState.phase || nextResult.phase || '';
+                operation.message = nextState.message || nextResult.message || '';
+                operation.status = 'completed';
+                try {
+                    await recordSuccessfulFix({
+                        shareId: operation.shareId,
+                        fixMode: nextState.fixMode,
+                        operationId: operation.id,
+                        startedAt: operation.createdAt,
+                        completedAt: new Date().toISOString(),
+                        actor: 'guest'
+                    });
+                    nextState.historyRecorded = true;
+                } catch (_historyError) {
+                    nextState.historyRecorded = false;
+                }
             }
         }
 
@@ -472,8 +480,36 @@ async function advanceGetlinkOperation(operationInput = {}) {
         operation.message = nextState.message || nextResult.message || '';
         operation.lastError = '';
         operation.status = nextResult.status === 'completed' ? 'completed' : 'pending';
-        return saveGetlinkOperation(operation);
+        try {
+            return await saveGetlinkOperation(operation);
+        } catch (error) {
+            const successState = operation.type === 'overload_fix'
+                ? normalizeOverloadFixState(operation.state, normalizeSheetSlots(operation.state && operation.state.targetSlots))
+                : null;
+            if (successState && successState.rotated === true && successState.finalCookieStr) {
+                return {
+                    ...operation,
+                    status: 'completed',
+                    phase: successState.phase || operation.phase || 'completed',
+                    message: successState.message || operation.message || 'Da sua loi qua tai thanh cong.',
+                    lastError: ''
+                };
+            }
+            throw error;
+        }
     } catch (error) {
+        const successState = operation && operation.type === 'overload_fix'
+            ? normalizeOverloadFixState(operation.state, normalizeSheetSlots(operation.state && operation.state.targetSlots))
+            : null;
+        if (successState && successState.rotated === true && successState.finalCookieStr) {
+            return {
+                ...operation,
+                status: 'completed',
+                phase: successState.phase || operation.phase || 'completed',
+                message: successState.message || operation.message || 'Da sua loi qua tai thanh cong.',
+                lastError: ''
+            };
+        }
         operation.status = 'failed';
         operation.phase = operation.phase || 'failed';
         operation.message = String(error && error.message ? error.message : 'Getlink operation failed').trim() || 'Getlink operation failed';

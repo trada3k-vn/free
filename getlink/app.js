@@ -3078,6 +3078,17 @@ function applyOverloadFixSuccess(data = {}) {
     openOverloadFixSuccessModal();
 }
 
+function getOverloadFixSuccessPayload(source = {}) {
+    const data = source && typeof source === 'object' ? source : {};
+    const nextCookie = normalizeCookie(data.cookieStr || '');
+    if (!nextCookie) return null;
+    return {
+        ...data,
+        status: 'completed',
+        cookieStr: nextCookie
+    };
+}
+
 function formatAutoFixTimings(timings = null) {
     const source = timings && typeof timings === 'object' ? timings : null;
     if (!source) return '';
@@ -3250,12 +3261,11 @@ async function autoFixShareCookies() {
         if (!Number.isFinite(assignedCount) || assignedCount < 1) {
             throw new Error(getAutoFixFailureMessage());
         }
-        const timingText = formatAutoFixTimings(data && data.timings);
-        setLookupState('Sửa lỗi tự động thành công. Hệ thống đã cập nhật 1 cookie chính hợp lệ cho link này.', 'success');
+        setLookupState('Đã sửa lỗi thành công. Vui lòng tải lại trang để tiếp tục.', 'success');
         openSupportModal({
-            eyebrow: 'Sửa lỗi thành công',
-            title: 'Sửa lỗi tự động thành công',
-            message: `Đã sửa lỗi thành công và cập nhật 1 cookie chính hợp lệ.${timingText ? `\n${timingText}` : ''} Bấm Đóng để tải lại trang và tiếp tục sử dụng.`,
+            eyebrow: 'Đã sửa lỗi',
+            title: 'Sửa lỗi thành công',
+            message: 'Tài khoản đã được làm mới. Bấm Đóng để tải lại trang rồi chọn thiết bị và tạo link lại.',
             showBh247: false,
             closable: true,
             showAutoFix: false,
@@ -3414,12 +3424,11 @@ async function resumePendingAutoFixOperation() {
         if (!Number.isFinite(assignedCount) || assignedCount < 1) {
             throw new Error(getAutoFixFailureMessage());
         }
-        const timingText = formatAutoFixTimings(snapshot && snapshot.timings);
-        setLookupState('Sửa lỗi tự động thành công. Hệ thống đã cập nhật 1 cookie chính hợp lệ cho link này.', 'success');
+        setLookupState('Đã sửa lỗi thành công. Vui lòng tải lại trang để tiếp tục.', 'success');
         openSupportModal({
-            eyebrow: 'Sửa lỗi thành công',
-            title: 'Sửa lỗi tự động thành công',
-            message: `Đã sửa lỗi thành công và cập nhật 1 cookie chính hợp lệ.${timingText ? `\n${timingText}` : ''} Bấm Đóng để tải lại trang và tiếp tục sử dụng.`,
+            eyebrow: 'Đã sửa lỗi',
+            title: 'Sửa lỗi thành công',
+            message: 'Tài khoản đã được làm mới. Bấm Đóng để tải lại trang rồi chọn thiết bị và tạo link lại.',
             showBh247: false,
             closable: true,
             showAutoFix: false,
@@ -3541,12 +3550,18 @@ async function rotateOverloadShareCookie() {
             clearActiveGetlinkOperationTimer(operationKey);
         }
 
-        if (String(data && data.status || '').trim() !== 'completed') {
+        const successPayload = getOverloadFixSuccessPayload(data);
+        if (String(data && data.status || '').trim() !== 'completed' && !successPayload) {
             throw new Error(config.fallbackError);
         }
 
-        applyOverloadFixSuccess(data);
+        applyOverloadFixSuccess(successPayload || data);
     } catch (error) {
+        const successPayload = getOverloadFixSuccessPayload(error && error.responseData ? error.responseData : null);
+        if (successPayload) {
+            applyOverloadFixSuccess(successPayload);
+            return;
+        }
         clearActiveGetlinkOperationTimer('overload-fix');
         stopOverloadFixLoading();
         const message = normalizeOverloadFixErrorMessage(error);

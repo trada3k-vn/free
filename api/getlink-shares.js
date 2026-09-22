@@ -276,14 +276,18 @@ module.exports = async function (req, res) {
                 if (health.liveCount >= 2) {
                     const fixStartedAt = new Date().toISOString();
                     const rotated = await rotateShareCookies(shareId, 'guest-overload-fix-direct');
-                    await recordSuccessfulFix({
-                        shareId,
-                        fixMode,
-                        operationId: `direct-${Date.now()}`,
-                        startedAt: fixStartedAt,
-                        completedAt: new Date().toISOString(),
-                        actor: 'guest'
-                    });
+                    try {
+                        await recordSuccessfulFix({
+                            shareId,
+                            fixMode,
+                            operationId: `direct-${Date.now()}`,
+                            startedAt: fixStartedAt,
+                            completedAt: new Date().toISOString(),
+                            actor: 'guest'
+                        });
+                    } catch (_historyError) {
+                        // Cookie rotation is the user-facing fix; history is best-effort.
+                    }
                     return res.status(200).json({
                         success: true,
                         status: 'completed',
