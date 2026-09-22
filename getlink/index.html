@@ -641,6 +641,27 @@
             color: #ffffff;
         }
 
+        .admin-settings-collapsible {
+            border: 1px solid rgba(148, 163, 184, 0.24);
+            border-radius: 12px;
+            padding: 0.72rem;
+            background: rgba(15, 23, 42, 0.18);
+        }
+
+        .admin-settings-collapsible-title {
+            cursor: pointer;
+            color: #ffffff;
+            font-size: 0.86rem;
+            font-weight: 800;
+            list-style-position: inside;
+        }
+
+        .admin-settings-collapsible-body {
+            display: grid;
+            gap: 0.65rem;
+            margin-top: 0.7rem;
+        }
+
         .admin-toggle-field {
             display: flex;
             gap: 0.75rem;
@@ -2206,7 +2227,30 @@
                                     <span class="admin-toggle-slider"></span>
                                 </span>
                             </label>
+                            <label class="admin-toggle-field" for="adminOverloadFixLimitEnabledInput">
+                                <span class="admin-toggle-copy">
+                                    <span class="admin-toggle-title">Bật giới hạn 4 lần / 24 giờ</span>
+                                    <span class="admin-toggle-hint">Giới hạn số lần sửa lỗi quá tải thành công cho từng link.</span>
+                                </span>
+                                <span class="admin-toggle-switch">
+                                    <input id="adminOverloadFixLimitEnabledInput" type="checkbox" checked>
+                                    <span class="admin-toggle-slider"></span>
+                                </span>
+                            </label>
+                            <label class="admin-toggle-field" for="adminOverloadFixCooldownEnabledInput">
+                                <span class="admin-toggle-copy">
+                                    <span class="admin-toggle-title">Bật cooldown 5 phút</span>
+                                    <span class="admin-toggle-hint">Sau mỗi lần thành công, link phải chờ 5 phút mới được sửa tiếp.</span>
+                                </span>
+                                <span class="admin-toggle-switch">
+                                    <input id="adminOverloadFixCooldownEnabledInput" type="checkbox" checked>
+                                    <span class="admin-toggle-slider"></span>
+                                </span>
+                            </label>
                         </div>
+                        <details class="admin-settings-collapsible">
+                            <summary class="admin-settings-collapsible-title">Nội dung thông báo và hướng dẫn</summary>
+                            <div class="admin-settings-collapsible-body">
                         <div class="admin-settings-section">
                             <p class="admin-settings-section-title">Banner canh bao co dinh</p>
                             <label class="admin-settings-field" for="adminWarningMessageInput">
@@ -2298,6 +2342,8 @@
                             <label class="admin-settings-field" for="adminSupportAutoFixInput"><span class="admin-settings-label">Nut sua loi tu dong</span><input id="adminSupportAutoFixInput" class="text-input" type="text"></label>
                             <label class="admin-settings-field" for="adminSupportWarrantyInput"><span class="admin-settings-label">Nut can ho tro ngoai trang</span><input id="adminSupportWarrantyInput" class="text-input" type="text"></label>
                         </div>
+                            </div>
+                        </details>
                         <div class="admin-settings-actions">
                             <button id="adminSaveWarningConfigBtn" class="btn btn-primary" type="button">Luu noi dung</button>
                             <button id="adminReloadWarningConfigBtn" class="btn btn-ghost" type="button">Tai lai noi dung</button>

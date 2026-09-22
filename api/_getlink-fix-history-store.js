@@ -227,12 +227,14 @@ async function getFixLimitState(shareId = '', options = {}) {
     }
 
     const reset = await readFixLimitReset(normalizedShareId);
+    const limitEnabled = options.limitEnabled !== false;
+    const cooldownEnabled = options.cooldownEnabled !== false;
     const resetMs = parseIsoMillis(reset.resetAt);
     const windowStartMs = Math.max(nowMs - FIX_LIMIT_WINDOW_MS, resetMs || 0);
     const docs = await listDocs();
     const successes = docs
         .map((doc) => mapFieldsToRecord(doc && doc.fields ? doc.fields : {}))
-        .filter((item) => item.shareId === normalizedShareId && item.status === 'success')
+        .filter((item) => item.shareId === normalizedShareId && item.status === 'success' && item.fixMode === 'overload')
         .map((item) => ({
             ...item,
             completedMs: parseIsoMillis(item.completedAt || item.startedAt)
@@ -241,22 +243,24 @@ async function getFixLimitState(shareId = '', options = {}) {
         .sort((a, b) => b.completedMs - a.completedMs);
 
     const lastSuccessMs = successes.length > 0 ? successes[0].completedMs : 0;
-    const cooldownUntilMs = lastSuccessMs > 0 ? lastSuccessMs + FIX_LIMIT_COOLDOWN_MS : 0;
+    const cooldownUntilMs = cooldownEnabled && lastSuccessMs > 0 ? lastSuccessMs + FIX_LIMIT_COOLDOWN_MS : 0;
     const count24h = successes.length;
-    const limited = count24h >= FIX_LIMIT_MAX_24H;
+    const limited = limitEnabled && count24h >= FIX_LIMIT_MAX_24H;
     return {
         count24h,
         max24h: FIX_LIMIT_MAX_24H,
         remaining: Math.max(0, FIX_LIMIT_MAX_24H - count24h),
         limited,
+        limitEnabled,
+        cooldownEnabled,
         cooldownUntil: cooldownUntilMs > nowMs ? new Date(cooldownUntilMs).toISOString() : '',
         resetAt: reset.resetAt || '',
         windowStartedAt: new Date(windowStartMs).toISOString()
     };
 }
 
-async function assertFixLimitAllowed(shareId = '') {
-    const limit = await getFixLimitState(shareId);
+async function assertFixLimitAllowed(shareId = '', options = {}) {
+    const limit = await getFixLimitState(shareId, options);
     if (limit.limited) {
         const error = new Error(`Link này đã dùng hết ${limit.max24h} lần sửa lỗi thành công trong 24h, vui lòng liên hệ hỗ trợ.`);
         error.httpStatus = 429;

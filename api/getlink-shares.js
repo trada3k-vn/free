@@ -223,7 +223,11 @@ module.exports = async function (req, res) {
                 }
 
                 const fixStartedAt = new Date().toISOString();
-                await assertFixLimitAllowed(shareId);
+                const warningConfig = await readWarningConfig();
+                await assertFixLimitAllowed(shareId, {
+                    limitEnabled: warningConfig.overloadFixLimitEnabled !== false,
+                    cooldownEnabled: warningConfig.overloadFixCooldownEnabled !== false
+                });
                 const rotated = await rotateShareCookies(shareId, 'guest-overload-fix');
                 await recordSuccessfulFix({
                     shareId,
@@ -263,7 +267,12 @@ module.exports = async function (req, res) {
                     return res.status(410).json({ error: 'Share link has expired' });
                 }
 
-                await assertFixLimitAllowed(shareId);
+                if (fixMode === 'overload') {
+                    await assertFixLimitAllowed(shareId, {
+                        limitEnabled: warningConfig.overloadFixLimitEnabled !== false,
+                        cooldownEnabled: warningConfig.overloadFixCooldownEnabled !== false
+                    });
+                }
                 const health = await checkShareCookiesHealth(record);
                 if (health.liveCount <= 0) {
                     return res.status(422).json({

@@ -14,8 +14,8 @@ const {
     buildSheetImportResult,
     normalizeSheetSlots
 } = require('./_getlink-sheet-cookie-import');
-const { isSheetAccessEnabled } = require('./_getlink-warning-config-store');
-const { normalizeFixMode, recordSuccessfulFix } = require('./_getlink-fix-history-store');
+const { isSheetAccessEnabled, readWarningConfig } = require('./_getlink-warning-config-store');
+const { normalizeFixMode, recordSuccessfulFix, assertFixLimitAllowed } = require('./_getlink-fix-history-store');
 
 const FIREBASE_PROJECT_ID = 'trada3k-c402a';
 const FIREBASE_API_KEY = 'AIzaSyAVV-3HxGFpT_eiAri1SGPWGwu3EL8On58';
@@ -429,6 +429,14 @@ async function advanceGetlinkOperation(operationInput = {}) {
                     operation.lastError = operation.message;
                     operation.state = nextState;
                     return saveGetlinkOperation(operation);
+                }
+
+                if (nextState.fixMode === 'overload') {
+                    const warningConfig = await readWarningConfig();
+                    await assertFixLimitAllowed(operation.shareId, {
+                        limitEnabled: warningConfig.overloadFixLimitEnabled !== false,
+                        cooldownEnabled: warningConfig.overloadFixCooldownEnabled !== false
+                    });
                 }
 
                 operation.phase = 'updating_share';

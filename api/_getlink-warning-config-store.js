@@ -10,6 +10,8 @@ const DEFAULT_WARNING_CONFIG = {
 };
 DEFAULT_WARNING_CONFIG.overloadFixEnabled = true;
 DEFAULT_WARNING_CONFIG.householdFixEnabled = true;
+DEFAULT_WARNING_CONFIG.overloadFixLimitEnabled = true;
+DEFAULT_WARNING_CONFIG.overloadFixCooldownEnabled = true;
 DEFAULT_WARNING_CONFIG.sheetAppsScriptUrl = '';
 
 function httpRequest(options, body) {
@@ -102,8 +104,18 @@ function normalizeWarningConfig(input = {}, options = {}) {
     const sheetAppsScriptUrl = sanitizeSheetAppsScriptUrl(source.sheetAppsScriptUrl);
     const overloadFixEnabled = normalizeBooleanSetting(source, 'overloadFixEnabled', true);
     const householdFixEnabled = normalizeBooleanSetting(source, 'householdFixEnabled', true);
+    const overloadFixLimitEnabled = normalizeBooleanSetting(source, 'overloadFixLimitEnabled', true);
+    const overloadFixCooldownEnabled = normalizeBooleanSetting(source, 'overloadFixCooldownEnabled', true);
     if (!message && !submessage && allowPartialFallback) {
-        return { ...DEFAULT_WARNING_CONFIG, sheetAccessEnabled, sheetAppsScriptUrl, overloadFixEnabled, householdFixEnabled };
+        return {
+            ...DEFAULT_WARNING_CONFIG,
+            sheetAccessEnabled,
+            sheetAppsScriptUrl,
+            overloadFixEnabled,
+            householdFixEnabled,
+            overloadFixLimitEnabled,
+            overloadFixCooldownEnabled
+        };
     }
     return {
         message,
@@ -112,7 +124,9 @@ function normalizeWarningConfig(input = {}, options = {}) {
         sheetAccessEnabled,
         sheetAppsScriptUrl,
         overloadFixEnabled,
-        householdFixEnabled
+        householdFixEnabled,
+        overloadFixLimitEnabled,
+        overloadFixCooldownEnabled
     };
 }
 
@@ -127,14 +141,28 @@ function validateWarningConfigInput(input = {}) {
     const sheetAppsScriptUrl = sanitizeSheetAppsScriptUrl(source.sheetAppsScriptUrl);
     const overloadFixEnabled = normalizeBooleanSetting(source, 'overloadFixEnabled', true);
     const householdFixEnabled = normalizeBooleanSetting(source, 'householdFixEnabled', true);
+    const overloadFixLimitEnabled = normalizeBooleanSetting(source, 'overloadFixLimitEnabled', true);
+    const overloadFixCooldownEnabled = normalizeBooleanSetting(source, 'overloadFixCooldownEnabled', true);
     const hasFixFlags = Object.prototype.hasOwnProperty.call(source, 'overloadFixEnabled')
-        || Object.prototype.hasOwnProperty.call(source, 'householdFixEnabled');
+        || Object.prototype.hasOwnProperty.call(source, 'householdFixEnabled')
+        || Object.prototype.hasOwnProperty.call(source, 'overloadFixLimitEnabled')
+        || Object.prototype.hasOwnProperty.call(source, 'overloadFixCooldownEnabled');
     if (!message && !submessage && Object.keys(content).length === 0 && !hasSheetAccessFlag && !hasSheetAppsScriptUrl && !hasFixFlags) {
         const error = new Error('Noi dung popup khong duoc de trong hoan toan.');
         error.httpStatus = 400;
         throw error;
     }
-    return { message, submessage, content, sheetAccessEnabled, sheetAppsScriptUrl, overloadFixEnabled, householdFixEnabled };
+    return {
+        message,
+        submessage,
+        content,
+        sheetAccessEnabled,
+        sheetAppsScriptUrl,
+        overloadFixEnabled,
+        householdFixEnabled,
+        overloadFixLimitEnabled,
+        overloadFixCooldownEnabled
+    };
 }
 
 function mapWarningConfigFieldsToRecord(fields = {}) {
@@ -154,7 +182,9 @@ function mapWarningConfigFieldsToRecord(fields = {}) {
         sheetAccessEnabled: parseFirestoreBoolean(fields.sheetAccessEnabled),
         sheetAppsScriptUrl: parseFirestoreString(fields.sheetAppsScriptUrl),
         overloadFixEnabled: parseFirestoreBoolean(fields.overloadFixEnabled, true),
-        householdFixEnabled: parseFirestoreBoolean(fields.householdFixEnabled, true)
+        householdFixEnabled: parseFirestoreBoolean(fields.householdFixEnabled, true),
+        overloadFixLimitEnabled: parseFirestoreBoolean(fields.overloadFixLimitEnabled, true),
+        overloadFixCooldownEnabled: parseFirestoreBoolean(fields.overloadFixCooldownEnabled, true)
     });
 }
 
@@ -167,7 +197,9 @@ function mapWarningConfigRecordToFields(record = {}) {
         sheetAccessEnabled: toBooleanValue(normalized.sheetAccessEnabled),
         sheetAppsScriptUrl: toStringValue(normalized.sheetAppsScriptUrl),
         overloadFixEnabled: toBooleanValue(normalized.overloadFixEnabled),
-        householdFixEnabled: toBooleanValue(normalized.householdFixEnabled)
+        householdFixEnabled: toBooleanValue(normalized.householdFixEnabled),
+        overloadFixLimitEnabled: toBooleanValue(normalized.overloadFixLimitEnabled),
+        overloadFixCooldownEnabled: toBooleanValue(normalized.overloadFixCooldownEnabled)
     };
 }
 

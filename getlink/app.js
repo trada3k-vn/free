@@ -592,6 +592,8 @@ function normalizeWarningBannerConfig(input = {}, options = {}) {
     const sheetAppsScriptUrl = String(source.sheetAppsScriptUrl || '').trim();
     const overloadFixEnabled = source.overloadFixEnabled !== false;
     const householdFixEnabled = source.householdFixEnabled !== false;
+    const overloadFixLimitEnabled = source.overloadFixLimitEnabled !== false;
+    const overloadFixCooldownEnabled = source.overloadFixCooldownEnabled !== false;
     if (!message && !submessage && !allowBlank) {
         return {
             message: DEFAULT_GETLINK_WARNING_MESSAGE,
@@ -600,7 +602,9 @@ function normalizeWarningBannerConfig(input = {}, options = {}) {
             sheetAccessEnabled,
             sheetAppsScriptUrl,
             overloadFixEnabled,
-            householdFixEnabled
+            householdFixEnabled,
+            overloadFixLimitEnabled,
+            overloadFixCooldownEnabled
         };
     }
     return {
@@ -610,7 +614,9 @@ function normalizeWarningBannerConfig(input = {}, options = {}) {
         sheetAccessEnabled,
         sheetAppsScriptUrl,
         overloadFixEnabled,
-        householdFixEnabled
+        householdFixEnabled,
+        overloadFixLimitEnabled,
+        overloadFixCooldownEnabled
     };
 }
 
@@ -767,11 +773,19 @@ function populateAdminWarningConfigInputs(config = null) {
     }
     const overloadFixEnabledInput = el('adminOverloadFixEnabledInput');
     const householdFixEnabledInput = el('adminHouseholdFixEnabledInput');
+    const overloadFixLimitEnabledInput = el('adminOverloadFixLimitEnabledInput');
+    const overloadFixCooldownEnabledInput = el('adminOverloadFixCooldownEnabledInput');
     if (overloadFixEnabledInput && document.activeElement !== overloadFixEnabledInput) {
         overloadFixEnabledInput.checked = normalized.overloadFixEnabled !== false;
     }
     if (householdFixEnabledInput && document.activeElement !== householdFixEnabledInput) {
         householdFixEnabledInput.checked = normalized.householdFixEnabled !== false;
+    }
+    if (overloadFixLimitEnabledInput && document.activeElement !== overloadFixLimitEnabledInput) {
+        overloadFixLimitEnabledInput.checked = normalized.overloadFixLimitEnabled !== false;
+    }
+    if (overloadFixCooldownEnabledInput && document.activeElement !== overloadFixCooldownEnabledInput) {
+        overloadFixCooldownEnabledInput.checked = normalized.overloadFixCooldownEnabled !== false;
     }
     setInputValue('adminDisclaimerEyebrowInput', content.disclaimer.eyebrow);
     setInputValue('adminDisclaimerTitleInput', content.disclaimer.title);
@@ -838,6 +852,8 @@ function getAdminWarningConfigInputValues() {
         sheetAppsScriptUrl: el('adminSheetAppsScriptUrlInput')?.value || '',
         overloadFixEnabled: el('adminOverloadFixEnabledInput')?.checked !== false,
         householdFixEnabled: el('adminHouseholdFixEnabledInput')?.checked !== false,
+        overloadFixLimitEnabled: el('adminOverloadFixLimitEnabledInput')?.checked !== false,
+        overloadFixCooldownEnabled: el('adminOverloadFixCooldownEnabledInput')?.checked !== false,
         content: {
             disclaimer: {
                 eyebrow: el('adminDisclaimerEyebrowInput')?.value || '',
