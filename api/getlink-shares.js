@@ -321,7 +321,7 @@ module.exports = async function (req, res) {
                     return res.status(403).json({ error: 'Truy cap Google Sheet dang duoc tat trong admin.' });
                 }
 
-                const refillSlots = health.liveCount === 1 ? deadSlots.slice(0, 1) : deadSlots;
+                const refillSlots = deadSlots;
                 const operation = await createOverloadFixOperation(shareId, refillSlots, health.liveCount, fixMode);
                 const advanced = await advanceGetlinkOperation(operation);
                 const payload = shapeOperationPayload(advanced);
