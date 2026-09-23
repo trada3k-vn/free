@@ -1,5 +1,5 @@
 // Deploy as a Web App riêng cho CapCut. Sheet columns: A=username, B=password,
-// C=date (23/9), D=time (1543), E=usage flag (0 or 1 are eligible).
+// C=date (23/9), D=time (13:00), E=usage flag (0 or 1 are eligible).
 const SPREADSHEET_ID='PUT_CAPCUT_SPREADSHEET_ID_HERE';
 const SHEET_NAME='Sheet1';
 const TIMEZONE='Asia/Ho_Chi_Minh';
@@ -23,9 +23,30 @@ function claim_(){
   }finally{lock.releaseLock()}
 }
 function parseDate_(dateValue,timeValue){
-  const now=new Date(),year=now.getFullYear();let day=0,month=0;
+  const now=new Date(),year=Number(Utilities.formatDate(now,TIMEZONE,'yyyy'));let day=0,month=0;
   const text=String(dateValue??'').trim();const m=text.match(/^(\d{1,2})\s*[\/-]\s*(\d{1,2})$/);
-  if(m){day=Number(m[1]);month=Number(m[2])-1}else if(dateValue instanceof Date&&!isNaN(dateValue)){day=dateValue.getDate();month=dateValue.getMonth()}
-  if(day<1||month<0||month>11)return null;const t=String(timeValue??'').replace(/\D/g,'');if(!/^\d{3,4}$/.test(t))return null;const padded=t.padStart(4,'0');const hour=Number(padded.slice(0,2)),minute=Number(padded.slice(2));if(hour>23||minute>59)return null;
-  const parsed=new Date(`${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}T${padded.slice(0,2)}:${padded.slice(2)}:00+07:00`);return isNaN(parsed)?null:parsed;
+  if(m){day=Number(m[1]);month=Number(m[2])-1}else if(dateValue instanceof Date&&!isNaN(dateValue)){day=Number(Utilities.formatDate(dateValue,TIMEZONE,'d'));month=Number(Utilities.formatDate(dateValue,TIMEZONE,'M'))-1}
+  if(day<1||month<0||month>11)return null;
+  const time=parseTime_(timeValue);if(!time)return null;
+  const parsed=new Date(`${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}T${String(time.hour).padStart(2,'0')}:${String(time.minute).padStart(2,'0')}:00+07:00`);return isNaN(parsed)?null:parsed;
+}
+function parseTime_(timeValue){
+  if(timeValue instanceof Date&&!isNaN(timeValue)){
+    const formatted=Utilities.formatDate(timeValue,TIMEZONE,'HH:mm');
+    return parseTimeString_(formatted);
+  }
+  if(typeof timeValue==='number'&&isFinite(timeValue)&&timeValue>=0&&timeValue<1){
+    const totalMinutes=Math.round(timeValue*24*60);if(totalMinutes>=24*60)return null;
+    return{hour:Math.floor(totalMinutes/60),minute:totalMinutes%60};
+  }
+  return parseTimeString_(String(timeValue??'').trim());
+}
+function parseTimeString_(value){
+  const text=String(value||'').trim();
+  let match=text.match(/^(\d{1,2})\s*:\s*(\d{2})$/);
+  if(match){const hour=Number(match[1]),minute=Number(match[2]);return hour<=23&&minute<=59?{hour,minute}:null;}
+  const digits=text.replace(/\D/g,'');
+  if(!/^\d{3,4}$/.test(digits))return null;
+  const padded=digits.padStart(4,'0'),hour=Number(padded.slice(0,2)),minute=Number(padded.slice(2));
+  return hour<=23&&minute<=59?{hour,minute}:null;
 }

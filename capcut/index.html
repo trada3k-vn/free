@@ -1,5 +1,41 @@
 <!doctype html>
-<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CapCut Account</title><link rel="stylesheet" href="/capcut/styles.css"></head><body>
-<main class="shell public-shell"><section class="public-hero"><div class="brand-mark">CC</div><div><div class="eyebrow">TRÀ ĐÁ 3K · CAPCUT</div><h1>Thông tin tài khoản</h1><p id="state" class="muted">Đang tải link...</p></div></section>
-<section id="accountCard" class="card hidden"><div class="status-line"><span class="info-label">Trạng thái tài khoản</span><span id="status" class="badge">Đang tải...</span></div><div class="credential-list"><div class="credential"><span class="info-label">Tài khoản</span><div class="copy-row"><input id="username" class="input" readonly><button data-copy="username" class="button button-secondary" type="button">Copy</button></div></div><div class="credential"><span class="info-label">Mật khẩu</span><div class="copy-row"><input id="password" class="input" readonly><button data-copy="password" class="button button-secondary" type="button">Copy</button></div></div></div><div id="warrantyProgress" class="progress-panel hidden" aria-live="polite"><div class="progress-head"><span id="warrantyProgressTitle">Đang kiểm tra tài khoản...</span><span class="spinner"></span></div><div class="progress-track"><div class="progress-bar"></div></div><p id="warrantyProgressDetail">Đang kết nối Google Sheet, vui lòng chờ.</p></div><button id="warrantyBtn" class="button button-primary button-large" type="button">BẢO HÀNH TỰ ĐỘNG</button><p id="actionState" class="notice-text"></p></section>
-<section id="emptyCard" class="card empty-card hidden"><div class="empty-icon">✓</div><h2 id="emptyTitle">Chưa có tài khoản</h2><p id="emptyMessage" class="muted">Vui lòng chờ admin cấp tài khoản cho link này.</p></section></main><div id="notice" class="modal hidden"><div class="modal-box"><button id="closeNotice" class="close" type="button" aria-label="Đóng">×</button><div class="modal-icon">!</div><h2>Lưu ý</h2><p id="noticeText"></p><button id="noticeOk" class="button button-primary" type="button">Đã hiểu</button></div></div><script src="/capcut/app.js" defer></script></body></html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CapCut Account</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/capcut/styles.css">
+</head>
+<body>
+  <main class="shell public-shell">
+    <header class="public-header">
+      <div class="eyebrow">TRÀ ĐÁ 3K · CAPCUT</div>
+      <h1>Thông tin tài khoản</h1>
+      <p id="state" class="muted">Đang tải link...</p>
+    </header>
+    <section id="accountCard" class="card hidden">
+      <div class="status-line"><span class="info-label">Trạng thái tài khoản</span><span id="status" class="badge">Đang tải...</span></div>
+      <div class="credential-list">
+        <div class="credential"><span class="info-label">Tài khoản</span><div class="copy-row"><input id="username" class="input" readonly><button data-copy="username" class="button button-secondary" type="button">Copy</button></div></div>
+        <div class="credential"><span class="info-label">Mật khẩu</span><div class="copy-row"><input id="password" class="input" readonly><button data-copy="password" class="button button-secondary" type="button">Copy</button></div></div>
+      </div>
+      <div id="warrantyProgress" class="progress-panel hidden" aria-live="polite"><div class="progress-head"><span id="warrantyProgressTitle">Đang kiểm tra tài khoản...</span><span class="spinner"></span></div><div class="progress-track"><div class="progress-bar"></div></div><p id="warrantyProgressDetail">Đang kết nối Google Sheet, vui lòng chờ.</p></div>
+      <div class="public-actions"><button id="warrantyBtn" class="button button-primary warranty-button" type="button">BẢO HÀNH TỰ ĐỘNG</button></div>
+      <p id="actionState" class="notice-text"></p>
+    </section>
+    <section id="emptyCard" class="card empty-card hidden"><div class="empty-icon">!</div><h2 id="emptyTitle">Chưa có tài khoản</h2><p id="emptyMessage" class="muted">Vui lòng chờ admin cấp tài khoản cho link này.</p><div id="claimProgress" class="progress-panel hidden" aria-live="polite"><div class="progress-head"><span id="claimProgressTitle">Đang lấy tài khoản...</span><span class="spinner"></span></div><div class="progress-track"><div class="progress-bar"></div></div><p id="claimProgressDetail">Đang kết nối Google Sheet, vui lòng chờ.</p></div><button id="claimBtn" class="button button-primary claim-button hidden" type="button">LẤY TÀI KHOẢN</button></section>
+    <section id="adminCard" class="card admin-public-card hidden">
+      <div class="section-heading"><div><h2>Khu vực quản trị</h2><p class="muted">Bạn đang đăng nhập bằng tài khoản admin.</p></div><span class="badge badge-muted">Admin</span></div>
+      <div class="admin-details-grid"><div><span class="info-label">Hạn link</span><strong id="adminLinkExpiry">—</strong></div><div><span class="info-label">Tạo link lúc</span><strong id="adminLinkCreated">—</strong></div><div><span class="info-label">Tạo tài khoản lúc</span><strong id="adminAccountCreated">—</strong></div><div><span class="info-label">Hạn tài khoản</span><strong id="adminAccountExpiry">—</strong></div><div><span class="info-label">Lần thao tác gần nhất</span><strong id="adminLastAction">—</strong></div></div>
+      <div id="adminProgress" class="progress-panel hidden" aria-live="polite"><div class="progress-head"><span id="adminProgressTitle">Đang kết nối Google Sheet...</span><span class="spinner"></span></div><div class="progress-track"><div class="progress-bar"></div></div><p id="adminProgressDetail">Đang lấy tài khoản, vui lòng chờ.</p></div>
+      <button id="adminAssignBtn" class="button button-secondary" type="button">NHẬP TÀI KHOẢN</button><p id="adminActionState" class="notice-text"></p>
+    </section>
+    <section class="card guide-card"><div class="section-heading"><div><h2>Hướng dẫn đăng nhập</h2><p class="muted">Thông tin do quản trị viên cập nhật.</p></div></div><div id="guideText" class="guide-text">Đang tải hướng dẫn...</div></section>
+  </main>
+  <div id="notice" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="noticeTitle"><div class="modal-box"><button id="closeNotice" class="close" type="button" aria-label="Đóng">×</button><div class="modal-icon">!</div><h2 id="noticeTitle">Lưu ý</h2><p id="noticeText"></p><button id="noticeOk" class="button button-primary" type="button">Đã hiểu</button></div></div>
+  <script src="/nf/firebase-runtime-config.js"></script><script type="module" src="/capcut/app.js"></script>
+</body>
+</html>

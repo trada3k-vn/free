@@ -79,7 +79,12 @@ function renderResult(link, subtitle = 'Link đã được tạo.') {
 async function loadConfig() {
   const data = await api('/api/capcut/config');
   $('#popup').value = data.config.popupMessage || '';
+  $('#guideMessage').value = data.config.guideMessage || '';
   $('#warrantyMessage').value = data.config.warrantyMessage || '';
+  $('#warrantySuccessMessage').value = data.config.warrantySuccessMessage || '';
+  $('#warrantyErrorMessage').value = data.config.warrantyErrorMessage || '';
+  $('#accountExpiredMessage').value = data.config.accountExpiredMessage || '';
+  $('#linkExpiredMessage').value = data.config.linkExpiredMessage || '';
   $('#sheetUrl').value = data.config.sheetAppsScriptUrl || '';
 }
 
@@ -167,7 +172,16 @@ async function saveConfig() {
   setBusy('#saveConfig', true, 'ĐANG LƯU...');
   setMessage('#configState');
   try {
-    await api('/api/capcut/config', { method: 'PUT', body: JSON.stringify({ popupMessage: $('#popup').value, warrantyMessage: $('#warrantyMessage').value, sheetAppsScriptUrl: $('#sheetUrl').value }) });
+    await api('/api/capcut/config', { method: 'PUT', body: JSON.stringify({
+      popupMessage: $('#popup').value,
+      guideMessage: $('#guideMessage').value,
+      warrantyMessage: $('#warrantyMessage').value,
+      warrantySuccessMessage: $('#warrantySuccessMessage').value,
+      warrantyErrorMessage: $('#warrantyErrorMessage').value,
+      accountExpiredMessage: $('#accountExpiredMessage').value,
+      linkExpiredMessage: $('#linkExpiredMessage').value,
+      sheetAppsScriptUrl: $('#sheetUrl').value
+    }) });
     setMessage('#configState', 'Đã lưu cài đặt.', 'success');
   } catch (error) {
     setMessage('#configState', error.message, 'error');

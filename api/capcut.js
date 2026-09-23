@@ -10,10 +10,15 @@ const CAPCUT_COLLECTION = 'settings/capcut_links/items';
 const CAPCUT_CONFIG_DOC = 'settings/capcut_config';
 const DEFAULT_POPUP = 'Lưu ý: Không chia sẻ tài khoản cho người khác. Nếu tài khoản gặp vấn đề, hãy bấm BẢO HÀNH TỰ ĐỘNG.';
 const DEFAULT_WARRANTY_MESSAGE = 'Tài khoản hiện tại vẫn còn hạn.';
+const DEFAULT_GUIDE = 'Hướng dẫn đăng nhập:\n1. Mở ứng dụng CapCut.\n2. Chọn Đăng nhập bằng tài khoản và mật khẩu.\n3. Nhập thông tin được cung cấp ở phía trên.';
+const DEFAULT_WARRANTY_SUCCESS = 'Đã bảo hành và cấp tài khoản mới thành công.';
+const DEFAULT_CLAIM_SUCCESS = 'Đã lấy tài khoản thành công.';
+const DEFAULT_WARRANTY_ERROR = 'Không thể cấp tài khoản lúc này. Vui lòng thử lại sau.';
+const DEFAULT_ACCOUNT_EXPIRED = 'Tài khoản đã hết hạn. Vui lòng bấm BẢO HÀNH TỰ ĐỘNG để nhận tài khoản mới.';
+const DEFAULT_LINK_EXPIRED = 'Link đã hết hạn. Vui lòng liên hệ admin để được cấp link mới.';
 const ACCOUNT_DAYS = 7;
 const MAX_ADD_DAYS = 3650;
-const RATE_LIMIT = 3;
-const RATE_WINDOW_MS = 60 * 60 * 1000;
+const WARRANTY_COOLDOWN_MS = 5 * 60 * 1000;
 const assignmentLocks = new Map();
 
 function httpRequest(options, body = '') {
@@ -117,8 +122,13 @@ async function readConfig() {
     const fields = doc && doc.fields ? doc.fields : {};
     return {
         popupMessage: parseString(fields.popupMessage) || DEFAULT_POPUP,
+        guideMessage: parseString(fields.guideMessage) || DEFAULT_GUIDE,
         sheetAppsScriptUrl: parseString(fields.sheetAppsScriptUrl),
-        warrantyMessage: parseString(fields.warrantyMessage) || DEFAULT_WARRANTY_MESSAGE
+        warrantyMessage: parseString(fields.warrantyMessage) || DEFAULT_WARRANTY_MESSAGE,
+        warrantySuccessMessage: parseString(fields.warrantySuccessMessage) || DEFAULT_WARRANTY_SUCCESS,
+        warrantyErrorMessage: parseString(fields.warrantyErrorMessage) || DEFAULT_WARRANTY_ERROR,
+        accountExpiredMessage: parseString(fields.accountExpiredMessage) || DEFAULT_ACCOUNT_EXPIRED,
+        linkExpiredMessage: parseString(fields.linkExpiredMessage) || DEFAULT_LINK_EXPIRED
     };
 }
 
@@ -126,13 +136,23 @@ async function saveConfig(input = {}) {
     const current = await readConfig();
     const next = {
         popupMessage: String(input.popupMessage ?? current.popupMessage).trim().slice(0, 3000) || DEFAULT_POPUP,
+        guideMessage: String(input.guideMessage ?? current.guideMessage).trim().slice(0, 5000) || DEFAULT_GUIDE,
         sheetAppsScriptUrl: String(input.sheetAppsScriptUrl ?? current.sheetAppsScriptUrl).trim(),
-        warrantyMessage: String(input.warrantyMessage ?? current.warrantyMessage).trim().slice(0, 500) || DEFAULT_WARRANTY_MESSAGE
+        warrantyMessage: String(input.warrantyMessage ?? current.warrantyMessage).trim().slice(0, 500) || DEFAULT_WARRANTY_MESSAGE,
+        warrantySuccessMessage: String(input.warrantySuccessMessage ?? current.warrantySuccessMessage).trim().slice(0, 500) || DEFAULT_WARRANTY_SUCCESS,
+        warrantyErrorMessage: String(input.warrantyErrorMessage ?? current.warrantyErrorMessage).trim().slice(0, 500) || DEFAULT_WARRANTY_ERROR,
+        accountExpiredMessage: String(input.accountExpiredMessage ?? current.accountExpiredMessage).trim().slice(0, 500) || DEFAULT_ACCOUNT_EXPIRED,
+        linkExpiredMessage: String(input.linkExpiredMessage ?? current.linkExpiredMessage).trim().slice(0, 500) || DEFAULT_LINK_EXPIRED
     };
     await firestoreDoc(CAPCUT_CONFIG_DOC, 'PATCH', {
         popupMessage: stringValue(next.popupMessage),
+        guideMessage: stringValue(next.guideMessage),
         sheetAppsScriptUrl: stringValue(next.sheetAppsScriptUrl),
-        warrantyMessage: stringValue(next.warrantyMessage)
+        warrantyMessage: stringValue(next.warrantyMessage),
+        warrantySuccessMessage: stringValue(next.warrantySuccessMessage),
+        warrantyErrorMessage: stringValue(next.warrantyErrorMessage),
+        accountExpiredMessage: stringValue(next.accountExpiredMessage),
+        linkExpiredMessage: stringValue(next.linkExpiredMessage)
     });
     return next;
 }
@@ -165,6 +185,7 @@ function publicDto(record, req, config) {
         password: record.password || '',
         accountAssigned: !!record.accountAssigned,
         accountExpired: !!record.accountAssigned && isExpired(record.accountExpiresAt),
+        guideMessage: config.guideMessage || DEFAULT_GUIDE,
         warrantyMessage: config.warrantyMessage || DEFAULT_WARRANTY_MESSAGE,
         popupMessage: config.popupMessage || DEFAULT_POPUP,
         shareUrl: `${origin(req)}/capcut/${encodeURIComponent(record.id)}`
@@ -174,6 +195,18 @@ function publicDto(record, req, config) {
 function adminDto(record, req) {
     return {
         ...publicDto(record, req, { popupMessage: record.popupMessage, warrantyMessage: DEFAULT_WARRANTY_MESSAGE }),
+        createdAt: record.createdAt,
+        expiresAt: record.expiresAt,
+        accountCreatedAt: record.accountCreatedAt,
+        accountExpiresAt: record.accountExpiresAt,
+        lastAction: record.lastAction,
+        lastActionAt: record.lastActionAt
+    };
+}
+
+function adminLinkDto(record, req, config) {
+    return {
+        ...publicDto(record, req, config),
         createdAt: record.createdAt,
         expiresAt: record.expiresAt,
         accountCreatedAt: record.accountCreatedAt,
@@ -326,6 +359,11 @@ module.exports = async function capcutHandler(req, res) {
             return res.status(200).json({ success: true, config: {
                 popupMessage: config.popupMessage,
                 warrantyMessage: config.warrantyMessage,
+                guideMessage: config.guideMessage,
+                warrantySuccessMessage: config.warrantySuccessMessage,
+                warrantyErrorMessage: config.warrantyErrorMessage,
+                accountExpiredMessage: config.accountExpiredMessage,
+                linkExpiredMessage: config.linkExpiredMessage,
                 ...(isAdmin ? { sheetAppsScriptUrl: config.sheetAppsScriptUrl } : {})
             } });
         }
@@ -339,22 +377,44 @@ module.exports = async function capcutHandler(req, res) {
         if (req.method === 'GET' && !action) {
             const record = await readLink(id);
             if (!record) return res.status(404).json({ error: 'Link CapCut không tồn tại.' });
-            if (record.status !== 'active' || isExpired(record.expiresAt)) return res.status(410).json({ error: 'Link CapCut đã hết hạn.' });
-            return res.status(200).json({ success: true, link: publicDto(record, req, await readConfig()) });
+            const config = await readConfig();
+            const admin = await isAdminRequest(req);
+            if (record.status !== 'active' || isExpired(record.expiresAt)) {
+                if (admin) return res.status(200).json({ success: true, link: adminLinkDto(record, req, config) });
+                return res.status(410).json({ error: 'Link CapCut đã hết hạn.' });
+            }
+            return res.status(200).json({ success: true, link: admin ? adminLinkDto(record, req, config) : publicDto(record, req, config) });
         }
         if (req.method === 'POST' && action === 'assign') {
             if (!await requireAdmin(req, res)) return;
             return res.status(200).json({ success: true, link: adminDto(await assign(req, id), req) });
         }
         if (req.method === 'POST' && action === 'warranty') {
-            const rate = checkRateLimit(`capcut-warranty:${id}:${req.headers && (req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || 'unknown')}`, RATE_LIMIT, RATE_WINDOW_MS);
-            if (!rate.allowed) return res.status(429).json({ error: 'Bạn đã thao tác quá nhiều lần. Vui lòng thử lại sau.' });
             const record = await readLink(id);
             if (!record) return res.status(404).json({ error: 'Link CapCut không tồn tại.' });
             if (record.status !== 'active' || isExpired(record.expiresAt)) return res.status(410).json({ error: 'Link CapCut đã hết hạn.' });
-            if (record.accountAssigned && !isExpired(record.accountExpiresAt)) return res.status(200).json({ success: true, replaced: false, message: (await readConfig()).warrantyMessage, link: publicDto(record, req, await readConfig()) });
+            const admin = await isAdminRequest(req);
+            if (!admin) {
+                const clientIp = req.headers && (req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || 'unknown');
+                const cooldown = checkRateLimit(`capcut-warranty:${id}:${clientIp}`, 1, WARRANTY_COOLDOWN_MS);
+                if (!cooldown.allowed) {
+                    const retryAfterMs = Math.max(0, Number(cooldown.retryAfterMs || WARRANTY_COOLDOWN_MS));
+                    if (typeof res.setHeader === 'function') res.setHeader('Retry-After', String(Math.ceil(retryAfterMs / 1000)));
+                    return res.status(429).json({ error: 'Vui lòng thử lại sau.', retryAfterMs });
+                }
+            }
+            const config = await readConfig();
+            const responseDto = (item) => admin ? adminLinkDto(item, req, config) : publicDto(item, req, config);
+            if (record.accountAssigned && !isExpired(record.accountExpiresAt)) return res.status(200).json({ success: true, replaced: false, message: config.warrantyMessage, link: responseDto(record) });
+            const firstAssignment = !record.accountAssigned;
             const next = await assign(req, id, 'warranty');
-            return res.status(200).json({ success: true, replaced: true, message: 'Đã bảo hành và cấp tài khoản mới.', link: publicDto(next, req, await readConfig()) });
+            return res.status(200).json({
+                success: true,
+                claimed: firstAssignment,
+                replaced: !firstAssignment,
+                message: firstAssignment ? DEFAULT_CLAIM_SUCCESS : config.warrantySuccessMessage,
+                link: responseDto(next)
+            });
         }
         return res.status(405).json({ error: 'Method not allowed' });
     } catch (error) {
