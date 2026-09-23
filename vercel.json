@@ -24,6 +24,14 @@
       "dest": "/data/index.html"
     },
     {
+      "src": "/capcut/admin/?$",
+      "dest": "/capcut/admin.html"
+    },
+    {
+      "src": "/capcut(?:/.*)?$",
+      "dest": "/capcut/index.html"
+    },
+    {
       "src": "/api/(.*)",
       "dest": "/api/index.js"
     },

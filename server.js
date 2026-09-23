@@ -16,6 +16,7 @@ const getlinkSharesHandler = require('./api/getlink-shares');
 const getlinkAdminHandler = require('./api/getlink-admin');
 const stuProxyHandler = require('./api/stu-proxy');
 const dataHandler = require('./api/data');
+const capcutHandler = require('./api/capcut');
 
 const PORT = 3005;
 const DATA_DIR = path.join(__dirname, 'data');
@@ -172,6 +173,9 @@ const server = http.createServer((req, res) => {
     if (requestPath.startsWith('/api/data-admin') || requestPath.startsWith('/api/data/')) {
         return invokeServerlessApi(dataHandler, req, res);
     }
+    if (requestPath === '/api/capcut' || requestPath.startsWith('/api/capcut/')) {
+        return invokeServerlessApi(capcutHandler, req, res);
+    }
     if (
         requestPath === '/api/queue/join'
         || requestPath === '/api/queue/heartbeat'
@@ -230,6 +234,11 @@ const server = http.createServer((req, res) => {
     if (!relativePath) relativePath = 'index.html';
     if (relativePath === 'nf') relativePath = path.join('nf', 'index.html');
     if (relativePath === 'banggia') relativePath = path.join('banggia', 'index.html');
+    if (relativePath === 'capcut' || relativePath === 'capcut/' || (relativePath.startsWith('capcut/') && !path.extname(relativePath))) {
+        relativePath = relativePath === 'capcut/admin' || relativePath === 'capcut/admin/'
+            ? path.join('capcut', 'admin.html')
+            : path.join('capcut', 'index.html');
+    }
 
     let filePath = path.join(__dirname, relativePath);
     if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {

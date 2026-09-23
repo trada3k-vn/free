@@ -1,0 +1,12 @@
+import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js';import{getAuth,signInWithEmailAndPassword,onAuthStateChanged,signOut}from'https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js';
+const $=s=>document.querySelector(s);let auth,token='',current=null;
+async function api(url,opt={}){opt.headers={...(opt.headers||{}),Authorization:`Bearer ${token}`,'Content-Type':'application/json'};const r=await fetch(url,opt);const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.error||'Request thất bại');return d}
+function msg(id,t,ok=false){$(id).textContent=t||'';$(id).style.color=ok?'#71e3a3':''}
+async function loadConfig(){const d=await api('/api/capcut/config');$('#popup').value=d.config.popupMessage||'';$('#warrantyMessage').value=d.config.warrantyMessage||'';$('#sheetUrl').value=d.config.sheetAppsScriptUrl||''}
+async function bootUser(u){if(!u){$('#loginCard').classList.remove('hidden');$('#workspace').classList.add('hidden');return}token=await u.getIdToken();try{await loadConfig();$('#loginCard').classList.add('hidden');$('#workspace').classList.remove('hidden')}catch(e){msg('#loginState',e.message)}}
+const app=initializeApp(window.NF_FIREBASE_CONFIG);auth=getAuth(app);onAuthStateChanged(auth,bootUser);
+$('#login').onclick=async()=>{try{msg('#loginState','Đang đăng nhập...');await signInWithEmailAndPassword(auth,$('#email').value.trim(),$('#password').value);msg('#loginState','')}catch(e){msg('#loginState',e.message)}};
+$('#create').onclick=async()=>{try{const d=await api('/api/capcut/links',{method:'POST',body:JSON.stringify({addDays:Number($('#days').value)})});current=d.link;$('#created').classList.remove('hidden');$('#linkOutput').value=current.shareUrl;$('#result').textContent=JSON.stringify(current,null,2);msg('#createState','Đã tạo link.',true)}catch(e){msg('#createState',e.message)}};
+$('#assign').onclick=async()=>{if(!current)return;try{const d=await api('/api/capcut/links/'+encodeURIComponent(current.id)+'/assign',{method:'POST'});current=d.link;$('#result').textContent=JSON.stringify(current,null,2);msg('#createState','Đã nhập tài khoản.',true)}catch(e){msg('#createState',e.message)}};
+$('#saveConfig').onclick=async()=>{try{await api('/api/capcut/config',{method:'PUT',body:JSON.stringify({popupMessage:$('#popup').value,warrantyMessage:$('#warrantyMessage').value,sheetAppsScriptUrl:$('#sheetUrl').value})});msg('#configState','Đã lưu cài đặt.',true)}catch(e){msg('#configState',e.message)}};
+$('#copyLink').onclick=()=>navigator.clipboard?.writeText($('#linkOutput').value);
