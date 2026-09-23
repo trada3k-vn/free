@@ -26,6 +26,7 @@ const DEFAULT_GETLINK_CONTENT = {
     },
     mobileGuides: {
         android: {
+            eyebrow: 'Đăng nhập điện thoại',
             modalTitle: 'Tạo link đăng nhập thành công',
             guideTitle: 'Hướng dẫn đăng nhập trên điện thoại',
             steps: [
@@ -38,6 +39,7 @@ const DEFAULT_GETLINK_CONTENT = {
             copyUnsupportedText: 'Sao chép link'
         },
         ios: {
+            eyebrow: 'Đăng nhập điện thoại',
             modalTitle: 'Tạo link đăng nhập thành công',
             guideTitle: 'Hướng dẫn đăng nhập trên điện thoại',
             steps: [
@@ -51,6 +53,7 @@ const DEFAULT_GETLINK_CONTENT = {
         }
     },
     tvGuide: {
+        eyebrow: 'Đăng nhập TV',
         modalTitle: 'Tạo link đăng nhập thành công',
         guideTitle: 'Hướng dẫn đăng nhập trên Tivi',
         steps: [
@@ -68,6 +71,72 @@ const DEFAULT_GETLINK_CONTENT = {
         readyText: 'Bạn có thể bấm Có để tiếp tục.',
         okText: 'Có',
         cancelText: 'Hủy'
+    },
+    mobileOs: {
+        eyebrow: 'Điện thoại / Máy tính bảng',
+        title: 'Bạn đang dùng Android hay iOS?',
+        message: 'Vui lòng chọn đúng hệ điều hành để xem hướng dẫn phù hợp.',
+        androidText: 'Android',
+        iosText: 'iOS'
+    },
+    upgradeNotice: {
+        eyebrow: 'Lưu ý quan trọng',
+        title: 'Thông báo khi đang xem',
+        message: 'Khi đang xem mà hiện nút NÂNG CẤP hay UPGRADE, thì hãy bấm vào nhé!',
+        waitText: 'Vui lòng chờ {seconds} giây để bỏ qua popup.',
+        readyText: 'Bạn có thể bấm Bỏ qua để tiếp tục.',
+        uncheckedText: 'Hãy tick vào “Tôi đã hiểu” để bỏ qua popup.',
+        checkboxText: 'Tôi đã hiểu',
+        dismissText: 'Bỏ qua'
+    },
+    sharedLabels: {
+        closeText: 'Đóng',
+        loginLinkLabel: 'Link đăng nhập:',
+        copyLoginLinkText: 'Sao chép link',
+        reloadCloseText: 'Đóng và tải lại trang'
+    },
+    loading: {
+        supportLoadingTitle: 'Đang sửa lỗi cho bạn',
+        supportDefaultText: 'Hệ thống đang xử lý, bạn đợi xíu nha.',
+        supportLateText: 'Đợi xíu nha, sắp xong gòi ạ',
+        fixLoadingTitle: 'Đang sửa lỗi cho bạn',
+        fixDefaultText: 'Hệ thống đang kiểm tra và sửa lỗi cho bạn.',
+        fixLateText: 'Đợi xíu nha, sắp xong gòi ạ'
+    },
+    entryErrors: {
+        popupEyebrow: 'Thông báo / Hỗ trợ',
+        genericNoticeEyebrow: 'Thông báo',
+        genericNoticeTitle: 'Thông báo',
+        desktopOnlyMessage: 'GÓI NETFLIX TẶNG KÈM CHỈ CÓ THỂ XEM ĐƯỢC TRÊN MÁY TÍNH',
+        defaultSupportMessage: 'Vui lòng nhắn tin qua fanpage để được hỗ trợ bảo hành nhanh nhất.',
+        sbdTitle: 'Cookie bị SBD',
+        deadTitle: 'Cookie đã lỗi',
+        holdTitle: 'Tài khoản đang bị hold',
+        unknownCookieTitle: 'Cookie đang lỗi',
+        noLiveCookieTitle: 'Link đã hết cookie hợp lệ',
+        linkNotFoundTitle: 'Link không tồn tại',
+        linkRevokedTitle: 'Link đã bị thu hồi',
+        linkExpiredTitle: 'Link đã hết hạn',
+        invalidCookieLinkTitle: 'Link cookie không hợp lệ',
+        invalidShareLinkTitle: 'Link không hợp lệ',
+        guardDefaultTitle: 'Không tìm thấy link hợp lệ',
+        guardDefaultMessage: 'Hãy mở đúng link /getlink?s=... hoặc /getlink?c=... để tiếp tục.',
+        linkNotFoundLookup: 'Link chia sẻ không tồn tại hoặc đã bị xóa.',
+        linkNotFoundGuardTitle: 'Không tìm thấy link hợp lệ',
+        linkNotFoundGuardMessage: 'Link bạn mở không còn tồn tại. Vui lòng liên hệ admin để nhận link mới.',
+        linkRevokedLookup: 'Link chia sẻ này đã bị thu hồi.',
+        linkRevokedGuardTitle: 'Link đã bị thu hồi',
+        linkRevokedGuardMessage: 'Link này đã bị thu hồi. Vui lòng liên hệ admin để nhận link mới.',
+        linkExpiredLookup: 'Link chia sẻ này đã hết hạn.',
+        linkExpiredGuardTitle: 'Link đã hết hạn',
+        linkExpiredGuardMessage: 'Link này đã hết hạn sử dụng. Vui lòng liên hệ admin để được cấp lại link.',
+        noLiveCookieLookup: 'Link này đã hết cookie hợp lệ. Bạn có thể bấm SỬA LỖI TỰ ĐỘNG để hệ thống thử khắc phục.',
+        noLiveCookieGuardTitle: 'Link đã hết cookie hợp lệ',
+        noLiveCookieGuardMessage: 'Link này vẫn còn hạn nhưng hiện không còn cookie dùng được. Bạn có thể bấm SỬA LỖI TỰ ĐỘNG hoặc nhắn fanpage để được hỗ trợ bảo hành.',
+        invalidShareLookup: 'Không tải được cookie từ link chia sẻ.',
+        invalidCookieLookup: 'Link cookie không hợp lệ.',
+        invalidCookieGuardTitle: 'Link cookie không hợp lệ',
+        invalidCookieGuardMessage: 'Không giải mã được cookie trong link chia sẻ. Hãy mở lại đúng link được cấp.'
     },
     fix: {
         common: {
@@ -117,7 +186,17 @@ const DEFAULT_GETLINK_CONTENT = {
         bh247Text: 'Hãy nhắn chính xác cú pháp BH247 vào page để được hỗ trợ và bảo hành.',
         autoFixText: 'SỬA LỖI TỰ ĐỘNG',
         fanpageText: 'Truy cập fanpage TRÀ ĐÁ 3K',
-        warrantyButtonText: 'CẦN HỖ TRỢ / BẢO HÀNH'
+        warrantyButtonText: 'CẦN HỖ TRỢ / BẢO HÀNH',
+        autoFixEyebrow: 'Sửa lỗi tự động',
+        autoFixTitle: 'Đang sửa lỗi cho bạn',
+        autoFixMessage: 'Hệ thống đang xử lý, bạn đợi xíu nha.',
+        autoFixLoadingText: 'Hệ thống đang kiểm tra và sửa lỗi cho bạn.',
+        autoFixDisabledTitle: 'Sửa lỗi tự động đang tắt',
+        autoFixDisabledMessage: 'Truy cập Google Sheet đang được tắt trong admin. Vui lòng nhắn fanpage để được hỗ trợ.',
+        autoFixSuccessEyebrow: 'Đã sửa lỗi',
+        autoFixSuccessTitle: 'Sửa lỗi thành công',
+        autoFixSuccessMessage: 'Tài khoản đã được làm mới. Bấm Đóng để tải lại trang rồi chọn thiết bị và tạo link lại.',
+        autoFixFailureTitle: 'Sửa lỗi không thành công'
     }
 };
 
@@ -311,6 +390,15 @@ function setUpgradeNoticeState(text, mode = 'idle') {
     setStateClass(node, mode);
 }
 
+function renderUpgradeNoticeContent() {
+    const config = getContentConfig().upgradeNotice;
+    setText('upgradeNoticeEyebrow', config.eyebrow);
+    setText('upgradeNoticeTitle', config.title);
+    setText('upgradeNoticeMessage', config.message);
+    setText('upgradeNoticeCheckboxText', config.checkboxText);
+    setText('upgradeNoticeDismissBtn', config.dismissText);
+}
+
 function openUpgradeNoticeModal() {
     if (!shouldShowUpgradeNotice() || upgradeNoticeShown || upgradeNoticeVisible) return;
     upgradeNoticePending = false;
@@ -318,20 +406,23 @@ function openUpgradeNoticeModal() {
     upgradeNoticeVisible = true;
     const modal = el('upgradeNoticeModal');
     const checkbox = el('upgradeNoticeUnderstood');
+    const config = getContentConfig().upgradeNotice;
     upgradeNoticeReadyAt = Date.now() + 3000;
     if (checkbox) checkbox.checked = false;
-    setUpgradeNoticeState('Vui lòng chờ 3 giây để bỏ qua popup.', 'warning');
+    renderUpgradeNoticeContent();
+    setUpgradeNoticeState(formatTemplate(config.waitText, { seconds: 3 }), 'warning');
     refreshUpgradeNoticeButton();
 
     if (upgradeNoticeTimer) window.clearInterval(upgradeNoticeTimer);
     upgradeNoticeTimer = window.setInterval(() => {
         const remainMs = Math.max(0, upgradeNoticeReadyAt - Date.now());
+        const activeConfig = getContentConfig().upgradeNotice;
         if (remainMs > 0) {
-            setUpgradeNoticeState(`Vui lòng chờ ${Math.ceil(remainMs / 1000)} giây để bỏ qua popup.`, 'warning');
+            setUpgradeNoticeState(formatTemplate(activeConfig.waitText, { seconds: Math.ceil(remainMs / 1000) }), 'warning');
         } else {
             const understood = !!el('upgradeNoticeUnderstood')?.checked;
             setUpgradeNoticeState(
-                understood ? 'Bạn có thể bấm Bỏ qua để tiếp tục.' : 'Hãy tick vào “Tôi đã hiểu” để bỏ qua popup.',
+                understood ? activeConfig.readyText : activeConfig.uncheckedText,
                 understood ? 'success' : 'warning'
             );
             window.clearInterval(upgradeNoticeTimer);
@@ -401,6 +492,7 @@ function setEntryAlertState(payload = null) {
 
 function getDefaultSupportModalContent() {
     const support = getContentConfig().support;
+    const loading = getContentConfig().loading;
     return {
         eyebrow: support.eyebrow,
         title: support.title,
@@ -409,7 +501,7 @@ function getDefaultSupportModalContent() {
         closable: true,
         showAutoFix: false,
         isLoading: false,
-        loadingText: 'Hệ thống đang xử lý, bạn đợi xíu nha.',
+        loadingText: loading.supportDefaultText,
         loadingStartedAt: 0,
         reloadOnClose: false,
         fanpageText: support.fanpageText
@@ -467,28 +559,34 @@ function renderSupportModalContent(payload = null) {
     const message = el('supportModalMessage');
     const bh247 = el('supportModalBh247');
     const loadingWrap = el('supportModalLoading');
+    const loadingTitle = el('supportModalLoadingTitle');
     const loadingText = el('supportModalLoadingText');
+    const loadingLate = el('supportModalLoadingLate');
     const actions = el('supportModalActions');
     const closeBtn = el('supportModalCloseBtn');
     const autoFixBtn = el('supportModalAutoFixBtn');
-    if (eyebrow) eyebrow.textContent = String(content.eyebrow || 'Hỗ trợ / Bảo hành').trim();
-    if (title) title.textContent = String(content.title || 'Cần hỗ trợ tài khoản Netflix?').trim();
+    const config = getContentConfig();
+    if (eyebrow) eyebrow.textContent = String(content.eyebrow || config.support.eyebrow).trim();
+    if (title) title.textContent = String(content.title || config.support.title).trim();
     if (message) {
         const messageText = String(content.message || '').trim();
         message.textContent = messageText;
         message.classList.toggle('hidden', !messageText);
     }
     if (bh247) bh247.classList.toggle('hidden', !content.showBh247);
-    if (bh247) bh247.textContent = getContentConfig().support.bh247Text;
+    if (bh247) bh247.textContent = config.support.bh247Text;
     if (loadingWrap) loadingWrap.classList.toggle('hidden', !content.isLoading);
+    if (loadingTitle) loadingTitle.textContent = config.loading.supportLoadingTitle;
     if (loadingText) loadingText.textContent = String(content.loadingText || '').trim();
+    if (loadingLate) loadingLate.textContent = config.loading.supportLateText;
     syncSupportLoadingNotice(content);
     if (actions) actions.classList.toggle('hidden', !!content.isLoading);
     if (closeBtn) closeBtn.classList.toggle('hidden', !content.closable);
+    if (closeBtn) closeBtn.textContent = config.sharedLabels.closeText;
     if (autoFixBtn) {
         autoFixBtn.classList.toggle('hidden', !content.showAutoFix || !isSheetAccessEnabled());
         autoFixBtn.disabled = !!content.isLoading || shareAutoFixBusy || !isSheetAccessEnabled();
-        autoFixBtn.textContent = getContentConfig().support.autoFixText;
+        autoFixBtn.textContent = config.support.autoFixText;
     }
 }
 
@@ -734,6 +832,7 @@ function renderCopyGuideSteps(containerId, steps = [], copyButtonId = '', copyBu
 function renderGetlinkContent() {
     const content = getContentConfig();
     const support = content.support;
+    const shared = content.sharedLabels;
     setText('supportModalBh247', support.bh247Text);
     setText('supportModalAutoFixBtn', support.autoFixText);
     setText('supportWarrantyBtn', support.warrantyButtonText);
@@ -743,7 +842,22 @@ function renderGetlinkContent() {
     setText('deviceConfirmCancelBtn', content.deviceConfirm.cancelText);
     setText('overloadFixConfirmBtn', content.fix.common.confirmText);
     setText('overloadFixCancelBtn', content.fix.common.cancelText);
-    setText('overloadFixSuccessOkBtn', 'Đóng và tải lại trang');
+    setText('overloadFixSuccessOkBtn', shared.reloadCloseText);
+    [
+        'supportModalCloseBtn',
+        'mobileLinkCloseBtn',
+        'tvGuideCloseBtn',
+        'deviceConfirmCloseBtn',
+        'mobileOsCloseBtn',
+        'overloadFixCloseBtn',
+        'overloadFixSuccessCloseBtn'
+    ].forEach((id) => setText(id, shared.closeText));
+    setText('mobileLinkLabel', shared.loginLinkLabel);
+    setText('tvGuideLabel', shared.loginLinkLabel);
+    setText('copyMobileLinkBtn', shared.copyLoginLinkText);
+    setText('copyTvGuideLinkBtn', shared.copyLoginLinkText);
+    renderUpgradeNoticeContent();
+    renderMobileOsContent();
     renderDisclaimerContent();
     renderOverloadFixModal(activeFixMode);
     renderOverloadFixSuccessModal(activeFixMode);
@@ -794,12 +908,18 @@ function populateAdminWarningConfigInputs(config = null) {
     setInputValue('adminDisclaimerWaitInput', content.disclaimer.waitText);
     setInputValue('adminDisclaimerReadyInput', content.disclaimer.readyText);
     setInputValue('adminDisclaimerDismissInput', content.disclaimer.dismissText);
+    setInputValue('adminMobileAndroidEyebrowInput', content.mobileGuides.android.eyebrow);
+    setInputValue('adminMobileAndroidModalTitleInput', content.mobileGuides.android.modalTitle);
     setInputValue('adminMobileAndroidTitleInput', content.mobileGuides.android.guideTitle);
     setInputValue('adminMobileAndroidStepsInput', linesToText(content.mobileGuides.android.steps));
     setInputValue('adminMobileAndroidCopyInput', content.mobileGuides.android.copyUnsupportedText);
+    setInputValue('adminMobileIosEyebrowInput', content.mobileGuides.ios.eyebrow);
+    setInputValue('adminMobileIosModalTitleInput', content.mobileGuides.ios.modalTitle);
     setInputValue('adminMobileIosTitleInput', content.mobileGuides.ios.guideTitle);
     setInputValue('adminMobileIosStepsInput', linesToText(content.mobileGuides.ios.steps));
     setInputValue('adminMobileIosCopyInput', content.mobileGuides.ios.copyUnsupportedText);
+    setInputValue('adminTvEyebrowInput', content.tvGuide.eyebrow);
+    setInputValue('adminTvModalTitleInput', content.tvGuide.modalTitle);
     setInputValue('adminTvTitleInput', content.tvGuide.guideTitle);
     setInputValue('adminTvStepsInput', linesToText(content.tvGuide.steps));
     setInputValue('adminTvCopyInput', content.tvGuide.copyTv2Text);
@@ -809,6 +929,29 @@ function populateAdminWarningConfigInputs(config = null) {
     setInputValue('adminDeviceReadyInput', content.deviceConfirm.readyText);
     setInputValue('adminDeviceOkInput', content.deviceConfirm.okText);
     setInputValue('adminDeviceCancelInput', content.deviceConfirm.cancelText);
+    setInputValue('adminMobileOsEyebrowInput', content.mobileOs.eyebrow);
+    setInputValue('adminMobileOsTitleInput', content.mobileOs.title);
+    setInputValue('adminMobileOsMessageInput', content.mobileOs.message);
+    setInputValue('adminMobileOsAndroidInput', content.mobileOs.androidText);
+    setInputValue('adminMobileOsIosInput', content.mobileOs.iosText);
+    setInputValue('adminUpgradeEyebrowInput', content.upgradeNotice.eyebrow);
+    setInputValue('adminUpgradeTitleInput', content.upgradeNotice.title);
+    setInputValue('adminUpgradeMessageInput', content.upgradeNotice.message);
+    setInputValue('adminUpgradeWaitInput', content.upgradeNotice.waitText);
+    setInputValue('adminUpgradeReadyInput', content.upgradeNotice.readyText);
+    setInputValue('adminUpgradeUncheckedInput', content.upgradeNotice.uncheckedText);
+    setInputValue('adminUpgradeCheckboxInput', content.upgradeNotice.checkboxText);
+    setInputValue('adminUpgradeDismissInput', content.upgradeNotice.dismissText);
+    setInputValue('adminSharedCloseInput', content.sharedLabels.closeText);
+    setInputValue('adminSharedLoginLabelInput', content.sharedLabels.loginLinkLabel);
+    setInputValue('adminSharedCopyLoginInput', content.sharedLabels.copyLoginLinkText);
+    setInputValue('adminSharedReloadCloseInput', content.sharedLabels.reloadCloseText);
+    setInputValue('adminLoadingSupportTitleInput', content.loading.supportLoadingTitle);
+    setInputValue('adminLoadingSupportDefaultInput', content.loading.supportDefaultText);
+    setInputValue('adminLoadingSupportLateInput', content.loading.supportLateText);
+    setInputValue('adminLoadingFixTitleInput', content.loading.fixLoadingTitle);
+    setInputValue('adminLoadingFixDefaultInput', content.loading.fixDefaultText);
+    setInputValue('adminLoadingFixLateInput', content.loading.fixLateText);
     setInputValue('adminOverloadButtonInput', content.fix.overload.buttonText);
     setInputValue('adminOverloadEyebrowInput', content.fix.overload.eyebrow);
     setInputValue('adminOverloadTitleInput', content.fix.overload.title);
@@ -834,12 +977,56 @@ function populateAdminWarningConfigInputs(config = null) {
     setInputValue('adminFixWaitInput', content.fix.common.waitText);
     setInputValue('adminFixReadyInput', content.fix.common.readyText);
     setInputValue('adminFixSuccessMessageInput', content.fix.common.successMessage);
+    setInputValue('adminSupportEyebrowInput', content.support.eyebrow);
     setInputValue('adminSupportTitleInput', content.support.title);
     setInputValue('adminSupportMessageInput', content.support.message);
     setInputValue('adminSupportBh247Input', content.support.bh247Text);
     setInputValue('adminSupportFanpageInput', content.support.fanpageText);
     setInputValue('adminSupportAutoFixInput', content.support.autoFixText);
     setInputValue('adminSupportWarrantyInput', content.support.warrantyButtonText);
+    setInputValue('adminSupportAutoFixEyebrowInput', content.support.autoFixEyebrow);
+    setInputValue('adminSupportAutoFixTitleInput', content.support.autoFixTitle);
+    setInputValue('adminSupportAutoFixMessageInput', content.support.autoFixMessage);
+    setInputValue('adminSupportAutoFixLoadingInput', content.support.autoFixLoadingText);
+    setInputValue('adminSupportAutoFixDisabledTitleInput', content.support.autoFixDisabledTitle);
+    setInputValue('adminSupportAutoFixDisabledMessageInput', content.support.autoFixDisabledMessage);
+    setInputValue('adminSupportAutoFixSuccessEyebrowInput', content.support.autoFixSuccessEyebrow);
+    setInputValue('adminSupportAutoFixSuccessTitleInput', content.support.autoFixSuccessTitle);
+    setInputValue('adminSupportAutoFixSuccessMessageInput', content.support.autoFixSuccessMessage);
+    setInputValue('adminSupportAutoFixFailureTitleInput', content.support.autoFixFailureTitle);
+    setInputValue('adminEntryPopupEyebrowInput', content.entryErrors.popupEyebrow);
+    setInputValue('adminEntryGenericEyebrowInput', content.entryErrors.genericNoticeEyebrow);
+    setInputValue('adminEntryGenericTitleInput', content.entryErrors.genericNoticeTitle);
+    setInputValue('adminEntryDesktopOnlyInput', content.entryErrors.desktopOnlyMessage);
+    setInputValue('adminEntryDefaultSupportInput', content.entryErrors.defaultSupportMessage);
+    setInputValue('adminEntrySbdTitleInput', content.entryErrors.sbdTitle);
+    setInputValue('adminEntryDeadTitleInput', content.entryErrors.deadTitle);
+    setInputValue('adminEntryHoldTitleInput', content.entryErrors.holdTitle);
+    setInputValue('adminEntryUnknownCookieTitleInput', content.entryErrors.unknownCookieTitle);
+    setInputValue('adminEntryNoLiveCookieTitleInput', content.entryErrors.noLiveCookieTitle);
+    setInputValue('adminEntryLinkNotFoundTitleInput', content.entryErrors.linkNotFoundTitle);
+    setInputValue('adminEntryLinkRevokedTitleInput', content.entryErrors.linkRevokedTitle);
+    setInputValue('adminEntryLinkExpiredTitleInput', content.entryErrors.linkExpiredTitle);
+    setInputValue('adminEntryInvalidCookieTitleInput', content.entryErrors.invalidCookieLinkTitle);
+    setInputValue('adminEntryInvalidShareTitleInput', content.entryErrors.invalidShareLinkTitle);
+    setInputValue('adminEntryGuardDefaultTitleInput', content.entryErrors.guardDefaultTitle);
+    setInputValue('adminEntryGuardDefaultMessageInput', content.entryErrors.guardDefaultMessage);
+    setInputValue('adminEntryLinkNotFoundLookupInput', content.entryErrors.linkNotFoundLookup);
+    setInputValue('adminEntryLinkNotFoundGuardTitleInput', content.entryErrors.linkNotFoundGuardTitle);
+    setInputValue('adminEntryLinkNotFoundGuardMessageInput', content.entryErrors.linkNotFoundGuardMessage);
+    setInputValue('adminEntryLinkRevokedLookupInput', content.entryErrors.linkRevokedLookup);
+    setInputValue('adminEntryLinkRevokedGuardTitleInput', content.entryErrors.linkRevokedGuardTitle);
+    setInputValue('adminEntryLinkRevokedGuardMessageInput', content.entryErrors.linkRevokedGuardMessage);
+    setInputValue('adminEntryLinkExpiredLookupInput', content.entryErrors.linkExpiredLookup);
+    setInputValue('adminEntryLinkExpiredGuardTitleInput', content.entryErrors.linkExpiredGuardTitle);
+    setInputValue('adminEntryLinkExpiredGuardMessageInput', content.entryErrors.linkExpiredGuardMessage);
+    setInputValue('adminEntryNoLiveLookupInput', content.entryErrors.noLiveCookieLookup);
+    setInputValue('adminEntryNoLiveGuardTitleInput', content.entryErrors.noLiveCookieGuardTitle);
+    setInputValue('adminEntryNoLiveGuardMessageInput', content.entryErrors.noLiveCookieGuardMessage);
+    setInputValue('adminEntryInvalidShareLookupInput', content.entryErrors.invalidShareLookup);
+    setInputValue('adminEntryInvalidCookieLookupInput', content.entryErrors.invalidCookieLookup);
+    setInputValue('adminEntryInvalidCookieGuardTitleInput', content.entryErrors.invalidCookieGuardTitle);
+    setInputValue('adminEntryInvalidCookieGuardMessageInput', content.entryErrors.invalidCookieGuardMessage);
 }
 
 function getAdminWarningConfigInputValues() {
@@ -866,17 +1053,23 @@ function getAdminWarningConfigInputValues() {
             },
             mobileGuides: {
                 android: {
+                    eyebrow: el('adminMobileAndroidEyebrowInput')?.value || '',
+                    modalTitle: el('adminMobileAndroidModalTitleInput')?.value || '',
                     guideTitle: el('adminMobileAndroidTitleInput')?.value || '',
                     steps: textToLines(el('adminMobileAndroidStepsInput')?.value || ''),
                     copyUnsupportedText: el('adminMobileAndroidCopyInput')?.value || ''
                 },
                 ios: {
+                    eyebrow: el('adminMobileIosEyebrowInput')?.value || '',
+                    modalTitle: el('adminMobileIosModalTitleInput')?.value || '',
                     guideTitle: el('adminMobileIosTitleInput')?.value || '',
                     steps: textToLines(el('adminMobileIosStepsInput')?.value || ''),
                     copyUnsupportedText: el('adminMobileIosCopyInput')?.value || ''
                 }
             },
             tvGuide: {
+                eyebrow: el('adminTvEyebrowInput')?.value || '',
+                modalTitle: el('adminTvModalTitleInput')?.value || '',
                 guideTitle: el('adminTvTitleInput')?.value || '',
                 steps: textToLines(el('adminTvStepsInput')?.value || ''),
                 copyTv2Text: el('adminTvCopyInput')?.value || ''
@@ -888,6 +1081,37 @@ function getAdminWarningConfigInputValues() {
                 readyText: el('adminDeviceReadyInput')?.value || '',
                 okText: el('adminDeviceOkInput')?.value || '',
                 cancelText: el('adminDeviceCancelInput')?.value || ''
+            },
+            mobileOs: {
+                eyebrow: el('adminMobileOsEyebrowInput')?.value || '',
+                title: el('adminMobileOsTitleInput')?.value || '',
+                message: el('adminMobileOsMessageInput')?.value || '',
+                androidText: el('adminMobileOsAndroidInput')?.value || '',
+                iosText: el('adminMobileOsIosInput')?.value || ''
+            },
+            upgradeNotice: {
+                eyebrow: el('adminUpgradeEyebrowInput')?.value || '',
+                title: el('adminUpgradeTitleInput')?.value || '',
+                message: el('adminUpgradeMessageInput')?.value || '',
+                waitText: el('adminUpgradeWaitInput')?.value || '',
+                readyText: el('adminUpgradeReadyInput')?.value || '',
+                uncheckedText: el('adminUpgradeUncheckedInput')?.value || '',
+                checkboxText: el('adminUpgradeCheckboxInput')?.value || '',
+                dismissText: el('adminUpgradeDismissInput')?.value || ''
+            },
+            sharedLabels: {
+                closeText: el('adminSharedCloseInput')?.value || '',
+                loginLinkLabel: el('adminSharedLoginLabelInput')?.value || '',
+                copyLoginLinkText: el('adminSharedCopyLoginInput')?.value || '',
+                reloadCloseText: el('adminSharedReloadCloseInput')?.value || ''
+            },
+            loading: {
+                supportLoadingTitle: el('adminLoadingSupportTitleInput')?.value || '',
+                supportDefaultText: el('adminLoadingSupportDefaultInput')?.value || '',
+                supportLateText: el('adminLoadingSupportLateInput')?.value || '',
+                fixLoadingTitle: el('adminLoadingFixTitleInput')?.value || '',
+                fixDefaultText: el('adminLoadingFixDefaultInput')?.value || '',
+                fixLateText: el('adminLoadingFixLateInput')?.value || ''
             },
             fix: {
                 common: {
@@ -923,12 +1147,58 @@ function getAdminWarningConfigInputValues() {
                 }
             },
             support: {
+                eyebrow: el('adminSupportEyebrowInput')?.value || '',
                 title: el('adminSupportTitleInput')?.value || '',
                 message: el('adminSupportMessageInput')?.value || '',
                 bh247Text: el('adminSupportBh247Input')?.value || '',
                 fanpageText: el('adminSupportFanpageInput')?.value || '',
                 autoFixText: el('adminSupportAutoFixInput')?.value || '',
-                warrantyButtonText: el('adminSupportWarrantyInput')?.value || ''
+                warrantyButtonText: el('adminSupportWarrantyInput')?.value || '',
+                autoFixEyebrow: el('adminSupportAutoFixEyebrowInput')?.value || '',
+                autoFixTitle: el('adminSupportAutoFixTitleInput')?.value || '',
+                autoFixMessage: el('adminSupportAutoFixMessageInput')?.value || '',
+                autoFixLoadingText: el('adminSupportAutoFixLoadingInput')?.value || '',
+                autoFixDisabledTitle: el('adminSupportAutoFixDisabledTitleInput')?.value || '',
+                autoFixDisabledMessage: el('adminSupportAutoFixDisabledMessageInput')?.value || '',
+                autoFixSuccessEyebrow: el('adminSupportAutoFixSuccessEyebrowInput')?.value || '',
+                autoFixSuccessTitle: el('adminSupportAutoFixSuccessTitleInput')?.value || '',
+                autoFixSuccessMessage: el('adminSupportAutoFixSuccessMessageInput')?.value || '',
+                autoFixFailureTitle: el('adminSupportAutoFixFailureTitleInput')?.value || ''
+            },
+            entryErrors: {
+                popupEyebrow: el('adminEntryPopupEyebrowInput')?.value || '',
+                genericNoticeEyebrow: el('adminEntryGenericEyebrowInput')?.value || '',
+                genericNoticeTitle: el('adminEntryGenericTitleInput')?.value || '',
+                desktopOnlyMessage: el('adminEntryDesktopOnlyInput')?.value || '',
+                defaultSupportMessage: el('adminEntryDefaultSupportInput')?.value || '',
+                sbdTitle: el('adminEntrySbdTitleInput')?.value || '',
+                deadTitle: el('adminEntryDeadTitleInput')?.value || '',
+                holdTitle: el('adminEntryHoldTitleInput')?.value || '',
+                unknownCookieTitle: el('adminEntryUnknownCookieTitleInput')?.value || '',
+                noLiveCookieTitle: el('adminEntryNoLiveCookieTitleInput')?.value || '',
+                linkNotFoundTitle: el('adminEntryLinkNotFoundTitleInput')?.value || '',
+                linkRevokedTitle: el('adminEntryLinkRevokedTitleInput')?.value || '',
+                linkExpiredTitle: el('adminEntryLinkExpiredTitleInput')?.value || '',
+                invalidCookieLinkTitle: el('adminEntryInvalidCookieTitleInput')?.value || '',
+                invalidShareLinkTitle: el('adminEntryInvalidShareTitleInput')?.value || '',
+                guardDefaultTitle: el('adminEntryGuardDefaultTitleInput')?.value || '',
+                guardDefaultMessage: el('adminEntryGuardDefaultMessageInput')?.value || '',
+                linkNotFoundLookup: el('adminEntryLinkNotFoundLookupInput')?.value || '',
+                linkNotFoundGuardTitle: el('adminEntryLinkNotFoundGuardTitleInput')?.value || '',
+                linkNotFoundGuardMessage: el('adminEntryLinkNotFoundGuardMessageInput')?.value || '',
+                linkRevokedLookup: el('adminEntryLinkRevokedLookupInput')?.value || '',
+                linkRevokedGuardTitle: el('adminEntryLinkRevokedGuardTitleInput')?.value || '',
+                linkRevokedGuardMessage: el('adminEntryLinkRevokedGuardMessageInput')?.value || '',
+                linkExpiredLookup: el('adminEntryLinkExpiredLookupInput')?.value || '',
+                linkExpiredGuardTitle: el('adminEntryLinkExpiredGuardTitleInput')?.value || '',
+                linkExpiredGuardMessage: el('adminEntryLinkExpiredGuardMessageInput')?.value || '',
+                noLiveCookieLookup: el('adminEntryNoLiveLookupInput')?.value || '',
+                noLiveCookieGuardTitle: el('adminEntryNoLiveGuardTitleInput')?.value || '',
+                noLiveCookieGuardMessage: el('adminEntryNoLiveGuardMessageInput')?.value || '',
+                invalidShareLookup: el('adminEntryInvalidShareLookupInput')?.value || '',
+                invalidCookieLookup: el('adminEntryInvalidCookieLookupInput')?.value || '',
+                invalidCookieGuardTitle: el('adminEntryInvalidCookieGuardTitleInput')?.value || '',
+                invalidCookieGuardMessage: el('adminEntryInvalidCookieGuardMessageInput')?.value || ''
             }
         }
     }, { allowBlank: true });
@@ -1043,6 +1313,88 @@ function getSheetImportStateId(scope = 'current') {
     return scope === 'create' ? 'creatorSheetImportState' : 'currentSheetImportState';
 }
 
+const sheetImportProgressTargetCounts = {
+    current: SHEET_IMPORT_SLOT_META.length,
+    create: SHEET_IMPORT_SLOT_META.length
+};
+
+function getSheetImportProgressId(scope = 'current') {
+    return scope === 'create' ? 'creatorSheetImportProgress' : 'currentSheetImportProgress';
+}
+
+function clearSheetImportProgress(scope = 'current') {
+    const node = el(getSheetImportProgressId(scope));
+    if (!node) return;
+    node.innerHTML = '';
+    node.classList.add('hidden');
+}
+
+function getSheetImportPhaseLabel(phase = '') {
+    const labels = {
+        pending: 'Đang chuẩn bị',
+        pulling_sheet: 'Đang lấy dữ liệu Google Sheet',
+        checking_candidates: 'Đang check cookie',
+        writing_marks: 'Đang cập nhật dòng trong Sheet',
+        updating_share: 'Đang cập nhật link',
+        rotating_cookie: 'Đang thay cookie chính',
+        completed: 'Đã hoàn tất',
+        blocked: 'Đã bị chặn',
+        failed: 'Đã xảy ra lỗi'
+    };
+    return labels[String(phase || '').trim()] || 'Đang xử lý';
+}
+
+function renderSheetImportProgress(scope = 'current', payload = {}, elapsedMs = 0) {
+    const node = el(getSheetImportProgressId(scope));
+    if (!node) return;
+
+    const source = payload && typeof payload === 'object' ? payload : {};
+    const assigned = Array.isArray(source.assigned) ? source.assigned : [];
+    const skipped = Array.isArray(source.skipped) ? source.skipped : [];
+    const unfilledSlots = Array.isArray(source.unfilledSlots) ? source.unfilledSlots : [];
+    const debug = source.debug && typeof source.debug === 'object' ? source.debug : {};
+    const targetCount = Math.max(
+        assigned.length + unfilledSlots.length,
+        Number(sheetImportProgressTargetCounts[scope] || 0) || 0
+    );
+    const scannedRows = Math.max(0, Number(debug.scannedPhysicalRows || 0) || 0);
+    const lastRow = Math.max(0, Number(debug.lastScannedUntilRow || debug.scanStoppedAtRow || 0) || 0);
+    const eligible = Math.max(0, Number(debug.eligibleRowsSeen || 0) || 0);
+    const checked = assigned.length + skipped.length;
+    const assignedPercent = targetCount > 0
+        ? Math.min(100, Math.round((assigned.length / targetCount) * 100))
+        : 0;
+    const status = String(source.status || '').trim();
+    const indeterminate = status === 'pending' && assigned.length < targetCount;
+    const elapsedText = formatOperationElapsed(elapsedMs);
+    const message = String(source.message || '').trim();
+    const fillClass = indeterminate ? 'sheet-import-progress-fill is-indeterminate' : 'sheet-import-progress-fill';
+    const fillStyle = indeterminate ? '' : ` style="width: ${assignedPercent}%"`;
+
+    node.innerHTML = `
+        <div class="sheet-import-progress-head">
+            <span>${escapeHtml(getSheetImportPhaseLabel(source.phase))}</span>
+            <span>${assigned.length}/${targetCount || '-'} PASS</span>
+        </div>
+        <div class="sheet-import-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${assignedPercent}">
+            <div class="${fillClass}"${fillStyle}></div>
+        </div>
+        <div class="sheet-import-progress-meta">
+            <span>Đã quét ${scannedRows} dòng</span>
+            <span>Đến row ${lastRow || '-'}</span>
+            <span>Đã chạy ${escapeHtml(elapsedText)}</span>
+        </div>
+        <div class="sheet-import-progress-stats">
+            <span>Ứng viên ${eligible}</span>
+            <span>Đã check ${checked}</span>
+            <span class="is-good">PASS ${assigned.length}</span>
+            <span class="is-bad">Loại ${skipped.length}</span>
+        </div>
+        ${message ? `<div class="sheet-import-progress-meta">${escapeHtml(message)}</div>` : ''}
+    `;
+    node.classList.remove('hidden');
+}
+
 function setSheetImportState(scope = 'current', text = '', mode = 'idle') {
     const node = el(getSheetImportStateId(scope));
     if (!node) return;
@@ -1106,7 +1458,7 @@ function startOverloadFixLoading(startedAt = Date.now()) {
     if (lateNotice) lateNotice.classList.add('hidden');
     if (loadingText) {
         const config = getFixModeConfig(activeFixMode);
-        loadingText.textContent = config.loadingText || 'Hệ thống đang kiểm tra và sửa lỗi cho bạn.';
+        loadingText.textContent = config.loadingText || getContentConfig().loading.fixDefaultText;
     }
 
     const showLateNotice = () => {
@@ -1154,6 +1506,7 @@ function getFixModeConfig(mode = 'overload') {
 
 function renderOverloadFixModal(mode = activeFixMode) {
     const config = getFixModeConfig(mode);
+    const content = getContentConfig();
     const eyebrow = el('overloadFixEyebrow');
     const title = el('overloadFixTitle');
     const rule1 = el('overloadFixRule1');
@@ -1161,23 +1514,34 @@ function renderOverloadFixModal(mode = activeFixMode) {
     const note = el('overloadFixNote');
     const confirmBtn = el('overloadFixConfirmBtn');
     const cancelBtn = el('overloadFixCancelBtn');
+    const closeBtn = el('overloadFixCloseBtn');
+    const loadingTitle = el('overloadFixLoadingTitle');
+    const loadingLate = el('overloadFixLoadingLate');
     if (eyebrow) eyebrow.textContent = config.eyebrow;
     if (title) title.textContent = config.title;
     if (rule1) rule1.textContent = config.rule1;
     if (rule2) rule2.textContent = config.rule2;
     if (note) note.textContent = config.mobileNote;
-    if (confirmBtn) confirmBtn.textContent = getContentConfig().fix.common.confirmText;
-    if (cancelBtn) cancelBtn.textContent = getContentConfig().fix.common.cancelText;
+    if (confirmBtn) confirmBtn.textContent = content.fix.common.confirmText;
+    if (cancelBtn) cancelBtn.textContent = content.fix.common.cancelText;
+    if (closeBtn) closeBtn.textContent = content.sharedLabels.closeText;
+    if (loadingTitle) loadingTitle.textContent = content.loading.fixLoadingTitle;
+    if (loadingLate) loadingLate.textContent = content.loading.fixLateText;
 }
 
 function renderOverloadFixSuccessModal(mode = activeFixMode) {
     const config = getFixModeConfig(mode);
+    const content = getContentConfig();
     const eyebrow = el('overloadFixSuccessEyebrow');
     const title = el('overloadFixSuccessTitle');
     const message = el('overloadFixSuccessMessage');
+    const closeBtn = el('overloadFixSuccessCloseBtn');
+    const okBtn = el('overloadFixSuccessOkBtn');
     if (eyebrow) eyebrow.textContent = config.successEyebrow;
     if (title) title.textContent = config.successTitle;
-    if (message) message.textContent = getContentConfig().fix.common.successMessage;
+    if (message) message.textContent = content.fix.common.successMessage;
+    if (closeBtn) closeBtn.textContent = content.sharedLabels.closeText;
+    if (okBtn) okBtn.textContent = content.sharedLabels.reloadCloseText;
 }
 
 function isAdminImmediate() {
@@ -1551,6 +1915,7 @@ function buildSheetImportSummaryWithTimings(data = {}) {
 
 async function applySheetImportResult(scope = 'current', data = {}) {
     const context = getSheetImportContext(scope);
+    clearSheetImportProgress(scope);
     const assigned = Array.isArray(data.assigned) ? data.assigned : [];
     const skipped = Array.isArray(data.skipped) ? data.skipped : [];
     const unfilledSlots = Array.isArray(data.unfilledSlots) ? data.unfilledSlots : [];
@@ -1694,9 +2059,19 @@ async function importCookiesFromSheet(scope = 'current') {
     }
 
     const slots = getSelectedSheetImportSlots(scope);
+    sheetImportProgressTargetCounts[scope] = slots.length;
 
     const btn = el(scope === 'create' ? 'creatorImportCookiesFromSheetBtn' : 'currentImportCookiesFromSheetBtn');
     setButtonBusy(btn, true, 'Đang quét Sheet...');
+    renderSheetImportProgress(scope, {
+        status: 'pending',
+        phase: 'pending',
+        message: `Đang quét Google Sheet và check ${slots.length} cookie...`,
+        assigned: [],
+        skipped: [],
+        unfilledSlots: slots,
+        debug: {}
+    }, 0);
     setSheetImportState(scope, `Đang quét Google Sheet và check ${slots.length} cookie...`, 'loading');
     context.setInfoState('Đang lấy cookie từ Google Sheet...', 'loading');
 
@@ -1725,6 +2100,7 @@ async function importCookiesFromSheet(scope = 'current') {
                     elapsedMs,
                     `Đang quét Google Sheet và check ${slots.length} cookie...`
                 );
+                renderSheetImportProgress(scope, payload, elapsedMs);
                 setSheetImportState(scope, text, 'loading');
                 context.setInfoState(text, 'loading');
             };
@@ -1749,6 +2125,7 @@ async function importCookiesFromSheet(scope = 'current') {
         clearSheetImportOperationMeta(scope);
         const timingText = formatAutoFixTimings(error && error.responseData ? error.responseData.timings : null);
         const message = error.message || 'Không nhập được cookie từ Sheet.';
+        clearSheetImportProgress(scope);
         setSheetImportState(scope, timingText ? `${message} | ${timingText}` : message, 'error');
         context.setInfoState(timingText ? `${message} ${timingText}` : message, 'error');
     } finally {
@@ -2039,8 +2416,9 @@ function applyCookieBlockedState(reason = '', detail = '') {
         `Tài khoản đã lỗi, hãy liên hệ admin để được bảo hành. ${detailText}`.trim(),
         'error'
     );
-    setGuestGuard(true, detailText || 'Cookie của link hiện đang lỗi. Vui lòng nhắn fanpage để được hỗ trợ bảo hành.', {
-        title: 'Cookie hiện đang lỗi',
+    const entryErrors = getContentConfig().entryErrors;
+    setGuestGuard(true, detailText || entryErrors.defaultSupportMessage, {
+        title: entryErrors.unknownCookieTitle,
         kind: 'cookie'
     });
     showEntryAlertPopup(getEntryAlertPopupContent());
@@ -2533,8 +2911,9 @@ function setRuntimeCookie(rawCookie, options = {}) {
 
     clearRuntimeProfiles();
     if (!entryAlertState) {
-        setGuestGuard(true, 'Hãy mở đúng link /getlink?s=... hoặc /getlink?c=... để tiếp tục.', {
-            title: 'Không tìm thấy link hợp lệ',
+        const entryErrors = getContentConfig().entryErrors;
+        setGuestGuard(true, entryErrors.guardDefaultMessage, {
+            title: entryErrors.guardDefaultTitle,
             kind: 'link'
         });
         setLookupState('Không có cookie hợp lệ. Chỉ có thể tiếp tục bằng link được cấp.', 'warning');
@@ -2551,15 +2930,16 @@ async function refreshRuntimeProfilesForCurrentCookie() {
 }
 
 function getDesktopOnlyBlockedMessage() {
-    return 'GÓI NETFLIX TẶNG KÈM CHỈ CÓ THỂ XEM ĐƯỢC TRÊN MÁY TÍNH';
+    return getContentConfig().entryErrors.desktopOnlyMessage;
 }
 
 function showDesktopOnlyBlockedPopup() {
     const message = getDesktopOnlyBlockedMessage();
+    const entryErrors = getContentConfig().entryErrors;
     setLookupState(message, 'warning');
     openSupportModal({
-        eyebrow: 'Thông báo',
-        title: 'Thông báo',
+        eyebrow: entryErrors.genericNoticeEyebrow,
+        title: entryErrors.genericNoticeTitle,
         message,
         showBh247: false
     });
@@ -2569,21 +2949,22 @@ function getEntryAlertPopupContent() {
     const state = entryAlertState && typeof entryAlertState === 'object' ? entryAlertState : null;
     if (!state) return getDefaultSupportModalContent();
     const isNoLiveCookie = state.reason === 'share_no_live_cookie';
+    const entryErrors = getContentConfig().entryErrors;
     const message = isNoLiveCookie
         ? ''
-        : String(state.message || '').trim() || 'Vui lòng nhắn tin qua fanpage để được hỗ trợ bảo hành nhanh nhất.';
+        : String(state.message || '').trim() || entryErrors.defaultSupportMessage;
     if (state.type === 'cookie') {
         const titleMap = {
-            sbd: 'Cookie bị SBD',
-            dead: 'Cookie đã lỗi',
-            hold: 'Tài khoản đang bị hold',
-            unknown: 'Cookie đang lỗi',
-            share_no_live_cookie: 'Link đã hết cookie hợp lệ',
-            error: 'Cookie đang lỗi'
+            sbd: entryErrors.sbdTitle,
+            dead: entryErrors.deadTitle,
+            hold: entryErrors.holdTitle,
+            unknown: entryErrors.unknownCookieTitle,
+            share_no_live_cookie: entryErrors.noLiveCookieTitle,
+            error: entryErrors.unknownCookieTitle
         };
         return {
-            eyebrow: 'Thông báo / Hỗ trợ',
-            title: titleMap[state.reason] || 'Cookie đang lỗi',
+            eyebrow: entryErrors.popupEyebrow,
+            title: titleMap[state.reason] || entryErrors.unknownCookieTitle,
             message,
             showBh247: !isNoLiveCookie,
             closable: state.reason !== 'share_no_live_cookie',
@@ -2591,15 +2972,15 @@ function getEntryAlertPopupContent() {
         };
     }
     const titleMap = {
-        share_not_found: 'Link không tồn tại',
-        share_revoked: 'Link đã bị thu hồi',
-        share_expired: 'Link đã hết hạn',
-        invalid_cookie_link: 'Link cookie không hợp lệ',
-        invalid_share_link: 'Link không hợp lệ'
+        share_not_found: entryErrors.linkNotFoundTitle,
+        share_revoked: entryErrors.linkRevokedTitle,
+        share_expired: entryErrors.linkExpiredTitle,
+        invalid_cookie_link: entryErrors.invalidCookieLinkTitle,
+        invalid_share_link: entryErrors.invalidShareLinkTitle
     };
     return {
-        eyebrow: 'Thông báo / Hỗ trợ',
-        title: titleMap[state.reason] || 'Link không hợp lệ',
+        eyebrow: entryErrors.popupEyebrow,
+        title: titleMap[state.reason] || entryErrors.invalidShareLinkTitle,
         message,
         showBh247: false,
         closable: state.reason !== 'share_expired'
@@ -2610,48 +2991,49 @@ function classifyShareEntryError(error) {
     const status = Number(error && error.httpStatus ? error.httpStatus : 0);
     const rawMessage = String(error && error.message ? error.message : '').trim();
     const normalized = rawMessage.toLowerCase();
+    const entryErrors = getContentConfig().entryErrors;
     if (status === 404 || normalized.includes('not found')) {
         return {
             type: 'link',
             reason: 'share_not_found',
-            lookupMessage: 'Link chia sẻ không tồn tại hoặc đã bị xóa.',
-            guardTitle: 'Không tìm thấy link hợp lệ',
-            guardMessage: 'Link bạn mở không còn tồn tại. Vui lòng liên hệ admin để nhận link mới.'
+            lookupMessage: entryErrors.linkNotFoundLookup,
+            guardTitle: entryErrors.linkNotFoundGuardTitle,
+            guardMessage: entryErrors.linkNotFoundGuardMessage
         };
     }
     if (status === 410 && normalized.includes('revoked')) {
         return {
             type: 'link',
             reason: 'share_revoked',
-            lookupMessage: 'Link chia sẻ này đã bị thu hồi.',
-            guardTitle: 'Link đã bị thu hồi',
-            guardMessage: 'Link này đã bị thu hồi. Vui lòng liên hệ admin để nhận link mới.'
+            lookupMessage: entryErrors.linkRevokedLookup,
+            guardTitle: entryErrors.linkRevokedGuardTitle,
+            guardMessage: entryErrors.linkRevokedGuardMessage
         };
     }
     if (status === 410 && normalized.includes('expired')) {
         return {
             type: 'link',
             reason: 'share_expired',
-            lookupMessage: 'Link chia sẻ này đã hết hạn.',
-            guardTitle: 'Link đã hết hạn',
-            guardMessage: 'Link này đã hết hạn sử dụng. Vui lòng liên hệ admin để được cấp lại link.'
+            lookupMessage: entryErrors.linkExpiredLookup,
+            guardTitle: entryErrors.linkExpiredGuardTitle,
+            guardMessage: entryErrors.linkExpiredGuardMessage
         };
     }
     if (status === 410 && (normalized.includes('het cookie hop le') || normalized.includes('hết cookie hợp lệ'))) {
         return {
             type: 'cookie',
             reason: 'share_no_live_cookie',
-            lookupMessage: 'Link này đã hết cookie hợp lệ. Bạn có thể bấm SỬA LỖI TỰ ĐỘNG để hệ thống thử khắc phục.',
-            guardTitle: 'Link đã hết cookie hợp lệ',
-            guardMessage: 'Link này vẫn còn hạn nhưng hiện không còn cookie dùng được. Bạn có thể bấm SỬA LỖI TỰ ĐỘNG hoặc nhắn fanpage để được hỗ trợ bảo hành.'
+            lookupMessage: entryErrors.noLiveCookieLookup,
+            guardTitle: entryErrors.noLiveCookieGuardTitle,
+            guardMessage: entryErrors.noLiveCookieGuardMessage
         };
     }
     return {
         type: 'link',
         reason: 'invalid_share_link',
-        lookupMessage: rawMessage || 'Không tải được cookie từ link chia sẻ.',
-        guardTitle: 'Không tìm thấy link hợp lệ',
-        guardMessage: rawMessage || 'Hãy mở đúng link /getlink?s=... hoặc /getlink?c=... để tiếp tục.'
+        lookupMessage: rawMessage || entryErrors.invalidShareLookup,
+        guardTitle: entryErrors.guardDefaultTitle,
+        guardMessage: rawMessage || entryErrors.guardDefaultMessage
     };
 }
 
@@ -2722,6 +3104,7 @@ function openMobileLinkModal(url, mobileOs = 'android') {
     const guide = String(mobileOs).toLowerCase() === 'ios'
         ? getContentConfig().mobileGuides.ios
         : getContentConfig().mobileGuides.android;
+    setText('mobileLinkEyebrow', guide.eyebrow);
     setText('mobileLinkTitle', guide.modalTitle);
     setText('mobileGuideTitle', guide.guideTitle);
     renderCopyGuideSteps('mobileGuideSteps', guide.steps, 'copyUnsupportedLinkBtn', guide.copyUnsupportedText, UNSUPPORTED_URL);
@@ -2762,6 +3145,7 @@ function openTvGuideModal(url = '') {
     tvGeneratedLink = String(url || '').trim();
     if (output) output.value = tvGeneratedLink;
     const guide = getContentConfig().tvGuide;
+    setText('tvGuideEyebrow', guide.eyebrow);
     setText('tvGuideTitle', guide.modalTitle);
     setText('tvGuideHeading', guide.guideTitle);
     renderCopyGuideSteps('tvGuideSteps', guide.steps, 'copyTv2LinkBtn', guide.copyTv2Text, TV2_URL);
@@ -2924,9 +3308,19 @@ function closeDeviceConfirmModal() {
     modal.setAttribute('aria-hidden', 'true');
 }
 
+function renderMobileOsContent() {
+    const config = getContentConfig().mobileOs;
+    setText('mobileOsEyebrow', config.eyebrow);
+    setText('mobileOsTitle', config.title);
+    setText('mobileOsMessage', config.message);
+    setText('mobileOsAndroidBtn', config.androidText);
+    setText('mobileOsIosBtn', config.iosText);
+}
+
 function openMobileOsModal(deviceType = 'mobile') {
     pendingMobileOsDevice = String(deviceType || 'mobile').trim() || 'mobile';
     const modal = el('mobileOsModal');
+    renderMobileOsContent();
     if (!modal) return;
     modal.classList.remove('hidden');
     modal.setAttribute('aria-hidden', 'false');
@@ -3204,11 +3598,12 @@ async function pollGetlinkOperation(operationId = '', operationToken = '') {
 async function autoFixShareCookies() {
     const shareId = String(pendingShareIdFromUrl || '').trim();
     if (!shareId || shareAutoFixBusy) return;
+    const support = getContentConfig().support;
     if (!isSheetAccessEnabled()) {
         openSupportModal({
-            eyebrow: 'Thông báo / Hỗ trợ',
-            title: 'Sửa lỗi tự động đang tắt',
-            message: 'Truy cập Google Sheet đang được tắt trong admin. Vui lòng nhắn fanpage để được hỗ trợ.',
+            eyebrow: getContentConfig().entryErrors.popupEyebrow,
+            title: support.autoFixDisabledTitle,
+            message: support.autoFixDisabledMessage,
             showBh247: true,
             closable: false,
             showAutoFix: false,
@@ -3219,14 +3614,14 @@ async function autoFixShareCookies() {
 
     shareAutoFixBusy = true;
     openSupportModal({
-        eyebrow: 'Sửa lỗi tự động',
-        title: 'Đang sửa lỗi cho bạn',
-        message: 'Hệ thống đang xử lý, bạn đợi xíu nha.',
+        eyebrow: support.autoFixEyebrow,
+        title: support.autoFixTitle,
+        message: support.autoFixMessage,
         showBh247: false,
         closable: false,
         showAutoFix: false,
         isLoading: true,
-        loadingText: 'Hệ thống đang kiểm tra và sửa lỗi cho bạn.',
+        loadingText: support.autoFixLoadingText,
         loadingStartedAt: Date.now()
     });
 
@@ -3245,15 +3640,16 @@ async function autoFixShareCookies() {
             saveAutoFixOperationMeta(operationMeta);
 
             const renderPending = () => {
+                const pendingSupport = getContentConfig().support;
                 openSupportModal({
-                    eyebrow: 'Sửa lỗi tự động',
-                    title: 'Đang sửa lỗi cho bạn',
-                    message: 'Hệ thống đang xử lý, bạn đợi xíu nha.',
+                    eyebrow: pendingSupport.autoFixEyebrow,
+                    title: pendingSupport.autoFixTitle,
+                    message: pendingSupport.autoFixMessage,
                     showBh247: false,
                     closable: false,
                     showAutoFix: false,
                     isLoading: true,
-                    loadingText: 'Hệ thống đang kiểm tra và sửa lỗi cho bạn.',
+                    loadingText: pendingSupport.autoFixLoadingText,
                     loadingStartedAt: operationMeta.startedAt
                 });
             };
@@ -3278,10 +3674,11 @@ async function autoFixShareCookies() {
             throw new Error(getAutoFixFailureMessage());
         }
         setLookupState('Đã sửa lỗi thành công. Vui lòng tải lại trang để tiếp tục.', 'success');
+        const successSupport = getContentConfig().support;
         openSupportModal({
-            eyebrow: 'Đã sửa lỗi',
-            title: 'Sửa lỗi thành công',
-            message: 'Tài khoản đã được làm mới. Bấm Đóng để tải lại trang rồi chọn thiết bị và tạo link lại.',
+            eyebrow: successSupport.autoFixSuccessEyebrow,
+            title: successSupport.autoFixSuccessTitle,
+            message: successSupport.autoFixSuccessMessage,
             showBh247: false,
             closable: true,
             showAutoFix: false,
@@ -3310,9 +3707,10 @@ async function autoFixShareCookies() {
         const timingText = formatAutoFixTimings(error && error.responseData ? error.responseData.timings : null);
         const message = [normalized || getAutoFixFailureMessage(), timingText].filter(Boolean).join(' | ');
         setLookupState(message, 'error');
+        const failureSupport = getContentConfig().support;
         openSupportModal({
-            eyebrow: 'Thông báo / Hỗ trợ',
-            title: 'Sửa lỗi không thành công',
+            eyebrow: getContentConfig().entryErrors.popupEyebrow,
+            title: failureSupport.autoFixFailureTitle,
             message: `${getAutoFixFailureMessage()}${timingText ? `\n${timingText}` : ''}`,
             showBh247: true,
             closable: false,
@@ -3361,7 +3759,9 @@ async function resumePendingSheetImportOperation(scope = 'current') {
         timings: null
     };
     const renderPending = (payload) => {
-        const text = buildGetlinkOperationText(payload, Date.now() - Number(meta.startedAt || Date.now()), 'Đang nối lại tiến độ nhập cookie từ Google Sheet...');
+        const elapsedMs = Date.now() - Number(meta.startedAt || Date.now());
+        const text = buildGetlinkOperationText(payload, elapsedMs, 'Đang nối lại tiến độ nhập cookie từ Google Sheet...');
+        renderSheetImportProgress(scope, payload, elapsedMs);
         setSheetImportState(scope, text, 'loading');
         context.setInfoState(text, 'loading');
     };
@@ -3384,6 +3784,7 @@ async function resumePendingSheetImportOperation(scope = 'current') {
     } catch (error) {
         const timingText = formatAutoFixTimings(error && error.responseData ? error.responseData.timings : null);
         const message = error.message || 'Không thể nối lại tiến độ nhập cookie từ Sheet.';
+        clearSheetImportProgress(scope);
         setSheetImportState(scope, timingText ? `${message} | ${timingText}` : message, 'error');
         context.setInfoState(timingText ? `${message} ${timingText}` : message, 'error');
         clearSheetImportOperationMeta(scope);
@@ -3409,15 +3810,16 @@ async function resumePendingAutoFixOperation() {
     };
 
     const renderPending = () => {
+        const support = getContentConfig().support;
         openSupportModal({
-            eyebrow: 'Sửa lỗi tự động',
-            title: 'Đang sửa lỗi cho bạn',
-            message: 'Hệ thống đang tiếp tục xử lý, bạn đợi xíu nha.',
+            eyebrow: support.autoFixEyebrow,
+            title: support.autoFixTitle,
+            message: support.autoFixMessage,
             showBh247: false,
             closable: false,
             showAutoFix: false,
             isLoading: true,
-            loadingText: 'Hệ thống đang tiếp tục kiểm tra và sửa lỗi cho bạn.',
+            loadingText: support.autoFixLoadingText,
             loadingStartedAt: Number(meta.startedAt || Date.now())
         });
     };
@@ -3441,10 +3843,11 @@ async function resumePendingAutoFixOperation() {
             throw new Error(getAutoFixFailureMessage());
         }
         setLookupState('Đã sửa lỗi thành công. Vui lòng tải lại trang để tiếp tục.', 'success');
+        const successSupport = getContentConfig().support;
         openSupportModal({
-            eyebrow: 'Đã sửa lỗi',
-            title: 'Sửa lỗi thành công',
-            message: 'Tài khoản đã được làm mới. Bấm Đóng để tải lại trang rồi chọn thiết bị và tạo link lại.',
+            eyebrow: successSupport.autoFixSuccessEyebrow,
+            title: successSupport.autoFixSuccessTitle,
+            message: successSupport.autoFixSuccessMessage,
             showBh247: false,
             closable: true,
             showAutoFix: false,
@@ -3453,9 +3856,10 @@ async function resumePendingAutoFixOperation() {
         });
     } catch (error) {
         const timingText = formatAutoFixTimings(error && error.responseData ? error.responseData.timings : null);
+        const failureSupport = getContentConfig().support;
         openSupportModal({
-            eyebrow: 'Thông báo / Hỗ trợ',
-            title: 'Sửa lỗi không thành công',
+            eyebrow: getContentConfig().entryErrors.popupEyebrow,
+            title: failureSupport.autoFixFailureTitle,
             message: `${getAutoFixFailureMessage()}${timingText ? `\n${timingText}` : ''}`,
             showBh247: true,
             closable: false,
@@ -3508,12 +3912,13 @@ async function rotateOverloadShareCookie() {
     }
     if (!isSheetAccessEnabled() || !isFixModeEnabled(activeFixMode)) {
         closeOverloadFixModal(true);
+        const support = getContentConfig().support;
         openSupportModal({
-            eyebrow: 'Thông báo / Hỗ trợ',
-            title: 'Sửa lỗi tự động đang tắt',
+            eyebrow: getContentConfig().entryErrors.popupEyebrow,
+            title: support.autoFixDisabledTitle,
             message: !isSheetAccessEnabled()
-                ? 'Truy cập Google Sheet đang được tắt trong admin. Vui lòng nhắn fanpage để được hỗ trợ.'
-                : 'Tính năng sửa lỗi này đang được tắt trong admin. Vui lòng nhắn fanpage để được hỗ trợ.',
+                ? support.autoFixDisabledMessage
+                : support.autoFixDisabledMessage,
             showBh247: true,
             closable: false,
             showAutoFix: false,
@@ -3597,8 +4002,12 @@ async function rotateOverloadShareCookie() {
 async function generateDeviceLink(device, mobileOs = 'android') {
     const cookie = getRuntimeCookie();
     if (!cookie) {
+        const entryErrors = getContentConfig().entryErrors;
         setLookupState('Không có cookie hợp lệ để tạo link.', 'warning');
-        setGuestGuard(true, 'Hãy mở đúng link /getlink?s=... hoặc /getlink?c=... để tiếp tục.');
+        setGuestGuard(true, entryErrors.guardDefaultMessage, {
+            title: entryErrors.guardDefaultTitle,
+            kind: 'link'
+        });
         return;
     }
 
@@ -3797,14 +4206,15 @@ async function applyCookieFromQuery() {
             setRuntimeShareDesktopOnly(!!(data.desktopOnly || (data.share && data.share.desktopOnly)));
             if (!cookieStr) {
                 hideLookupLoadingOverlay();
+                const entryErrors = getContentConfig().entryErrors;
                 const entryError = {
                     type: 'cookie',
                     reason: 'share_no_live_cookie',
-                    message: 'Link này đã hết cookie hợp lệ. Bạn có thể bấm SỬA LỖI TỰ ĐỘNG để hệ thống thử khắc phục.'
+                    message: entryErrors.noLiveCookieLookup
                 };
                 setEntryAlertState(entryError);
-                setGuestGuard(true, 'Link này vẫn còn hạn nhưng hiện không còn cookie dùng được. Bạn có thể bấm SỬA LỖI TỰ ĐỘNG hoặc nhắn fanpage để được hỗ trợ bảo hành.', {
-                    title: 'Link đã hết cookie hợp lệ',
+                setGuestGuard(true, entryErrors.noLiveCookieGuardMessage, {
+                    title: entryErrors.noLiveCookieGuardTitle,
                     kind: 'cookie'
                 });
                 setLookupState(entryError.message, 'warning');
@@ -3838,16 +4248,17 @@ async function applyCookieFromQuery() {
         try {
             const cookieStr = normalizeCookie(fromBase64Url(encodedCookie));
             if (!cookieStr) {
+                const entryErrors = getContentConfig().entryErrors;
                 setEntryAlertState({
                     type: 'link',
                     reason: 'invalid_cookie_link',
-                    message: 'Link cookie không hợp lệ.'
+                    message: entryErrors.invalidCookieLookup
                 });
-                setGuestGuard(true, 'Link cookie không hợp lệ. Hãy mở lại link được cấp để tiếp tục.', {
-                    title: 'Link cookie không hợp lệ',
+                setGuestGuard(true, entryErrors.invalidCookieGuardMessage, {
+                    title: entryErrors.invalidCookieGuardTitle,
                     kind: 'link'
                 });
-                setLookupState('Link cookie không hợp lệ.', 'warning');
+                setLookupState(entryErrors.invalidCookieLookup, 'warning');
                 showEntryAlertPopup(getEntryAlertPopupContent());
                 return;
             }
@@ -3855,16 +4266,17 @@ async function applyCookieFromQuery() {
             await runEntryCookieHealthCheck();
             return;
         } catch (error) {
+            const entryErrors = getContentConfig().entryErrors;
             setEntryAlertState({
                 type: 'link',
                 reason: 'invalid_cookie_link',
-                message: 'Không giải mã được cookie trong link chia sẻ.'
+                message: entryErrors.invalidCookieLookup
             });
-            setGuestGuard(true, 'Không giải mã được cookie trong link chia sẻ. Hãy mở lại đúng link được cấp.', {
-                title: 'Link cookie không hợp lệ',
+            setGuestGuard(true, entryErrors.invalidCookieGuardMessage, {
+                title: entryErrors.invalidCookieGuardTitle,
                 kind: 'link'
             });
-            setLookupState('Không giải mã được cookie trong link chia sẻ.', 'warning');
+            setLookupState(entryErrors.invalidCookieLookup, 'warning');
             showEntryAlertPopup(getEntryAlertPopupContent());
             return;
         }
@@ -4658,10 +5070,11 @@ function bindEvents() {
     if (upgradeNoticeCheckbox) {
         upgradeNoticeCheckbox.addEventListener('change', () => {
             if (Date.now() >= upgradeNoticeReadyAt) {
+                const config = getContentConfig().upgradeNotice;
                 setUpgradeNoticeState(
                     upgradeNoticeCheckbox.checked
-                        ? 'Bạn có thể bấm Bỏ qua để tiếp tục.'
-                        : 'Hãy tick vào “Tôi đã hiểu” để bỏ qua popup.',
+                        ? config.readyText
+                        : config.uncheckedText,
                     upgradeNoticeCheckbox.checked ? 'success' : 'warning'
                 );
             }
@@ -5179,8 +5592,9 @@ async function bootstrap() {
     }
     syncAdminCookieInput();
     if (!getRuntimeCookie() && !entryAlertState) {
-        setGuestGuard(true, 'Hãy mở đúng link /getlink?s=... hoặc /getlink?c=... để tiếp tục.', {
-            title: 'Không tìm thấy link hợp lệ',
+        const entryErrors = getContentConfig().entryErrors;
+        setGuestGuard(true, entryErrors.guardDefaultMessage, {
+            title: entryErrors.guardDefaultTitle,
             kind: 'link'
         });
     }

@@ -15,6 +15,7 @@ const nftokenHandler = require('./api/nftoken');
 const getlinkSharesHandler = require('./api/getlink-shares');
 const getlinkAdminHandler = require('./api/getlink-admin');
 const stuProxyHandler = require('./api/stu-proxy');
+const dataHandler = require('./api/data');
 
 const PORT = 3005;
 const DATA_DIR = path.join(__dirname, 'data');
@@ -168,6 +169,9 @@ const server = http.createServer((req, res) => {
     if (requestPath.startsWith('/api/getlink-admin')) {
         return invokeServerlessApi(getlinkAdminHandler, req, res);
     }
+    if (requestPath.startsWith('/api/data-admin') || requestPath.startsWith('/api/data/')) {
+        return invokeServerlessApi(dataHandler, req, res);
+    }
     if (
         requestPath === '/api/queue/join'
         || requestPath === '/api/queue/heartbeat'
@@ -220,6 +224,9 @@ const server = http.createServer((req, res) => {
     // Serve Static Files
     const rawUrl = requestPath;
     let relativePath = rawUrl.replace(/^\/+/, '');
+    if (relativePath === 'data' || relativePath === 'data/' || (relativePath.startsWith('data/') && !path.extname(relativePath))) {
+        relativePath = relativePath === 'data/admin' || relativePath === 'data/admin/' ? path.join('data', 'admin', 'index.html') : path.join('data', 'index.html');
+    }
     if (!relativePath) relativePath = 'index.html';
     if (relativePath === 'nf') relativePath = path.join('nf', 'index.html');
     if (relativePath === 'banggia') relativePath = path.join('banggia', 'index.html');

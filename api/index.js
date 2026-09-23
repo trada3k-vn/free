@@ -14,6 +14,7 @@ const getlinkSharesHandler = require('./getlink-shares');
 const getlinkAdminHandler = require('./getlink-admin');
 const getlinkOperationsHandler = require('./getlink-operations');
 const stuProxyHandler = require('./stu-proxy');
+const dataHandler = require('./data');
 
 function getRequestPath(req) {
     return String((req && req.url) || '/').split('?')[0];
@@ -31,6 +32,9 @@ module.exports = async function (req, res) {
         }
         if (requestPath.startsWith('/api/getlink-admin')) {
             return getlinkAdminHandler(req, res);
+        }
+        if (requestPath.startsWith('/api/data-admin') || requestPath.startsWith('/api/data/')) {
+            return dataHandler(req, res);
         }
 
         if (requestPath === '/api/nf-cookies/import') {

@@ -1,6 +1,18 @@
-﻿rules_version = '2';
+rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Existing production rules used by /getlink and Netflix settings.
+    match /app_data/{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.auth.token.email == 'cungbocap306@gmail.com';
+    }
+
+    match /settings/{document=**} {
+      allow read: if true;
+      allow write: if true;
+    }
+
     function isSignedIn() {
       return request.auth != null;
     }
@@ -13,27 +25,17 @@ service cloud.firestore {
         ];
     }
 
-    match /nf_customer_items/{docId} {
-      allow read, write: if isAdmin();
+    match /data_pages/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
-    match /nf_cookie_items/{docId} {
-      allow read, write: if isAdmin();
+    match /data_public_accounts/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
-    match /settings/nf_customers {
-      allow read, write: if isAdmin();
-    }
-
-    match /settings/nf_cookie_pool {
-      allow read, write: if isAdmin();
-    }
-
-    match /settings/getlink_fix_history/items/{docId} {
-      allow read, write: if isAdmin();
-    }
-
-    match /settings/getlink_fix_limits/items/{docId} {
+    match /data_accounts/{docId} {
       allow read, write: if isAdmin();
     }
 

@@ -12,6 +12,18 @@
   ],
   "routes": [
     {
+      "src": "/data/?$",
+      "dest": "/data/admin/index.html"
+    },
+    {
+      "src": "/data/admin/?$",
+      "dest": "/data/admin/index.html"
+    },
+    {
+      "src": "/data/[^/.]+/?$",
+      "dest": "/data/index.html"
+    },
+    {
       "src": "/api/(.*)",
       "dest": "/api/index.js"
     },

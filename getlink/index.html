@@ -258,6 +258,78 @@
             font-size: 0.8rem;
         }
 
+        .sheet-import-progress {
+            display: grid;
+            gap: 0.55rem;
+            padding: 0.68rem 0.72rem;
+            border: 1px solid rgba(96, 165, 250, 0.28);
+            border-radius: 10px;
+            background: rgba(15, 23, 42, 0.5);
+        }
+
+        .sheet-import-progress-head,
+        .sheet-import-progress-meta,
+        .sheet-import-progress-stats {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.65rem;
+        }
+
+        .sheet-import-progress-head {
+            color: #eaf1ff;
+            font-size: 0.79rem;
+            font-weight: 800;
+        }
+
+        .sheet-import-progress-meta,
+        .sheet-import-progress-stats {
+            flex-wrap: wrap;
+            justify-content: flex-start;
+            color: #b9c9e6;
+            font-size: 0.74rem;
+        }
+
+        .sheet-import-progress-stats span {
+            padding: 0.18rem 0.42rem;
+            border-radius: 999px;
+            background: rgba(148, 163, 184, 0.12);
+        }
+
+        .sheet-import-progress-stats .is-good {
+            color: #a7f3d0;
+            background: rgba(16, 185, 129, 0.14);
+        }
+
+        .sheet-import-progress-stats .is-bad {
+            color: #fecaca;
+            background: rgba(239, 68, 68, 0.14);
+        }
+
+        .sheet-import-progress-bar {
+            height: 7px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: rgba(148, 163, 184, 0.18);
+        }
+
+        .sheet-import-progress-fill {
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #60a5fa, #34d399);
+            transition: width 0.35s ease;
+        }
+
+        .sheet-import-progress-fill.is-indeterminate {
+            width: 35% !important;
+            animation: sheetImportProgressMove 1.15s ease-in-out infinite alternate;
+        }
+
+        @keyframes sheetImportProgressMove {
+            from { transform: translateX(-35%); }
+            to { transform: translateX(185%); }
+        }
+
         .share-expiry-wrap {
             margin-top: 0.65rem;
             display: grid;
@@ -1706,6 +1778,7 @@
                                     <div class="sheet-import-actions">
                                         <button id="creatorImportCookiesFromSheetBtn" class="btn btn-ghost" type="button">Nhập cookie từ Sheet</button>
                                     </div>
+                                    <div id="creatorSheetImportProgress" class="sheet-import-progress hidden" aria-live="polite"></div>
                                     <div id="creatorSheetImportState" class="state-text state-idle hidden sheet-import-state"></div>
                                 </div>
                                 <div class="share-summary-actions">
@@ -1781,6 +1854,7 @@
                                     <div class="sheet-import-actions">
                                         <button id="currentImportCookiesFromSheetBtn" class="btn btn-ghost" type="button">Nhập cookie từ Sheet</button>
                                     </div>
+                                    <div id="currentSheetImportProgress" class="sheet-import-progress hidden" aria-live="polite"></div>
                                     <div id="currentSheetImportState" class="state-text state-idle hidden sheet-import-state"></div>
                                 </div>
                                  <div class="share-summary-actions">
@@ -1879,7 +1953,7 @@
                 <p id="supportModalBh247" class="support-modal-note support-modal-bh247 hidden">Hãy nhắn chính xác cú pháp BH247 vào page để được hỗ trợ và bảo hành.</p>
                 <div id="supportModalLoading" class="support-modal-loading hidden" aria-live="polite">
                     <div class="support-modal-spinner" aria-hidden="true"></div>
-                    <p class="support-modal-loading-title">Đang sửa lỗi cho bạn</p>
+                    <p id="supportModalLoadingTitle" class="support-modal-loading-title">Đang sửa lỗi cho bạn</p>
                     <p id="supportModalLoadingText" class="support-modal-note">Hệ thống đang kiểm tra và sửa lỗi cho bạn.</p>
                     <p id="supportModalLoadingLate" class="support-modal-late hidden">Đợi xíu nha, sắp xong gòi ạ</p>
                 </div>
@@ -1919,25 +1993,19 @@
         <div class="modal-card support-card upgrade-notice-card" role="dialog" aria-modal="true" aria-labelledby="upgradeNoticeTitle">
             <header class="modal-head">
                 <div>
-                    <span class="eyebrow">Lưu ý quan trọng</span>
+                    <span id="upgradeNoticeEyebrow" class="eyebrow">Lưu ý quan trọng</span>
                     <h2 id="upgradeNoticeTitle">Thông báo khi đang xem</h2>
                 </div>
             </header>
             <div class="support-body upgrade-notice-body">
-                <p class="upgrade-notice-message">
-                    Khi đang xem mà hiện nút
-                    <span class="upgrade-keyword">NÂNG CẤP</span>
-                    hay
-                    <span class="upgrade-keyword">UPGRADE</span>,
-                    thì hãy bấm vào nhé!
-                </p>
+                <p id="upgradeNoticeMessage" class="upgrade-notice-message">Khi đang xem mà hiện nút NÂNG CẤP hay UPGRADE, thì hãy bấm vào nhé!</p>
                 <div id="upgradeNoticeCountdown" class="state-text state-warning upgrade-notice-countdown">
                     Vui lòng chờ 3 giây để bỏ qua popup.
                 </div>
                 <div class="upgrade-notice-confirm">
                     <label for="upgradeNoticeUnderstood">
                         <input id="upgradeNoticeUnderstood" type="checkbox">
-                        <span>Tôi đã hiểu</span>
+                        <span id="upgradeNoticeCheckboxText">Tôi đã hiểu</span>
                     </label>
                 </div>
                 <div class="upgrade-notice-actions">
@@ -1952,13 +2020,13 @@
         <div class="modal-card mobile-link-card">
             <header class="modal-head">
                 <div>
-                    <span class="eyebrow">Đăng nhập điện thoại</span>
+                    <span id="mobileLinkEyebrow" class="eyebrow">Đăng nhập điện thoại</span>
                     <h2 id="mobileLinkTitle">Tạo link đăng nhập thành công</h2>
                 </div>
                 <button id="mobileLinkCloseBtn" class="btn btn-ghost" type="button">Đóng</button>
             </header>
             <div class="mobile-link-body">
-                <label class="mobile-link-label" for="mobileLinkOutput">Link đăng nhập:</label>
+                <label id="mobileLinkLabel" class="mobile-link-label" for="mobileLinkOutput">Link đăng nhập:</label>
                 <input id="mobileLinkOutput" class="text-input mobile-link-output mono" type="text" readonly>
                 <button id="copyMobileLinkBtn" class="btn btn-primary mobile-link-copy-btn" type="button">Sao chép link</button>
 
@@ -1984,13 +2052,13 @@
         <div class="modal-card mobile-link-card">
             <header class="modal-head">
                 <div>
-                    <span class="eyebrow">Đăng nhập TV</span>
+                    <span id="tvGuideEyebrow" class="eyebrow">Đăng nhập TV</span>
                     <h2 id="tvGuideTitle">Tạo link đăng nhập thành công</h2>
                 </div>
                 <button id="tvGuideCloseBtn" class="btn btn-ghost" type="button">Đóng</button>
             </header>
             <div class="mobile-link-body">
-                <label class="mobile-link-label" for="tvGuideOutput">Link đăng nhập:</label>
+                <label id="tvGuideLabel" class="mobile-link-label" for="tvGuideOutput">Link đăng nhập:</label>
                 <input id="tvGuideOutput" class="text-input mobile-link-output mono" type="text" readonly>
                 <button id="copyTvGuideLinkBtn" class="btn btn-primary mobile-link-copy-btn" type="button">Sao chép link</button>
 
@@ -2036,13 +2104,13 @@
         <div class="modal-card support-card mobile-os-card">
             <header class="modal-head">
                 <div>
-                    <span class="eyebrow">Điện thoại / Máy tính bảng</span>
-                    <h2>Bạn đang dùng Android hay iOS?</h2>
+                    <span id="mobileOsEyebrow" class="eyebrow">Điện thoại / Máy tính bảng</span>
+                    <h2 id="mobileOsTitle">Bạn đang dùng Android hay iOS?</h2>
                 </div>
                 <button id="mobileOsCloseBtn" class="btn btn-ghost" type="button">Đóng</button>
             </header>
             <div class="support-body">
-                <p>Vui lòng chọn đúng hệ điều hành để xem hướng dẫn phù hợp.</p>
+                <p id="mobileOsMessage">Vui lòng chọn đúng hệ điều hành để xem hướng dẫn phù hợp.</p>
                 <div class="mobile-os-actions">
                     <button id="mobileOsAndroidBtn" class="btn btn-primary" type="button">Android</button>
                     <button id="mobileOsIosBtn" class="btn btn-ghost" type="button">iOS</button>
@@ -2070,7 +2138,7 @@
                 <div id="overloadFixCountdown" class="state-text state-warning">Vui lòng chờ 10 giây để xác nhận.</div>
                 <div id="overloadFixLoading" class="overload-fix-loading hidden" aria-live="polite">
                     <div class="support-modal-spinner" aria-hidden="true"></div>
-                    <p class="support-modal-loading-title">Đang sửa lỗi cho bạn</p>
+                    <p id="overloadFixLoadingTitle" class="support-modal-loading-title">Đang sửa lỗi cho bạn</p>
                     <p id="overloadFixLoadingText" class="support-modal-note">Hệ thống đang kiểm tra và thay cookie phù hợp.</p>
                     <p id="overloadFixLoadingLate" class="support-modal-late hidden">Đợi xíu nha, sắp xong gòi ạ</p>
                 </div>
@@ -2273,22 +2341,60 @@
                             <label class="admin-settings-field" for="adminDisclaimerDismissInput"><span class="admin-settings-label">Nut bo qua</span><input id="adminDisclaimerDismissInput" class="text-input" type="text"></label>
                         </div>
                         <div class="admin-settings-section">
+                            <p class="admin-settings-section-title">Popup nang cap</p>
+                            <label class="admin-settings-field" for="adminUpgradeEyebrowInput"><span class="admin-settings-label">Eyebrow</span><input id="adminUpgradeEyebrowInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminUpgradeTitleInput"><span class="admin-settings-label">Tieu de</span><input id="adminUpgradeTitleInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminUpgradeMessageInput"><span class="admin-settings-label">Noi dung</span><textarea id="adminUpgradeMessageInput" class="text-input admin-settings-textarea"></textarea></label>
+                            <label class="admin-settings-field" for="adminUpgradeWaitInput"><span class="admin-settings-label">Text dem nguoc ({seconds})</span><input id="adminUpgradeWaitInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminUpgradeReadyInput"><span class="admin-settings-label">Text san sang</span><input id="adminUpgradeReadyInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminUpgradeUncheckedInput"><span class="admin-settings-label">Text khi chua tick</span><input id="adminUpgradeUncheckedInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminUpgradeCheckboxInput"><span class="admin-settings-label">Checkbox</span><input id="adminUpgradeCheckboxInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminUpgradeDismissInput"><span class="admin-settings-label">Nut bo qua</span><input id="adminUpgradeDismissInput" class="text-input" type="text"></label>
+                        </div>
+                        <div class="admin-settings-section">
+                            <p class="admin-settings-section-title">Nhan nut / loading dung chung</p>
+                            <label class="admin-settings-field" for="adminSharedCloseInput"><span class="admin-settings-label">Nut dong</span><input id="adminSharedCloseInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminSharedLoginLabelInput"><span class="admin-settings-label">Nhan link dang nhap</span><input id="adminSharedLoginLabelInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminSharedCopyLoginInput"><span class="admin-settings-label">Nut copy link dang nhap</span><input id="adminSharedCopyLoginInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminSharedReloadCloseInput"><span class="admin-settings-label">Nut dong va reload</span><input id="adminSharedReloadCloseInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminLoadingSupportTitleInput"><span class="admin-settings-label">Tieu de loading ho tro</span><input id="adminLoadingSupportTitleInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminLoadingSupportDefaultInput"><span class="admin-settings-label">Noi dung loading ho tro mac dinh</span><input id="adminLoadingSupportDefaultInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminLoadingSupportLateInput"><span class="admin-settings-label">Text loading lau ho tro</span><input id="adminLoadingSupportLateInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminLoadingFixTitleInput"><span class="admin-settings-label">Tieu de loading sua loi</span><input id="adminLoadingFixTitleInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminLoadingFixDefaultInput"><span class="admin-settings-label">Noi dung loading sua loi mac dinh</span><input id="adminLoadingFixDefaultInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminLoadingFixLateInput"><span class="admin-settings-label">Text loading lau sua loi</span><input id="adminLoadingFixLateInput" class="text-input" type="text"></label>
+                        </div>
+                        <div class="admin-settings-section">
                             <p class="admin-settings-section-title">Huong dan dien thoai Android</p>
+                            <label class="admin-settings-field" for="adminMobileAndroidEyebrowInput"><span class="admin-settings-label">Eyebrow popup</span><input id="adminMobileAndroidEyebrowInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminMobileAndroidModalTitleInput"><span class="admin-settings-label">Tieu de popup</span><input id="adminMobileAndroidModalTitleInput" class="text-input" type="text"></label>
                             <label class="admin-settings-field" for="adminMobileAndroidTitleInput"><span class="admin-settings-label">Tieu de huong dan</span><input id="adminMobileAndroidTitleInput" class="text-input" type="text"></label>
                             <label class="admin-settings-field" for="adminMobileAndroidStepsInput"><span class="admin-settings-label">Cac buoc (moi dong 1 buoc)</span><textarea id="adminMobileAndroidStepsInput" class="text-input admin-settings-textarea"></textarea></label>
                             <label class="admin-settings-field" for="adminMobileAndroidCopyInput"><span class="admin-settings-label">Nut copy link phu</span><input id="adminMobileAndroidCopyInput" class="text-input" type="text"></label>
                         </div>
                         <div class="admin-settings-section">
                             <p class="admin-settings-section-title">Huong dan dien thoai iOS</p>
+                            <label class="admin-settings-field" for="adminMobileIosEyebrowInput"><span class="admin-settings-label">Eyebrow popup</span><input id="adminMobileIosEyebrowInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminMobileIosModalTitleInput"><span class="admin-settings-label">Tieu de popup</span><input id="adminMobileIosModalTitleInput" class="text-input" type="text"></label>
                             <label class="admin-settings-field" for="adminMobileIosTitleInput"><span class="admin-settings-label">Tieu de huong dan</span><input id="adminMobileIosTitleInput" class="text-input" type="text"></label>
                             <label class="admin-settings-field" for="adminMobileIosStepsInput"><span class="admin-settings-label">Cac buoc (moi dong 1 buoc)</span><textarea id="adminMobileIosStepsInput" class="text-input admin-settings-textarea"></textarea></label>
                             <label class="admin-settings-field" for="adminMobileIosCopyInput"><span class="admin-settings-label">Nut copy link phu</span><input id="adminMobileIosCopyInput" class="text-input" type="text"></label>
                         </div>
                         <div class="admin-settings-section">
                             <p class="admin-settings-section-title">Huong dan TV</p>
+                            <label class="admin-settings-field" for="adminTvEyebrowInput"><span class="admin-settings-label">Eyebrow popup</span><input id="adminTvEyebrowInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminTvModalTitleInput"><span class="admin-settings-label">Tieu de popup</span><input id="adminTvModalTitleInput" class="text-input" type="text"></label>
                             <label class="admin-settings-field" for="adminTvTitleInput"><span class="admin-settings-label">Tieu de huong dan</span><input id="adminTvTitleInput" class="text-input" type="text"></label>
                             <label class="admin-settings-field" for="adminTvStepsInput"><span class="admin-settings-label">Cac buoc (moi dong 1 buoc)</span><textarea id="adminTvStepsInput" class="text-input admin-settings-textarea"></textarea></label>
                             <label class="admin-settings-field" for="adminTvCopyInput"><span class="admin-settings-label">Nut copy link phu</span><input id="adminTvCopyInput" class="text-input" type="text"></label>
+                        </div>
+                        <div class="admin-settings-section">
+                            <p class="admin-settings-section-title">Chon Android / iOS</p>
+                            <label class="admin-settings-field" for="adminMobileOsEyebrowInput"><span class="admin-settings-label">Eyebrow</span><input id="adminMobileOsEyebrowInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminMobileOsTitleInput"><span class="admin-settings-label">Tieu de</span><input id="adminMobileOsTitleInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminMobileOsMessageInput"><span class="admin-settings-label">Noi dung</span><input id="adminMobileOsMessageInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminMobileOsAndroidInput"><span class="admin-settings-label">Nut Android</span><input id="adminMobileOsAndroidInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminMobileOsIosInput"><span class="admin-settings-label">Nut iOS</span><input id="adminMobileOsIosInput" class="text-input" type="text"></label>
                         </div>
                         <div class="admin-settings-section">
                             <p class="admin-settings-section-title">Xac nhan thiet bi</p>
@@ -2335,12 +2441,59 @@
                         </div>
                         <div class="admin-settings-section">
                             <p class="admin-settings-section-title">Ho tro / bao hanh</p>
+                            <label class="admin-settings-field" for="adminSupportEyebrowInput"><span class="admin-settings-label">Eyebrow</span><input id="adminSupportEyebrowInput" class="text-input" type="text"></label>
                             <label class="admin-settings-field" for="adminSupportTitleInput"><span class="admin-settings-label">Tieu de</span><input id="adminSupportTitleInput" class="text-input" type="text"></label>
                             <label class="admin-settings-field" for="adminSupportMessageInput"><span class="admin-settings-label">Noi dung</span><textarea id="adminSupportMessageInput" class="text-input admin-settings-textarea"></textarea></label>
                             <label class="admin-settings-field" for="adminSupportBh247Input"><span class="admin-settings-label">Dong BH247</span><input id="adminSupportBh247Input" class="text-input" type="text"></label>
                             <label class="admin-settings-field" for="adminSupportFanpageInput"><span class="admin-settings-label">Nut fanpage</span><input id="adminSupportFanpageInput" class="text-input" type="text"></label>
                             <label class="admin-settings-field" for="adminSupportAutoFixInput"><span class="admin-settings-label">Nut sua loi tu dong</span><input id="adminSupportAutoFixInput" class="text-input" type="text"></label>
                             <label class="admin-settings-field" for="adminSupportWarrantyInput"><span class="admin-settings-label">Nut can ho tro ngoai trang</span><input id="adminSupportWarrantyInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminSupportAutoFixEyebrowInput"><span class="admin-settings-label">Auto-fix eyebrow</span><input id="adminSupportAutoFixEyebrowInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminSupportAutoFixTitleInput"><span class="admin-settings-label">Auto-fix tieu de loading</span><input id="adminSupportAutoFixTitleInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminSupportAutoFixMessageInput"><span class="admin-settings-label">Auto-fix noi dung loading</span><input id="adminSupportAutoFixMessageInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminSupportAutoFixLoadingInput"><span class="admin-settings-label">Auto-fix text loading</span><input id="adminSupportAutoFixLoadingInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminSupportAutoFixDisabledTitleInput"><span class="admin-settings-label">Auto-fix tat - tieu de</span><input id="adminSupportAutoFixDisabledTitleInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminSupportAutoFixDisabledMessageInput"><span class="admin-settings-label">Auto-fix tat - noi dung</span><input id="adminSupportAutoFixDisabledMessageInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminSupportAutoFixSuccessEyebrowInput"><span class="admin-settings-label">Auto-fix thanh cong eyebrow</span><input id="adminSupportAutoFixSuccessEyebrowInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminSupportAutoFixSuccessTitleInput"><span class="admin-settings-label">Auto-fix thanh cong tieu de</span><input id="adminSupportAutoFixSuccessTitleInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminSupportAutoFixSuccessMessageInput"><span class="admin-settings-label">Auto-fix thanh cong noi dung</span><textarea id="adminSupportAutoFixSuccessMessageInput" class="text-input admin-settings-textarea"></textarea></label>
+                            <label class="admin-settings-field" for="adminSupportAutoFixFailureTitleInput"><span class="admin-settings-label">Auto-fix that bai tieu de</span><input id="adminSupportAutoFixFailureTitleInput" class="text-input" type="text"></label>
+                        </div>
+                        <div class="admin-settings-section">
+                            <p class="admin-settings-section-title">Thong bao loi link / cookie</p>
+                            <label class="admin-settings-field" for="adminEntryPopupEyebrowInput"><span class="admin-settings-label">Eyebrow popup loi</span><input id="adminEntryPopupEyebrowInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminEntryGenericEyebrowInput"><span class="admin-settings-label">Eyebrow thong bao chung</span><input id="adminEntryGenericEyebrowInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminEntryGenericTitleInput"><span class="admin-settings-label">Tieu de thong bao chung</span><input id="adminEntryGenericTitleInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminEntryDesktopOnlyInput"><span class="admin-settings-label">Thong bao chi xem may tinh</span><textarea id="adminEntryDesktopOnlyInput" class="text-input admin-settings-textarea"></textarea></label>
+                            <label class="admin-settings-field" for="adminEntryDefaultSupportInput"><span class="admin-settings-label">Noi dung ho tro mac dinh</span><textarea id="adminEntryDefaultSupportInput" class="text-input admin-settings-textarea"></textarea></label>
+                            <label class="admin-settings-field" for="adminEntrySbdTitleInput"><span class="admin-settings-label">Tieu de cookie SBD</span><input id="adminEntrySbdTitleInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminEntryDeadTitleInput"><span class="admin-settings-label">Tieu de cookie dead</span><input id="adminEntryDeadTitleInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminEntryHoldTitleInput"><span class="admin-settings-label">Tieu de hold</span><input id="adminEntryHoldTitleInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminEntryUnknownCookieTitleInput"><span class="admin-settings-label">Tieu de cookie loi chung</span><input id="adminEntryUnknownCookieTitleInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminEntryNoLiveCookieTitleInput"><span class="admin-settings-label">Tieu de het cookie song</span><input id="adminEntryNoLiveCookieTitleInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminEntryLinkNotFoundTitleInput"><span class="admin-settings-label">Tieu de link khong ton tai</span><input id="adminEntryLinkNotFoundTitleInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminEntryLinkRevokedTitleInput"><span class="admin-settings-label">Tieu de link thu hoi</span><input id="adminEntryLinkRevokedTitleInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminEntryLinkExpiredTitleInput"><span class="admin-settings-label">Tieu de link het han</span><input id="adminEntryLinkExpiredTitleInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminEntryInvalidCookieTitleInput"><span class="admin-settings-label">Tieu de cookie link sai</span><input id="adminEntryInvalidCookieTitleInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminEntryInvalidShareTitleInput"><span class="admin-settings-label">Tieu de link sai chung</span><input id="adminEntryInvalidShareTitleInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminEntryGuardDefaultTitleInput"><span class="admin-settings-label">Guard mac dinh - tieu de</span><input id="adminEntryGuardDefaultTitleInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminEntryGuardDefaultMessageInput"><span class="admin-settings-label">Guard mac dinh - noi dung</span><textarea id="adminEntryGuardDefaultMessageInput" class="text-input admin-settings-textarea"></textarea></label>
+                            <label class="admin-settings-field" for="adminEntryLinkNotFoundLookupInput"><span class="admin-settings-label">Lookup link khong ton tai</span><input id="adminEntryLinkNotFoundLookupInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminEntryLinkNotFoundGuardTitleInput"><span class="admin-settings-label">Guard link khong ton tai - tieu de</span><input id="adminEntryLinkNotFoundGuardTitleInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminEntryLinkNotFoundGuardMessageInput"><span class="admin-settings-label">Guard link khong ton tai - noi dung</span><textarea id="adminEntryLinkNotFoundGuardMessageInput" class="text-input admin-settings-textarea"></textarea></label>
+                            <label class="admin-settings-field" for="adminEntryLinkRevokedLookupInput"><span class="admin-settings-label">Lookup link thu hoi</span><input id="adminEntryLinkRevokedLookupInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminEntryLinkRevokedGuardTitleInput"><span class="admin-settings-label">Guard link thu hoi - tieu de</span><input id="adminEntryLinkRevokedGuardTitleInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminEntryLinkRevokedGuardMessageInput"><span class="admin-settings-label">Guard link thu hoi - noi dung</span><textarea id="adminEntryLinkRevokedGuardMessageInput" class="text-input admin-settings-textarea"></textarea></label>
+                            <label class="admin-settings-field" for="adminEntryLinkExpiredLookupInput"><span class="admin-settings-label">Lookup link het han</span><input id="adminEntryLinkExpiredLookupInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminEntryLinkExpiredGuardTitleInput"><span class="admin-settings-label">Guard link het han - tieu de</span><input id="adminEntryLinkExpiredGuardTitleInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminEntryLinkExpiredGuardMessageInput"><span class="admin-settings-label">Guard link het han - noi dung</span><textarea id="adminEntryLinkExpiredGuardMessageInput" class="text-input admin-settings-textarea"></textarea></label>
+                            <label class="admin-settings-field" for="adminEntryNoLiveLookupInput"><span class="admin-settings-label">Lookup het cookie song</span><input id="adminEntryNoLiveLookupInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminEntryNoLiveGuardTitleInput"><span class="admin-settings-label">Guard het cookie song - tieu de</span><input id="adminEntryNoLiveGuardTitleInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminEntryNoLiveGuardMessageInput"><span class="admin-settings-label">Guard het cookie song - noi dung</span><textarea id="adminEntryNoLiveGuardMessageInput" class="text-input admin-settings-textarea"></textarea></label>
+                            <label class="admin-settings-field" for="adminEntryInvalidShareLookupInput"><span class="admin-settings-label">Lookup link sai chung</span><input id="adminEntryInvalidShareLookupInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminEntryInvalidCookieLookupInput"><span class="admin-settings-label">Lookup cookie link sai</span><input id="adminEntryInvalidCookieLookupInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminEntryInvalidCookieGuardTitleInput"><span class="admin-settings-label">Guard cookie link sai - tieu de</span><input id="adminEntryInvalidCookieGuardTitleInput" class="text-input" type="text"></label>
+                            <label class="admin-settings-field" for="adminEntryInvalidCookieGuardMessageInput"><span class="admin-settings-label">Guard cookie link sai - noi dung</span><textarea id="adminEntryInvalidCookieGuardMessageInput" class="text-input admin-settings-textarea"></textarea></label>
                         </div>
                             </div>
                         </details>
