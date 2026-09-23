@@ -141,6 +141,15 @@ function validId(id) { return /^[A-Za-z0-9_-]{8,64}$/.test(String(id || '').trim
 function newId() { return crypto.randomBytes(12).toString('base64url').slice(0, 16); }
 function parseMs(value) { const ms = Date.parse(String(value || '')); return Number.isFinite(ms) ? ms : 0; }
 function isExpired(value) { const ms = parseMs(value); return !!ms && ms <= Date.now(); }
+function normalizeCapcutExpiry(value = '') {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    const iso = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? `${raw}T23:59:59+07:00` : raw;
+    const ms = Date.parse(iso);
+    if (!Number.isFinite(ms)) throw Object.assign(new Error('Ngày hết hạn link không hợp lệ.'), { httpStatus: 400 });
+    if (ms <= Date.now()) throw Object.assign(new Error('Ngày hết hạn link phải ở tương lai.'), { httpStatus: 400 });
+    return new Date(ms).toISOString();
+}
 function origin(req) {
     const proto = String(req.headers && (req.headers['x-forwarded-proto'] || req.headers['X-Forwarded-Proto']) || '').trim();
     const host = String(req.headers && req.headers.host || '').trim();
@@ -215,7 +224,16 @@ async function callSheet(action, payload = {}) {
         throw error;
     }
     const url = resolveAppsScriptUrlOrThrow(config.sheetAppsScriptUrl);
-    const response = await requestAppsScriptJsonWithRetry(url, { action, payload, timeoutMs: 300000 });
+    let response;
+    try {
+        response = await requestAppsScriptJsonWithRetry(url, { action, payload, timeoutMs: 300000, maxAttempts: 3 });
+    } catch (error) {
+        if (Number(error && error.attempts || 0) >= 3) {
+            error.httpStatus = Number(error.httpStatus || 502);
+            error.message = 'Không kết nối được Google Sheet sau 3 lần thử.';
+        }
+        throw error;
+    }
     const data = response.data || {};
     if (data.success === false) throw Object.assign(new Error(String(data.error || 'Không lấy được tài khoản từ Google Sheet.')), { httpStatus: 502 });
     return data;
@@ -239,16 +257,37 @@ async function claimAccount() {
 
 async function createLink(req, body) {
     const addDays = Number(body.addDays);
-    if (!Number.isFinite(addDays) || addDays <= 0 || addDays > MAX_ADD_DAYS) throw Object.assign(new Error('Số ngày hạn link không hợp lệ.'), { httpStatus: 400 });
     const now = new Date();
+    const explicitExpiry = normalizeCapcutExpiry(body && body.expiryDate);
+    let expiresAt = explicitExpiry;
+    if (!expiresAt) {
+        if (!Number.isFinite(addDays) || addDays <= 0 || addDays > MAX_ADD_DAYS) throw Object.assign(new Error('Số ngày hạn link không hợp lệ.'), { httpStatus: 400 });
+        expiresAt = new Date(now.getTime() + addDays * 86400000).toISOString();
+    }
     const record = {
         id: newId(), status: 'active', createdAt: now.toISOString(), updatedAt: now.toISOString(),
-        expiresAt: new Date(now.getTime() + addDays * 86400000).toISOString(), username: '', password: '',
+        expiresAt, username: '', password: '',
         accountCreatedAt: '', accountExpiresAt: '', lastAction: 'created', lastActionAt: now.toISOString(),
         note: '', popupMessage: '', accountAssigned: false
     };
     await saveLink(record);
-    return adminDto(record, req);
+    let assignmentError = '';
+    if (body && body.assignImmediately === true) {
+        try {
+            const account = await claimAccount();
+            const assignedAt = new Date().toISOString();
+            Object.assign(record, account, {
+                accountAssigned: true,
+                updatedAt: assignedAt,
+                lastAction: 'assigned-on-create',
+                lastActionAt: assignedAt
+            });
+            await saveLink(record);
+        } catch (error) {
+            assignmentError = String(error && error.message || 'Không nhập được tài khoản từ Google Sheet.');
+        }
+    }
+    return { link: adminDto(record, req), assignmentError };
 }
 
 async function assign(req, id, action = 'assigned') {
@@ -278,7 +317,8 @@ module.exports = async function capcutHandler(req, res) {
         const match = pathname.match(/^\/api\/capcut\/links\/([^/]+)(?:\/(assign|warranty))?$/);
         if (pathname === '/api/capcut/links' && req.method === 'POST') {
             if (!await requireAdmin(req, res)) return;
-            return res.status(200).json({ success: true, link: await createLink(req, parseBody(req.body)) });
+            const created = await createLink(req, parseBody(req.body));
+            return res.status(200).json({ success: true, link: created.link, assignmentError: created.assignmentError || '' });
         }
         if (pathname === '/api/capcut/config' && req.method === 'GET') {
             const config = await readConfig();
@@ -322,4 +362,4 @@ module.exports = async function capcutHandler(req, res) {
     }
 };
 
-module.exports._test = { mapFields, parseMs, isExpired, ACCOUNT_DAYS };
+module.exports._test = { mapFields, parseMs, isExpired, normalizeCapcutExpiry, ACCOUNT_DAYS };

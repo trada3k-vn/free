@@ -212,6 +212,7 @@ async function requestAppsScriptJsonWithRetry(rawUrl, options = {}) {
     const action = String(options.action || '').trim() || 'health';
     const payload = options.payload && typeof options.payload === 'object' ? options.payload : {};
     const timeoutMs = Math.max(1, Number(options.timeoutMs || DEFAULT_TIMEOUT_MS) || DEFAULT_TIMEOUT_MS);
+    const maxAttempts = Math.max(1, Math.min(10, Number(options.maxAttempts || MAX_ATTEMPTS) || MAX_ATTEMPTS));
     const logger = typeof options.logger === 'function' ? options.logger : console.warn;
     const url = new URL(String(rawUrl || '').trim());
 
@@ -222,7 +223,7 @@ async function requestAppsScriptJsonWithRetry(rawUrl, options = {}) {
     });
 
     let lastError = null;
-    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
         try {
             const response = await getJsonFromAbsoluteUrl(url.toString(), { timeoutMs });
             const data = response && response.data && typeof response.data === 'object'
@@ -243,7 +244,7 @@ async function requestAppsScriptJsonWithRetry(rawUrl, options = {}) {
                 logger('[getlink apps script] request succeeded after retry', {
                     action,
                     attempt,
-                    maxAttempts: MAX_ATTEMPTS,
+                    maxAttempts,
                     statusCode: response.statusCode,
                     redirectSeen: response.redirectSeen === true,
                     retrying: false
@@ -262,11 +263,11 @@ async function requestAppsScriptJsonWithRetry(rawUrl, options = {}) {
             lastError = error;
             error.attempts = attempt;
 
-            const shouldRetry = attempt < MAX_ATTEMPTS && isRetryableAppsScriptError(error);
+            const shouldRetry = attempt < maxAttempts && isRetryableAppsScriptError(error);
             logger('[getlink apps script] request failed', {
                 action,
                 attempt,
-                maxAttempts: MAX_ATTEMPTS,
+                maxAttempts,
                 statusCode: Number(error.statusCode || 0),
                 redirectSeen: error.redirectSeen === true,
                 retrying: shouldRetry

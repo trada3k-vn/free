@@ -28,7 +28,7 @@
       "dest": "/capcut/admin.html"
     },
     {
-      "src": "/capcut(?:/.*)?$",
+      "src": "/capcut(?:/[^/.]+)?/?$",
       "dest": "/capcut/index.html"
     },
     {
