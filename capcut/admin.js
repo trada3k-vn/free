@@ -190,6 +190,26 @@ async function saveConfig() {
   }
 }
 
+async function testSheet() {
+  const sheetUrl = $('#sheetUrl').value.trim();
+  if (!sheetUrl) {
+    setMessage('#sheetTestState', 'Vui lòng nhập Apps Script URL.', 'error');
+    return;
+  }
+  setBusy('#testSheet', true, 'ĐANG KIỂM TRA...');
+  setProgress('#sheetTestProgress', true, 'Đang kiểm tra Apps Script...', 'Đang kiểm tra URL, Spreadsheet và tên Sheet.');
+  setMessage('#sheetTestState');
+  try {
+    const data = await api('/api/capcut/sheet-test', { method: 'POST', body: JSON.stringify({ sheetAppsScriptUrl: sheetUrl }) });
+    setMessage('#sheetTestState', `${data.message} Sheet: ${data.sheetName}. Hàng hợp lệ: ${data.eligibleRows}.`, 'success');
+  } catch (error) {
+    setMessage('#sheetTestState', error.message, 'error');
+  } finally {
+    setProgress('#sheetTestProgress', false);
+    setBusy('#testSheet', false);
+  }
+}
+
 async function copyValue(value, button) {
   try {
     await navigator.clipboard.writeText(value || '');
@@ -210,6 +230,7 @@ $('#create').addEventListener('click', () => createLink(true));
 $('#createManual').addEventListener('click', () => createLink(false));
 $('#assign').addEventListener('click', assignAccount);
 $('#saveConfig').addEventListener('click', saveConfig);
+$('#testSheet').addEventListener('click', testSheet);
 $('#copyLink').addEventListener('click', (event) => copyValue($('#linkOutput').value, event.currentTarget));
 document.addEventListener('click', (event) => {
   const button = event.target.closest('[data-copy]');

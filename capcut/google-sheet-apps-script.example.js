@@ -5,7 +5,18 @@ const SHEET_NAME='Sheet1';
 const TIMEZONE='Asia/Ho_Chi_Minh';
 
 function json_(value){return ContentService.createTextOutput(JSON.stringify(value)).setMimeType(ContentService.MimeType.JSON)}
-function doGet(e){try{if(String(e.parameter.action||'')==='claimCapcutAccount')return json_({success:true,account:claim_()});return json_({success:true,message:'CapCut Apps Script is running'})}catch(err){return json_({success:false,error:String(err.message||err)})}}
+function doGet(e){try{const action=String(e.parameter.action||'');if(action==='claimCapcutAccount')return json_({success:true,account:claim_()});if(action==='healthCapcut')return json_({success:true,message:'Kết nối Apps Script thành công.',sheetName:SHEET_NAME,eligibleRows:health_()});return json_({success:true,message:'CapCut Apps Script is running'})}catch(err){return json_({success:false,error:String(err.message||err)})}}
+function health_(){
+  const sheet=SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME);if(!sheet)throw Error('Sheet not found');
+  const values=sheet.getDataRange().getValues();let eligibleRows=0;
+  for(let i=1;i<values.length;i++){
+    const row=values[i],flag=String(row[4]??'').trim();
+    if(flag!=='0'&&flag!=='1')continue;
+    const username=String(row[0]??'').trim(),password=String(row[1]??'').trim();
+    if(username&&password&&parseDate_(row[2],row[3]))eligibleRows++;
+  }
+  return eligibleRows;
+}
 function claim_(){
   const lock=LockService.getScriptLock();lock.waitLock(30000);
   try{

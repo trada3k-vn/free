@@ -272,6 +272,31 @@ async function callSheet(action, payload = {}) {
     return data;
 }
 
+async function testSheetUrl(rawUrl) {
+    const url = resolveAppsScriptUrlOrThrow(rawUrl);
+    let response;
+    try {
+        response = await requestAppsScriptJsonWithRetry(url, { action: 'healthCapcut', timeoutMs: 30000, maxAttempts: 3 });
+    } catch (error) {
+        if (Number(error && error.attempts || 0) >= 3) {
+            error.httpStatus = Number(error.httpStatus || 502);
+            error.message = 'Không kết nối được Apps Script sau 3 lần thử.';
+        }
+        throw error;
+    }
+    const data = response.data || {};
+    if (data.success === false) throw Object.assign(new Error(String(data.error || 'Apps Script trả về lỗi.')), { httpStatus: 502 });
+    if (!data.sheetName || !Number.isFinite(Number(data.eligibleRows))) {
+        throw Object.assign(new Error('Apps Script chưa cập nhật action healthCapcut.'), { httpStatus: 502 });
+    }
+    return {
+        success: true,
+        message: 'Kết nối Apps Script thành công.',
+        sheetName: String(data.sheetName),
+        eligibleRows: Number(data.eligibleRows)
+    };
+}
+
 async function claimAccount() {
     const data = await callSheet('claimCapcutAccount');
     const item = data.account || data.item;
@@ -370,6 +395,11 @@ module.exports = async function capcutHandler(req, res) {
         if (pathname === '/api/capcut/config' && req.method === 'PUT') {
             if (!await requireAdmin(req, res)) return;
             return res.status(200).json({ success: true, config: await saveConfig(parseBody(req.body)) });
+        }
+        if (pathname === '/api/capcut/sheet-test' && req.method === 'POST') {
+            if (!await requireAdmin(req, res)) return;
+            const body = parseBody(req.body);
+            return res.status(200).json(await testSheetUrl(body.sheetAppsScriptUrl));
         }
         if (!match || !validId(decodeURIComponent(match[1]))) return res.status(404).json({ error: 'Not found' });
         const id = decodeURIComponent(match[1]);
