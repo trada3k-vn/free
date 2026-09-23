@@ -424,7 +424,8 @@ module.exports = async function capcutHandler(req, res) {
             if (!record) return res.status(404).json({ error: 'Link CapCut không tồn tại.' });
             if (record.status !== 'active' || isExpired(record.expiresAt)) return res.status(410).json({ error: 'Link CapCut đã hết hạn.' });
             const admin = await isAdminRequest(req);
-            if (!admin) {
+            const firstAssignment = !record.accountAssigned;
+            if (!admin && !firstAssignment) {
                 const clientIp = req.headers && (req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || 'unknown');
                 const cooldown = checkRateLimit(`capcut-warranty:${id}:${clientIp}`, 1, WARRANTY_COOLDOWN_MS);
                 if (!cooldown.allowed) {
@@ -436,7 +437,6 @@ module.exports = async function capcutHandler(req, res) {
             const config = await readConfig();
             const responseDto = (item) => admin ? adminLinkDto(item, req, config) : publicDto(item, req, config);
             if (record.accountAssigned && !isExpired(record.accountExpiresAt)) return res.status(200).json({ success: true, replaced: false, message: config.warrantyMessage, link: responseDto(record) });
-            const firstAssignment = !record.accountAssigned;
             const next = await assign(req, id, 'warranty');
             return res.status(200).json({
                 success: true,

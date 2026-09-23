@@ -7,3 +7,5 @@
 .claim-button{margin-top:18px;min-width:210px}
 @media(max-width:640px){.claim-button{width:100%}}
 .sheet-url-row{display:flex;gap:9px;align-items:stretch}.sheet-url-row .input{flex:1}.sheet-url-row .button{flex:0 0 auto;white-space:nowrap}@media(max-width:640px){.sheet-url-row{display:grid}.sheet-url-row .button{width:100%}}
+.public-shell{padding-top:18px}.public-shell .public-header{margin-bottom:14px}.public-shell .public-header h1{margin:4px 0 3px;font-size:clamp(28px,4vw,36px)}.public-shell .card{padding:20px}.public-shell .credential-list{gap:10px}.public-shell .public-actions{margin-top:15px}.public-shell .guide-card{margin-top:12px}.public-shell .guide-card .section-heading{margin-bottom:12px}
+@media(max-width:640px){.public-shell{padding-top:12px}.public-shell .card{padding:16px}.public-shell .public-header{margin-bottom:12px}.public-shell .public-header h1{font-size:30px}.public-shell .public-actions{margin-top:14px}}
