@@ -18,7 +18,6 @@ const {
 const { evaluateGetlinkCookie } = require('./_getlink-cookie-health');
 const {
     createSheetImportOperation,
-    advanceGetlinkOperation,
     shapeOperationPayload
 } = require('./_getlink-operation-store');
 const {
@@ -693,15 +692,7 @@ module.exports = async function (req, res) {
             const body = parseBody(req.body);
             const slots = normalizeSheetSlots(body && body.slots);
             const operation = await createSheetImportOperation(slots, String(body && body.scope ? body.scope : '').trim());
-            const advanced = await advanceGetlinkOperation(operation);
-            const payload = shapeOperationPayload(advanced);
-            if (advanced.status === 'failed') {
-                return res.status(422).json({
-                    ...payload,
-                    error: String(advanced.lastError || advanced.message || 'Khong nhap duoc cookie tu Sheet.').trim() || 'Khong nhap duoc cookie tu Sheet.'
-                });
-            }
-            return res.status(200).json(payload);
+            return res.status(200).json(shapeOperationPayload(operation));
         }
 
         const historyMatch = pathname.match(/^\/api\/getlink-admin\/shares\/([^/]+)\/fix-history$/);

@@ -72,6 +72,19 @@ function sanitizeShareCookies(input = {}) {
     };
 }
 
+function mergeShareCookies(currentInput = {}, patchInput = {}) {
+    const current = sanitizeShareCookies(currentInput);
+    const patch = patchInput && typeof patchInput === 'object' ? patchInput : {};
+    const next = { ...current };
+
+    SHARE_COOKIE_SLOTS.forEach((slot) => {
+        if (!Object.prototype.hasOwnProperty.call(patch, slot)) return;
+        next[slot] = sanitizeCookieRaw(patch[slot]);
+    });
+
+    return next;
+}
+
 function sanitizeDesktopOnly(value) {
     return value === true;
 }
@@ -322,10 +335,7 @@ async function updateShareCookies(shareId = '', cookiesInput = {}, actor = 'admi
         throw err;
     }
 
-    const nextCookies = {
-        ...sanitizeShareCookies(current.cookies || {}),
-        ...sanitizeShareCookies(cookiesInput || {})
-    };
+    const nextCookies = mergeShareCookies(current.cookies || {}, cookiesInput || {});
 
     const next = {
         ...current,
@@ -348,10 +358,7 @@ async function updateShareAdminFields(shareId = '', options = {}, actor = 'admin
 
     const hasCookies = !!(options && typeof options.cookies === 'object');
     const nextCookies = hasCookies
-        ? {
-            ...sanitizeShareCookies(current.cookies || {}),
-            ...sanitizeShareCookies(options.cookies || {})
-        }
+        ? mergeShareCookies(current.cookies || {}, options.cookies || {})
         : sanitizeShareCookies(current.cookies || {});
     const next = {
         ...current,
@@ -567,6 +574,7 @@ module.exports = {
     sanitizeShareNote,
     sanitizeShareStatus,
     sanitizeShareCookies,
+    mergeShareCookies,
     normalizeSlotName,
     normalizeExpiryInput,
     isShareExpired,

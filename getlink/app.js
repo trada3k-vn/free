@@ -261,6 +261,7 @@ let warningBannerConfig = {
 };
 let warningBannerConfigLoaded = false;
 const activeGetlinkOperationTimers = new Map();
+const activeSheetImportCancelStates = new Map();
 let toastTimer = null;
 let toastNode = null;
 const SHARE_COOKIE_SLOTS = [
@@ -734,6 +735,21 @@ function setSheetAccessImportControlsEnabled(enabled) {
         button.disabled = !enabled;
         button.title = enabled ? '' : 'Truy cap Google Sheet dang duoc tat trong admin.';
     });
+}
+
+function getSheetImportCancelButton(scope = 'current') {
+    return el(scope === 'create' ? 'creatorCancelSheetImportBtn' : 'currentCancelSheetImportBtn');
+}
+
+function setSheetImportOperationControls(scope = 'current', busy = false, cancelling = false) {
+    const importBtn = el(scope === 'create' ? 'creatorImportCookiesFromSheetBtn' : 'currentImportCookiesFromSheetBtn');
+    const cancelBtn = getSheetImportCancelButton(scope);
+    if (importBtn) importBtn.classList.toggle('hidden', !!busy);
+    if (cancelBtn) {
+        cancelBtn.classList.toggle('hidden', !busy);
+        cancelBtn.disabled = !!cancelling;
+        cancelBtn.textContent = cancelling ? 'Đang huỷ…' : 'Huỷ';
+    }
 }
 
 function setAdminWarningConfigState(text, mode = 'idle') {
@@ -1338,6 +1354,7 @@ function getSheetImportPhaseLabel(phase = '') {
         updating_share: 'Đang cập nhật link',
         rotating_cookie: 'Đang thay cookie chính',
         completed: 'Đã hoàn tất',
+        cancelled: 'Đã huỷ',
         blocked: 'Đã bị chặn',
         failed: 'Đã xảy ra lỗi'
     };
@@ -2062,6 +2079,8 @@ async function importCookiesFromSheet(scope = 'current') {
     sheetImportProgressTargetCounts[scope] = slots.length;
 
     const btn = el(scope === 'create' ? 'creatorImportCookiesFromSheetBtn' : 'currentImportCookiesFromSheetBtn');
+    const cancelState = { requested: false, cancelling: false, cancelPromise: null };
+    activeSheetImportCancelStates.set(scope, cancelState);
     setButtonBusy(btn, true, 'Đang quét Sheet...');
     renderSheetImportProgress(scope, {
         status: 'pending',
@@ -2092,6 +2111,7 @@ async function importCookiesFromSheet(scope = 'current') {
                 startedAt: Date.now()
             });
             saveSheetImportOperationMeta(scope, operationMeta);
+            setSheetImportOperationControls(scope, true, false);
 
             const renderPending = (payload) => {
                 const elapsedMs = Date.now() - operationMeta.startedAt;
@@ -2110,8 +2130,12 @@ async function importCookiesFromSheet(scope = 'current') {
                 renderPending(data);
             });
 
-            while (String(data && data.status || '').trim() === 'pending') {
+            while (!cancelState.requested && String(data && data.status || '').trim() === 'pending') {
                 await sleep(GETLINK_OPERATION_POLL_INTERVAL_MS);
+                if (cancelState.cancelling && cancelState.cancelPromise) {
+                    await cancelState.cancelPromise;
+                }
+                if (cancelState.requested) break;
                 data = await pollGetlinkOperation(operationMeta.operationId, operationMeta.operationToken);
                 renderPending(data);
             }
@@ -2120,7 +2144,13 @@ async function importCookiesFromSheet(scope = 'current') {
             clearSheetImportOperationMeta(scope);
         }
 
-        await applySheetImportResult(scope, data);
+        if (cancelState.requested || String(data && data.status || '').trim() === 'cancelled') {
+            clearSheetImportProgress(scope);
+            setSheetImportState(scope, 'Đã huỷ nhập cookie từ Sheet.', 'warning');
+            context.setInfoState('Đã huỷ nhập cookie từ Sheet.', 'warning');
+        } else {
+            await applySheetImportResult(scope, data);
+        }
     } catch (error) {
         clearSheetImportOperationMeta(scope);
         const timingText = formatAutoFixTimings(error && error.responseData ? error.responseData.timings : null);
@@ -2131,8 +2161,43 @@ async function importCookiesFromSheet(scope = 'current') {
     } finally {
         clearActiveGetlinkOperationTimer(`sheet-import-${scope}`);
         setButtonBusy(btn, false);
+        activeSheetImportCancelStates.delete(scope);
+        setSheetImportOperationControls(scope, false, false);
         setSheetAccessImportControlsEnabled(isSheetAccessEnabled());
     }
+}
+
+async function cancelSheetImportOperation(scope = 'current') {
+    const state = activeSheetImportCancelStates.get(scope);
+    if (!state || state.requested || state.cancelling) return;
+    const meta = readSheetImportOperationMeta(scope);
+    if (!meta || !meta.operationId || !meta.operationToken) return;
+
+    state.cancelling = true;
+    setSheetImportOperationControls(scope, true, true);
+    clearActiveGetlinkOperationTimer(`sheet-import-${scope}`);
+    setSheetImportState(scope, 'Đang huỷ nhập cookie từ Sheet…', 'loading');
+
+    state.cancelPromise = (async () => {
+        try {
+            await apiRequest(
+            `/api/getlink-operations/${encodeURIComponent(meta.operationId)}/cancel?token=${encodeURIComponent(meta.operationToken)}`,
+            'POST'
+            );
+            state.requested = true;
+            clearSheetImportOperationMeta(scope);
+            clearSheetImportProgress(scope);
+            setSheetImportState(scope, 'Đã huỷ nhập cookie từ Sheet.', 'warning');
+            const context = getSheetImportContext(scope);
+            if (context && context.setInfoState) context.setInfoState('Đã huỷ nhập cookie từ Sheet.', 'warning');
+        } catch (error) {
+            setSheetImportOperationControls(scope, true, false);
+            setSheetImportState(scope, error.message || 'Không huỷ được nhập cookie từ Sheet.', 'error');
+        } finally {
+            state.cancelling = false;
+        }
+    })();
+    await state.cancelPromise;
 }
 
 function escapeHtml(raw) {
@@ -3801,7 +3866,10 @@ async function resumePendingSheetImportOperation(scope = 'current') {
 
     const btn = el(scope === 'create' ? 'creatorImportCookiesFromSheetBtn' : 'currentImportCookiesFromSheetBtn');
     const timerKey = `sheet-import-${scope}`;
+    const cancelState = { requested: false, cancelling: false, cancelPromise: null };
+    activeSheetImportCancelStates.set(scope, cancelState);
     setButtonBusy(btn, true, 'Đang quét Sheet...');
+    setSheetImportOperationControls(scope, true, false);
 
     let snapshot = {
         status: 'pending',
@@ -3821,16 +3889,25 @@ async function resumePendingSheetImportOperation(scope = 'current') {
         startActiveGetlinkOperationTimer(timerKey, () => {
             renderPending(snapshot);
         });
-        while (String(snapshot && snapshot.status || '').trim() === 'pending') {
+        while (!cancelState.requested && String(snapshot && snapshot.status || '').trim() === 'pending') {
             snapshot = await pollGetlinkOperation(meta.operationId, meta.operationToken);
             renderPending(snapshot);
             if (String(snapshot && snapshot.status || '').trim() === 'pending') {
                 await sleep(GETLINK_OPERATION_POLL_INTERVAL_MS);
+                if (cancelState.cancelling && cancelState.cancelPromise) {
+                    await cancelState.cancelPromise;
+                }
             }
         }
         clearActiveGetlinkOperationTimer(timerKey);
         clearSheetImportOperationMeta(scope);
-        await applySheetImportResult(scope, snapshot);
+        if (cancelState.requested || String(snapshot && snapshot.status || '').trim() === 'cancelled') {
+            clearSheetImportProgress(scope);
+            setSheetImportState(scope, 'Đã huỷ nhập cookie từ Sheet.', 'warning');
+            context.setInfoState('Đã huỷ nhập cookie từ Sheet.', 'warning');
+        } else {
+            await applySheetImportResult(scope, snapshot);
+        }
     } catch (error) {
         const timingText = formatAutoFixTimings(error && error.responseData ? error.responseData.timings : null);
         const message = error.message || 'Không thể nối lại tiến độ nhập cookie từ Sheet.';
@@ -3840,6 +3917,8 @@ async function resumePendingSheetImportOperation(scope = 'current') {
         clearSheetImportOperationMeta(scope);
     } finally {
         clearActiveGetlinkOperationTimer(timerKey);
+        activeSheetImportCancelStates.delete(scope);
+        setSheetImportOperationControls(scope, false, false);
         setButtonBusy(btn, false);
     }
 }
@@ -5143,9 +5222,13 @@ function bindEvents() {
 
     const creatorImportBtn = el('creatorImportCookiesFromSheetBtn');
     if (creatorImportBtn) creatorImportBtn.addEventListener('click', () => importCookiesFromSheet('create'));
+    const creatorCancelImportBtn = el('creatorCancelSheetImportBtn');
+    if (creatorCancelImportBtn) creatorCancelImportBtn.addEventListener('click', () => cancelSheetImportOperation('create'));
 
     const currentImportBtn = el('currentImportCookiesFromSheetBtn');
     if (currentImportBtn) currentImportBtn.addEventListener('click', () => importCookiesFromSheet('current'));
+    const currentCancelImportBtn = el('currentCancelSheetImportBtn');
+    if (currentCancelImportBtn) currentCancelImportBtn.addEventListener('click', () => cancelSheetImportOperation('current'));
 
     const supportCloseBtn = el('supportModalCloseBtn');
     if (supportCloseBtn) supportCloseBtn.addEventListener('click', closeSupportModal);

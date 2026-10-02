@@ -174,6 +174,27 @@ async function saveGetlinkOperation(record = {}) {
     return next;
 }
 
+async function cancelGetlinkOperation(operationInput = {}) {
+    const operation = operationInput && typeof operationInput === 'object'
+        ? { ...operationInput }
+        : null;
+    if (!operation || !operation.id) {
+        const err = new Error('Getlink operation not found');
+        err.httpStatus = 404;
+        throw err;
+    }
+    if (operation.status === 'completed' || operation.status === 'failed' || operation.status === 'cancelled') {
+        return operation;
+    }
+    operation.status = 'cancelled';
+    operation.phase = 'cancelled';
+    operation.message = 'Da huy nhap cookie tu Google Sheet.';
+    operation.lastError = '';
+    operation.errorCode = '';
+    operation.errorHttpStatus = 0;
+    return saveGetlinkOperation(operation);
+}
+
 async function createGetlinkOperation(input = {}) {
     const type = String(input.type || '').trim();
     if (!type) {
@@ -536,7 +557,7 @@ async function advanceGetlinkOperation(operationInput = {}) {
         throw err;
     }
 
-    if (operation.status === 'completed' || operation.status === 'failed') {
+    if (operation.status === 'completed' || operation.status === 'failed' || operation.status === 'cancelled') {
         return operation;
     }
 
@@ -554,7 +575,18 @@ async function advanceGetlinkOperation(operationInput = {}) {
         let nextState = await runSheetImportChunk(currentState);
         let nextResult = buildSheetImportResult(nextState);
 
+        // A cancel request may arrive while the current Sheet/cookie request is in flight.
+        // Do not start another chunk or apply the result after that request is observed.
+        const latestAfterChunk = await readGetlinkOperationById(operation.id);
+        if (latestAfterChunk && latestAfterChunk.status === 'cancelled') {
+            return latestAfterChunk;
+        }
+
         if (operation.type === 'auto_fix' && nextResult.status === 'completed' && nextState.shareUpdated !== true) {
+            const latestBeforeShareUpdate = await readGetlinkOperationById(operation.id);
+            if (latestBeforeShareUpdate && latestBeforeShareUpdate.status === 'cancelled') {
+                return latestBeforeShareUpdate;
+            }
             if ((Array.isArray(nextResult.assigned) ? nextResult.assigned.length : 0) === 0) {
                 operation.status = 'failed';
                 operation.phase = 'completed';
@@ -587,6 +619,10 @@ async function advanceGetlinkOperation(operationInput = {}) {
             nextResult = buildSheetImportResult(nextState);
 
             if (nextResult.status === 'completed' && nextState.rotated !== true) {
+                const latestBeforeShareUpdate = await readGetlinkOperationById(operation.id);
+                if (latestBeforeShareUpdate && latestBeforeShareUpdate.status === 'cancelled') {
+                    return latestBeforeShareUpdate;
+                }
                 const requiredCount = Array.isArray(nextState.targetSlots) ? nextState.targetSlots.length : 0;
                 const assignedCount = Array.isArray(nextResult.assigned) ? nextResult.assigned.length : 0;
                 if (assignedCount < requiredCount) {
@@ -667,6 +703,10 @@ async function advanceGetlinkOperation(operationInput = {}) {
         operation.errorSlot = '';
         operation.errorAttempts = 0;
         operation.status = nextResult.status === 'completed' ? 'completed' : 'pending';
+        const latestBeforeSave = await readGetlinkOperationById(operation.id);
+        if (latestBeforeSave && latestBeforeSave.status === 'cancelled') {
+            return latestBeforeSave;
+        }
         try {
             return await saveGetlinkOperation(operation);
         } catch (error) {
@@ -685,6 +725,10 @@ async function advanceGetlinkOperation(operationInput = {}) {
             throw error;
         }
     } catch (error) {
+        const latestAfterError = await readGetlinkOperationById(operation.id).catch(() => null);
+        if (latestAfterError && latestAfterError.status === 'cancelled') {
+            return latestAfterError;
+        }
         const successState = operation && operation.type === 'overload_fix'
             ? normalizeOverloadFixState(operation.state, normalizeSheetSlots(operation.state && operation.state.targetSlots))
             : null;
@@ -723,6 +767,7 @@ async function readAuthorizedGetlinkOperation(operationId = '', token = '') {
 module.exports = {
     COLL_GETLINK_OPERATIONS,
     createSheetImportOperation,
+    cancelGetlinkOperation,
     createAutoFixOperation,
     createOverloadFixOperation,
     readGetlinkOperationById,

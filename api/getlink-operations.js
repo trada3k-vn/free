@@ -1,13 +1,14 @@
 const {
     readAuthorizedGetlinkOperation,
     advanceGetlinkOperation,
+    cancelGetlinkOperation,
     shapeOperationPayload
 } = require('./_getlink-operation-store');
 
 function setCors(res) {
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
@@ -16,12 +17,8 @@ module.exports = async function (req, res) {
     if (req.method === 'OPTIONS') return res.status(200).end();
 
     try {
-        if (req.method !== 'GET') {
-            return res.status(405).json({ error: 'Method not allowed' });
-        }
-
         const pathname = String((req.url || '').split('?')[0] || '').trim();
-        const match = pathname.match(/^\/api\/getlink-operations\/([^/]+)$/);
+        const match = pathname.match(/^\/api\/getlink-operations\/([^/]+)(\/cancel)?$/);
         if (!match) return res.status(404).json({ error: 'Not found' });
 
         const operationId = decodeURIComponent(match[1] || '');
@@ -31,6 +28,15 @@ module.exports = async function (req, res) {
 
         const operation = await readAuthorizedGetlinkOperation(operationId, token);
         if (!operation) return res.status(404).json({ error: 'Getlink operation not found' });
+
+        if (req.method === 'POST' && match[2] === '/cancel') {
+            const cancelled = await cancelGetlinkOperation(operation);
+            return res.status(200).json(shapeOperationPayload(cancelled));
+        }
+
+        if (req.method !== 'GET') {
+            return res.status(405).json({ error: 'Method not allowed' });
+        }
 
         const advanced = await advanceGetlinkOperation(operation);
         const payload = shapeOperationPayload(advanced);
