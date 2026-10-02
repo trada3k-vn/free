@@ -3431,6 +3431,8 @@ function formatOverloadFixErrorMeta(error = {}, responseData = {}) {
     const status = Math.max(0, Number(responseData.errorHttpStatus || (error && error.httpStatus) || 0) || 0);
     const operationId = String(responseData.operationId || '').trim().replace(/[^A-Za-z0-9._-]/g, '').slice(0, 80);
     const phase = String(responseData.errorPhase || responseData.phase || '').trim().replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 48);
+    const slot = String(responseData.errorSlot || '').trim().replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 24);
+    const attempts = Math.max(0, Number(responseData.errorAttempts || 0) || 0);
     let code = normalizeOverloadFixErrorCode(responseData.errorCode || responseData.code || error.code);
     if (!code) code = status ? `HTTP_${status}` : (phase ? `PHASE_${normalizeOverloadFixErrorCode(phase)}` : 'OVERLOAD_FIX_FAILED');
 
@@ -3439,6 +3441,8 @@ function formatOverloadFixErrorMeta(error = {}, responseData = {}) {
     if (code) parts.push(code);
     if (operationId) parts.push(`OPERATION: ${operationId}`);
     if (phase) parts.push(`PHASE: ${phase}`);
+    if (slot) parts.push(`SLOT: ${slot}`);
+    if (attempts) parts.push(`ATTEMPTS: ${attempts}`);
     return parts.length > 0 ? ` [${parts.join(' | ')}]` : '';
 }
 
@@ -3471,6 +3475,15 @@ function normalizeOverloadFixErrorMessage(error) {
         || normalized.includes('khong lay du') && normalized.includes('cookie pass')
         || normalized.includes('không lấy đủ') && normalized.includes('cookie pass'))) {
         message = `Không tìm thấy đủ cookie PASS còn sống trong Google Sheet để ${config.actionLabel}. Vui lòng kiểm tra nguồn cookie hoặc liên hệ hỗ trợ.`;
+    }
+    if (!message && code === 'COOKIE_SLOT_WRITE_FAILED') {
+        message = `Đã tìm thấy cookie PASS nhưng không ghi xác nhận được vào slot cookie chết. Vui lòng thử lại hoặc liên hệ hỗ trợ.`;
+    }
+    if (!message && code === 'BACKUP_COOKIE_MISSING') {
+        message = 'Đã ghi cookie mới nhưng link vẫn chưa đủ 2 slot cookie để xoay. Vui lòng thử lại hoặc liên hệ hỗ trợ.';
+    }
+    if (!message && code === 'ROTATE_FAILED') {
+        message = `Đã bổ sung cookie nhưng bước xoay cookie thất bại. Vui lòng thử lại hoặc liên hệ hỗ trợ.`;
     }
     if (!message && (status === 504 || normalized.includes('timeout') || normalized.includes('timed out'))) {
         message = `Google Sheet hoặc bước kiểm tra cookie bị quá thời gian chờ khi ${config.actionLabel}. Vui lòng thử lại sau.`;

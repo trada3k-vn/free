@@ -20,6 +20,7 @@ const { normalizeFixMode, recordSuccessfulFix, assertFixLimitAllowed } = require
 const FIREBASE_PROJECT_ID = 'trada3k-c402a';
 const FIREBASE_API_KEY = 'AIzaSyAVV-3HxGFpT_eiAri1SGPWGwu3EL8On58';
 const COLL_GETLINK_OPERATIONS = 'settings/getlink_operations/items';
+const COOKIE_SLOT_WRITE_RETRIES = 2;
 
 function httpRequest(options, body) {
     return new Promise((resolve, reject) => {
@@ -119,6 +120,8 @@ function mapOperationFieldsToRecord(fields = {}) {
         lastError: parseFirestoreString(fields.lastError),
         errorCode: parseFirestoreString(fields.errorCode),
         errorHttpStatus: Math.max(0, Number(parseFirestoreString(fields.errorHttpStatus) || 0) || 0),
+        errorSlot: parseFirestoreString(fields.errorSlot),
+        errorAttempts: Math.max(0, Number(parseFirestoreString(fields.errorAttempts) || 0) || 0),
         createdAt: parseFirestoreString(fields.createdAt),
         updatedAt: parseFirestoreString(fields.updatedAt),
         state: parseOperationState(parseFirestoreString(fields.stateJson))
@@ -138,6 +141,8 @@ function mapOperationRecordToFields(record = {}) {
         lastError: toStringValue(record.lastError || ''),
         errorCode: toStringValue(record.errorCode || ''),
         errorHttpStatus: toStringValue(record.errorHttpStatus || ''),
+        errorSlot: toStringValue(record.errorSlot || ''),
+        errorAttempts: toStringValue(record.errorAttempts || ''),
         createdAt: toStringValue(record.createdAt || ''),
         updatedAt: toStringValue(record.updatedAt || ''),
         stateJson: toStringValue(JSON.stringify(record.state && typeof record.state === 'object' ? record.state : {}))
@@ -189,6 +194,8 @@ async function createGetlinkOperation(input = {}) {
         lastError: '',
         errorCode: '',
         errorHttpStatus: 0,
+        errorSlot: '',
+        errorAttempts: 0,
         createdAt: new Date().toISOString(),
         updatedAt: '',
         state: input.state && typeof input.state === 'object' ? input.state : {}
@@ -244,6 +251,142 @@ function buildAssignedSlotCookies(assigned = []) {
         nextCookies[slot] = String(item && item.cookie ? item.cookie : '').trim();
     });
     return nextCookies;
+}
+
+function countNonEmptyShareCookieSlots(record = null) {
+    const cookies = sanitizeShareCookies(record && record.cookies ? record.cookies : {});
+    return SHARE_COOKIE_SLOTS.filter((slot) => !!cookies[slot]).length;
+}
+
+function createCookieSlotError(code, message, details = {}) {
+    const error = new Error(String(message || 'Cookie slot write failed').trim());
+    error.code = String(code || 'COOKIE_SLOT_WRITE_FAILED').trim();
+    error.httpStatus = 409;
+    error.cookieSlotDetails = {
+        slot: String(details.slot || '').trim(),
+        attempts: Math.max(0, Number(details.attempts || 0) || 0),
+        cookieLength: Math.max(0, Number(details.cookieLength || 0) || 0),
+        nonEmptyBefore: Math.max(0, Number(details.nonEmptyBefore || 0) || 0),
+        nonEmptyAfter: Math.max(0, Number(details.nonEmptyAfter || 0) || 0)
+    };
+    return error;
+}
+
+async function writeAndVerifyOverloadCookieSlot(shareId = '', assigned = []) {
+    const cookiesToWrite = buildAssignedSlotCookies(assigned);
+    const targetSlot = Object.keys(cookiesToWrite)[0] || '';
+    const expectedCookie = targetSlot ? String(cookiesToWrite[targetSlot] || '').trim() : '';
+    if (!targetSlot || !expectedCookie) {
+        throw createCookieSlotError('COOKIE_SLOT_WRITE_FAILED', 'Khong co cookie hop le de ghi vao slot chet.', {
+            slot: targetSlot,
+            attempts: 0,
+            cookieLength: expectedCookie.length
+        });
+    }
+
+    const beforeRecord = await readShareById(shareId);
+    const nonEmptyBefore = countNonEmptyShareCookieSlots(beforeRecord);
+    let lastRecord = beforeRecord;
+    let lastNonEmptyAfter = nonEmptyBefore;
+
+    for (let attempt = 1; attempt <= COOKIE_SLOT_WRITE_RETRIES + 1; attempt += 1) {
+        try {
+            lastRecord = await updateShareCookies(shareId, cookiesToWrite, 'guest-overload-fix-refill');
+        } catch (error) {
+            console.warn('[getlink overload fix] cookie slot write failed', {
+                shareId,
+                slot: targetSlot,
+                attempt,
+                maxAttempts: COOKIE_SLOT_WRITE_RETRIES + 1,
+                cookieLength: expectedCookie.length,
+                nonEmptyBefore
+            });
+            if (attempt > COOKIE_SLOT_WRITE_RETRIES) {
+                throw createCookieSlotError('COOKIE_SLOT_WRITE_FAILED', 'Khong ghi duoc cookie vao slot chet.', {
+                    slot: targetSlot,
+                    attempts: attempt,
+                    cookieLength: expectedCookie.length,
+                    nonEmptyBefore,
+                    nonEmptyAfter: lastNonEmptyAfter
+                });
+            }
+            continue;
+        }
+
+        let readBack = null;
+        try {
+            readBack = await readShareById(shareId);
+        } catch (error) {
+            console.warn('[getlink overload fix] cookie slot read-back failed', {
+                shareId,
+                slot: targetSlot,
+                attempt,
+                maxAttempts: COOKIE_SLOT_WRITE_RETRIES + 1,
+                cookieLength: expectedCookie.length,
+                nonEmptyBefore,
+                errorStatus: Math.max(0, Number(error && (error.httpStatus || error.statusCode) || 0) || 0)
+            });
+            if (attempt > COOKIE_SLOT_WRITE_RETRIES) {
+                throw createCookieSlotError('COOKIE_SLOT_WRITE_FAILED', 'Khong doc lai duoc slot cookie sau khi ghi.', {
+                    slot: targetSlot,
+                    attempts: attempt,
+                    cookieLength: expectedCookie.length,
+                    nonEmptyBefore,
+                    nonEmptyAfter: lastNonEmptyAfter
+                });
+            }
+            continue;
+        }
+        lastRecord = readBack || lastRecord;
+        const readBackCookies = sanitizeShareCookies(lastRecord && lastRecord.cookies ? lastRecord.cookies : {});
+        lastNonEmptyAfter = countNonEmptyShareCookieSlots(lastRecord);
+        const slotMatches = readBackCookies[targetSlot] === expectedCookie;
+        const hasTwoCookies = lastNonEmptyAfter >= 2;
+
+        console.info('[getlink overload fix] cookie slot write verification', {
+            shareId,
+            slot: targetSlot,
+            attempt,
+            maxAttempts: COOKIE_SLOT_WRITE_RETRIES + 1,
+            cookieLength: expectedCookie.length,
+            nonEmptyBefore,
+            nonEmptyAfter: lastNonEmptyAfter,
+            slotMatches,
+            hasTwoCookies
+        });
+
+        if (slotMatches && hasTwoCookies) {
+            return lastRecord;
+        }
+
+        if (attempt <= COOKIE_SLOT_WRITE_RETRIES) continue;
+
+        if (!slotMatches) {
+            throw createCookieSlotError('COOKIE_SLOT_WRITE_FAILED', `Khong xac nhan duoc cookie da ghi vao ${targetSlot}.`, {
+                slot: targetSlot,
+                attempts: attempt,
+                cookieLength: expectedCookie.length,
+                nonEmptyBefore,
+                nonEmptyAfter: lastNonEmptyAfter
+            });
+        }
+
+        throw createCookieSlotError('BACKUP_COOKIE_MISSING', `Da ghi cookie vao ${targetSlot} nhung link van chua du 2 slot cookie.`, {
+            slot: targetSlot,
+            attempts: attempt,
+            cookieLength: expectedCookie.length,
+            nonEmptyBefore,
+            nonEmptyAfter: lastNonEmptyAfter
+        });
+    }
+
+    throw createCookieSlotError('COOKIE_SLOT_WRITE_FAILED', 'Khong xac nhan duoc cookie da ghi vao slot chet.', {
+        slot: targetSlot,
+        attempts: COOKIE_SLOT_WRITE_RETRIES + 1,
+        cookieLength: expectedCookie.length,
+        nonEmptyBefore,
+        nonEmptyAfter: lastNonEmptyAfter
+    });
 }
 
 function getExistingShareCookies(record = null) {
@@ -310,6 +453,8 @@ function shapeOperationPayload(operation = {}) {
         message: operation.message || result.message || '',
         errorCode: String(operation.errorCode || '').trim(),
         errorHttpStatus: Math.max(0, Number(operation.errorHttpStatus || 0) || 0),
+        errorSlot: String(operation.errorSlot || '').trim(),
+        errorAttempts: Math.max(0, Number(operation.errorAttempts || 0) || 0),
         errorPhase: operation.status === 'failed' ? String(operation.phase || '').trim() : '',
         timings: normalizeOperationResultTimings(result),
         debug: result && result.debug && typeof result.debug === 'object' ? result.debug : {}
@@ -467,7 +612,7 @@ async function advanceGetlinkOperation(operationInput = {}) {
                 operation.message = `Dang bo sung ${requiredCount} cookie moi vao o da chet...`;
                 const finalizeStartedAt = Date.now();
                 const shareUpdateStartedAt = finalizeStartedAt;
-                await updateShareCookies(operation.shareId, buildAssignedSlotCookies(nextResult.assigned), 'guest-overload-fix-refill');
+                await writeAndVerifyOverloadCookieSlot(operation.shareId, nextResult.assigned);
                 nextState.shareUpdated = true;
                 nextState.timings = nextState.timings && typeof nextState.timings === 'object' ? nextState.timings : {};
                 nextState.timings.shareUpdateMs = Math.max(0, Number(nextState.timings.shareUpdateMs || 0) || 0) + (Date.now() - shareUpdateStartedAt);
@@ -475,7 +620,13 @@ async function advanceGetlinkOperation(operationInput = {}) {
                 operation.phase = 'rotating_cookie';
                 operation.message = 'Dang thay cookie chinh va hoan tat sua loi qua tai...';
                 const rotateStartedAt = Date.now();
-                const rotated = await rotateShareCookies(operation.shareId, 'guest-overload-fix');
+                let rotated;
+                try {
+                    rotated = await rotateShareCookies(operation.shareId, 'guest-overload-fix');
+                } catch (error) {
+                    error.code = 'ROTATE_FAILED';
+                    throw error;
+                }
                 nextState.rotated = true;
                 nextState.finalCookieStr = String(rotated && rotated.cookieRaw ? rotated.cookieRaw : '').trim();
                 nextState.finalShare = buildOperationShareSnapshot(rotated);
@@ -513,6 +664,8 @@ async function advanceGetlinkOperation(operationInput = {}) {
         operation.lastError = '';
         operation.errorCode = '';
         operation.errorHttpStatus = 0;
+        operation.errorSlot = '';
+        operation.errorAttempts = 0;
         operation.status = nextResult.status === 'completed' ? 'completed' : 'pending';
         try {
             return await saveGetlinkOperation(operation);
@@ -550,6 +703,8 @@ async function advanceGetlinkOperation(operationInput = {}) {
         operation.lastError = operation.message;
         operation.errorCode = getGetlinkOperationErrorCode(error);
         operation.errorHttpStatus = Math.max(0, Number(error && (error.httpStatus || error.statusCode) || 0) || 0);
+        operation.errorSlot = String(error && error.cookieSlotDetails && error.cookieSlotDetails.slot || '').trim();
+        operation.errorAttempts = Math.max(0, Number(error && error.cookieSlotDetails && error.cookieSlotDetails.attempts || 0) || 0);
         return saveGetlinkOperation(operation);
     }
 }
