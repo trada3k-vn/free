@@ -57,16 +57,76 @@ function parseFirestoreBoolean(valueObj = null, fallback = DEFAULT_SHEET_ACCESS_
 }
 
 function sanitizeWarningText(value = '') {
-    return String(value || '').trim();
+    return repairTextEncoding(String(value || '').trim());
 }
 
 function sanitizeSheetAppsScriptUrl(value = '') {
     return String(value || '').trim();
 }
 
+const KNOWN_REPLACEMENT_REPAIRS = [
+    ['TR\uFFFD\uFFFD ĐI HẠN BẢO HÀNH', 'TRỪ ĐI HẠN BẢO HÀNH'],
+    ['tài khoản \uFFFD\uFFFD trên ứng dụng Netflix', 'tài khoản ở trên ứng dụng Netflix']
+];
+const CP1252_BYTE_MAP = new Map([
+    ['€', 0x80], ['‚', 0x82], ['ƒ', 0x83], ['„', 0x84], ['…', 0x85], ['†', 0x86],
+    ['‡', 0x87], ['ˆ', 0x88], ['‰', 0x89], ['Š', 0x8a], ['‹', 0x8b], ['Œ', 0x8c],
+    ['Ž', 0x8e], ['‘', 0x91], ['’', 0x92], ['“', 0x93], ['”', 0x94], ['•', 0x95],
+    ['–', 0x96], ['—', 0x97], ['˜', 0x98], ['™', 0x99], ['š', 0x9a], ['›', 0x9b],
+    ['œ', 0x9c], ['ž', 0x9e], ['Ÿ', 0x9f]
+]);
+
+const SAFE_REPLACEMENT_REPAIRS = [
+    ['TR' + String.fromCharCode(0xfffd, 0xfffd) + ' ' + String.fromCharCode(0x0110) + 'I H' + String.fromCharCode(0x1ea0, 0x004e, 0x0020, 0x0042, 0x1ea2, 0x004f, 0x0020, 0xc0, 0x004e, 0x0048), 'TR' + String.fromCharCode(0x1eea) + ' ' + String.fromCharCode(0x0110) + 'I H' + String.fromCharCode(0x1ea0, 0x004e, 0x0020, 0x0042, 0x1ea2, 0x004f, 0x0020, 0xc0, 0x004e, 0x0048)],
+    ['t' + String.fromCharCode(0xe0) + 'i kho' + String.fromCharCode(0x1ea3, 0x006e) + ' ' + String.fromCharCode(0xfffd, 0xfffd) + ' tr' + String.fromCharCode(0xea, 0x006e) + ' ' + String.fromCharCode(0x1ee9) + 'ng d' + String.fromCharCode(0x1ee5) + 'ng Netflix', 't' + String.fromCharCode(0xe0) + 'i kho' + String.fromCharCode(0x1ea3, 0x006e) + ' ' + String.fromCharCode(0x1edf) + ' tr' + String.fromCharCode(0xea, 0x006e) + ' ' + String.fromCharCode(0x1ee9) + 'ng d' + String.fromCharCode(0x1ee5) + 'ng Netflix']
+];
+
+function decodeMojibake(value = '') {
+    const text = String(value || '');
+    if (!/(?:Ã.|Â.|Ä.|Å.|á»|áº|â.)/.test(text)) return text;
+    try {
+        const bytes = Array.from(text, (character) => character.charCodeAt(0) & 0xff);
+        const repaired = Buffer.from(bytes).toString('utf8');
+        return repaired && !repaired.includes('\uFFFD') ? repaired : text;
+    } catch (_error) {
+        return text;
+    }
+}
+
+function repairTextEncoding(value = '') {
+    let text = decodeMojibake(String(value || ''));
+    for (const [broken, fixed] of SAFE_REPLACEMENT_REPAIRS) {
+        text = text.split(broken).join(fixed);
+    }
+    for (const [broken, fixed] of KNOWN_REPLACEMENT_REPAIRS) {
+        text = text.split(broken).join(fixed);
+    }
+
+    if (!text.includes('\uFFFD') && /(?:Ã.|Â.|Ä.|Å.|á»|áº|â.)/.test(text)) {
+        try {
+            const bytes = Array.from(text, (character) => {
+                const mapped = CP1252_BYTE_MAP.get(character);
+                return mapped === undefined ? character.charCodeAt(0) & 0xff : mapped;
+            });
+            const repaired = Buffer.from(bytes).toString('utf8');
+            if (repaired && !repaired.includes('\uFFFD')) text = repaired;
+        } catch (_error) {
+            // Keep the original text when it cannot be decoded safely.
+        }
+    }
+
+    // Never let an invalid Unicode replacement glyph reach the UI.
+    return text.replace(/\uFFFD+/g, '').trim();
+}
+
 function sanitizeContentObject(value = {}) {
-    if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
-    return JSON.parse(JSON.stringify(value));
+    if (typeof value === 'string') return repairTextEncoding(value);
+    if (!value || typeof value !== 'object') return {};
+    if (Array.isArray(value)) return value.map((item) => sanitizeContentObject(item));
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [
+        key,
+        typeof item === 'string' ? repairTextEncoding(item) : sanitizeContentObject(item)
+    ]));
 }
 
 function normalizeSheetAccessEnabled(input = {}, fallback = DEFAULT_SHEET_ACCESS_ENABLED) {

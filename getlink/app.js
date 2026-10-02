@@ -223,8 +223,6 @@ let autoLoadedAdminShareId = '';
 let runtimeProfiles = '';
 let guestGuardActive = true;
 let pendingDeviceConfirm = '';
-let deviceConfirmReadyAt = 0;
-let deviceConfirmTimer = null;
 let pendingMobileOsDevice = '';
 let cookieHealthBlocked = false;
 let cookieHealthReason = '';
@@ -3314,46 +3312,11 @@ function openDeviceConfirmModal(device = '') {
     if (hint) hint.textContent = config.hint;
     setText('deviceConfirmOkBtn', config.okText);
     setText('deviceConfirmCancelBtn', config.cancelText);
-    if (deviceConfirmTimer) {
-        window.clearInterval(deviceConfirmTimer);
-        deviceConfirmTimer = null;
+    if (countdown) {
+        countdown.textContent = config.readyText;
+        setStateClass(countdown, 'success');
     }
-
-    const waitMs = isAdminImmediate() ? 0 : 3000;
-    deviceConfirmReadyAt = Date.now() + waitMs;
-
-    if (waitMs <= 0) {
-        if (countdown) {
-            countdown.textContent = config.readyText;
-            setStateClass(countdown, 'success');
-        }
-        if (okBtn) okBtn.disabled = false;
-    } else {
-        if (countdown) {
-            countdown.textContent = formatTemplate(config.waitText, { seconds: 3 });
-            setStateClass(countdown, 'warning');
-        }
-        if (okBtn) okBtn.disabled = true;
-
-        deviceConfirmTimer = window.setInterval(() => {
-            const remainMs = Math.max(0, deviceConfirmReadyAt - Date.now());
-            const remainSec = Math.ceil(remainMs / 1000);
-            if (countdown) {
-                if (remainMs > 0) {
-                    countdown.textContent = formatTemplate(getContentConfig().deviceConfirm.waitText, { seconds: remainSec });
-                    setStateClass(countdown, 'warning');
-                } else {
-                    countdown.textContent = getContentConfig().deviceConfirm.readyText;
-                    setStateClass(countdown, 'success');
-                }
-            }
-            if (okBtn) okBtn.disabled = remainMs > 0;
-            if (remainMs <= 0) {
-                window.clearInterval(deviceConfirmTimer);
-                deviceConfirmTimer = null;
-            }
-        }, 150);
-    }
+    if (okBtn) okBtn.disabled = false;
 
     if (!modal) return;
     modal.classList.remove('hidden');
@@ -3362,12 +3325,7 @@ function openDeviceConfirmModal(device = '') {
 
 function closeDeviceConfirmModal() {
     const modal = el('deviceConfirmModal');
-    if (deviceConfirmTimer) {
-        window.clearInterval(deviceConfirmTimer);
-        deviceConfirmTimer = null;
-    }
     pendingDeviceConfirm = '';
-    deviceConfirmReadyAt = 0;
     if (!modal) return;
     modal.classList.add('hidden');
     modal.setAttribute('aria-hidden', 'true');
@@ -5275,7 +5233,6 @@ function bindEvents() {
     const deviceConfirmOkBtn = el('deviceConfirmOkBtn');
     if (deviceConfirmOkBtn) {
         deviceConfirmOkBtn.addEventListener('click', () => {
-            if (Date.now() < deviceConfirmReadyAt) return;
             const device = pendingDeviceConfirm;
             closeDeviceConfirmModal();
             handleConfirmedDevice(device);
