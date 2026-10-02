@@ -1336,6 +1336,31 @@ function getSheetImportProgressId(scope = 'current') {
     return scope === 'create' ? 'creatorSheetImportProgress' : 'currentSheetImportProgress';
 }
 
+function getSheetImportTimingId(scope = 'current') {
+    return scope === 'create' ? 'creatorSheetImportTiming' : 'currentSheetImportTiming';
+}
+
+function clearSheetImportTiming(scope = 'current') {
+    const node = el(getSheetImportTimingId(scope));
+    if (!node) return;
+    node.textContent = '';
+    node.classList.add('hidden');
+}
+
+function renderSheetImportTiming(scope = 'current', timings = null) {
+    const node = el(getSheetImportTimingId(scope));
+    if (!node || !adminAuthenticated) return;
+    const source = timings && typeof timings === 'object' ? timings : null;
+    if (!source) {
+        clearSheetImportTiming(scope);
+        return;
+    }
+
+    const formatTiming = (value) => formatOperationElapsed(value);
+    node.textContent = `Thời gian nhập: Sheet ${formatTiming(source.sheetFetchMs)} • Check ${formatTiming(source.cookieCheckMs)} • Ghi mark ${formatTiming(source.sheetUpdateMs)} • Tổng ${formatTiming(source.totalMs)}`;
+    node.classList.remove('hidden');
+}
+
 function clearSheetImportProgress(scope = 'current') {
     const node = el(getSheetImportProgressId(scope));
     if (!node) return;
@@ -1833,6 +1858,7 @@ function resetCreatedShareComposer(options = {}) {
     setShareCreateExpiryState('', 'idle');
     setCreatorCookieInfoState('Tạo hoặc cập nhật cookie rồi bấm check để xem kết quả ngay tại đây.', 'idle');
     setSheetImportState('create', '', 'idle');
+    clearSheetImportTiming('create');
     clearSheetImportSelections('create');
 }
 
@@ -1935,6 +1961,7 @@ async function applySheetImportResult(scope = 'current', data = {}) {
     const skipped = Array.isArray(data.skipped) ? data.skipped : [];
     const unfilledSlots = Array.isArray(data.unfilledSlots) ? data.unfilledSlots : [];
     const timingText = formatAutoFixTimings(data && data.timings ? data.timings : null);
+    renderSheetImportTiming(scope, data && data.timings ? data.timings : null);
     const nextCookies = {
         primary: normalizeCookie(context.getCookies().primary || ''),
         backup1: normalizeCookie(context.getCookies().backup1 || ''),
@@ -2075,6 +2102,7 @@ async function importCookiesFromSheet(scope = 'current') {
 
     const slots = getSelectedSheetImportSlots(scope);
     sheetImportProgressTargetCounts[scope] = slots.length;
+    clearSheetImportTiming(scope);
 
     const btn = el(scope === 'create' ? 'creatorImportCookiesFromSheetBtn' : 'currentImportCookiesFromSheetBtn');
     const cancelState = { requested: false, cancelling: false, cancelPromise: null };
@@ -4441,6 +4469,8 @@ function renderAdminWorkspace() {
         resetCreatedShareCookieSlotStates();
         setSheetImportState('current', '', 'idle');
         setSheetImportState('create', '', 'idle');
+        clearSheetImportTiming('current');
+        clearSheetImportTiming('create');
         clearSheetImportSelections('current');
         clearSheetImportSelections('create');
         setAdminWarningConfigState('Dang tai noi dung popup hien tai...', 'idle');
@@ -4624,6 +4654,7 @@ function renderAdminShare(share = null) {
         setShareNoteInput('adminShareNoteInput', '');
         resetShareCookieSlotStates();
         setSheetImportState('current', '', 'idle');
+        clearSheetImportTiming('current');
         clearSheetImportSelections('current');
         return;
     }

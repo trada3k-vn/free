@@ -258,6 +258,17 @@
             font-size: 0.8rem;
         }
 
+        .sheet-import-timing {
+            margin-top: 0;
+            padding: 0.55rem 0.62rem;
+            border: 1px solid rgba(52, 211, 153, 0.28);
+            border-radius: 9px;
+            background: rgba(6, 78, 59, 0.18);
+            color: #b7f7dc;
+            font-size: 0.76rem;
+            line-height: 1.45;
+        }
+
         .sheet-import-progress {
             display: grid;
             gap: 0.55rem;
@@ -1781,6 +1792,7 @@
                                     </div>
                                     <div id="creatorSheetImportProgress" class="sheet-import-progress hidden" aria-live="polite"></div>
                                     <div id="creatorSheetImportState" class="state-text state-idle hidden sheet-import-state"></div>
+                                    <div id="creatorSheetImportTiming" class="sheet-import-timing hidden" aria-live="polite"></div>
                                 </div>
                                 <div class="share-summary-actions">
                                     <button id="saveCreatedShareCookiesBtn" class="btn btn-primary" type="button">Lưu cookie</button>
@@ -1858,6 +1870,7 @@
                                     </div>
                                     <div id="currentSheetImportProgress" class="sheet-import-progress hidden" aria-live="polite"></div>
                                     <div id="currentSheetImportState" class="state-text state-idle hidden sheet-import-state"></div>
+                                    <div id="currentSheetImportTiming" class="sheet-import-timing hidden" aria-live="polite"></div>
                                 </div>
                                  <div class="share-summary-actions">
                                      <button id="editCurrentShareBtn" class="btn btn-primary" type="button">Sửa</button>
