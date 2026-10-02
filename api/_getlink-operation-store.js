@@ -117,6 +117,8 @@ function mapOperationFieldsToRecord(fields = {}) {
         phase: parseFirestoreString(fields.phase),
         message: parseFirestoreString(fields.message),
         lastError: parseFirestoreString(fields.lastError),
+        errorCode: parseFirestoreString(fields.errorCode),
+        errorHttpStatus: Math.max(0, Number(parseFirestoreString(fields.errorHttpStatus) || 0) || 0),
         createdAt: parseFirestoreString(fields.createdAt),
         updatedAt: parseFirestoreString(fields.updatedAt),
         state: parseOperationState(parseFirestoreString(fields.stateJson))
@@ -134,6 +136,8 @@ function mapOperationRecordToFields(record = {}) {
         phase: toStringValue(record.phase || ''),
         message: toStringValue(record.message || ''),
         lastError: toStringValue(record.lastError || ''),
+        errorCode: toStringValue(record.errorCode || ''),
+        errorHttpStatus: toStringValue(record.errorHttpStatus || ''),
         createdAt: toStringValue(record.createdAt || ''),
         updatedAt: toStringValue(record.updatedAt || ''),
         stateJson: toStringValue(JSON.stringify(record.state && typeof record.state === 'object' ? record.state : {}))
@@ -183,6 +187,8 @@ async function createGetlinkOperation(input = {}) {
         phase: 'pending',
         message: String(input.message || '').trim(),
         lastError: '',
+        errorCode: '',
+        errorHttpStatus: 0,
         createdAt: new Date().toISOString(),
         updatedAt: '',
         state: input.state && typeof input.state === 'object' ? input.state : {}
@@ -207,6 +213,17 @@ function normalizeOperationResultTimings(result = {}) {
             shareUpdateMs: 0,
             totalMs: 0
         };
+}
+
+function getGetlinkOperationErrorCode(error = null) {
+    const existing = String(error && error.code ? error.code : '').trim();
+    if (existing) return existing;
+    const message = String(error && error.message ? error.message : '').trim().toLowerCase();
+    if (message.includes('timeout') || message.includes('timed out')) return 'APPS_SCRIPT_TIMEOUT';
+    if (message.includes('apps script') || message.includes('google sheet')) return 'APPS_SCRIPT_ERROR';
+    if (message.includes('cookie')) return 'COOKIE_CHECK_FAILED';
+    if (message.includes('configured') || message.includes('cau hinh')) return 'SHEET_CONFIG_ERROR';
+    return 'GETLINK_OPERATION_FAILED';
 }
 
 function buildAutoFixCookies(assigned = []) {
@@ -291,6 +308,9 @@ function shapeOperationPayload(operation = {}) {
         operationToken: operation.token,
         phase: operation.phase || result.phase || '',
         message: operation.message || result.message || '',
+        errorCode: String(operation.errorCode || '').trim(),
+        errorHttpStatus: Math.max(0, Number(operation.errorHttpStatus || 0) || 0),
+        errorPhase: operation.status === 'failed' ? String(operation.phase || '').trim() : '',
         timings: normalizeOperationResultTimings(result),
         debug: result && result.debug && typeof result.debug === 'object' ? result.debug : {}
     };
@@ -395,6 +415,8 @@ async function advanceGetlinkOperation(operationInput = {}) {
                 operation.phase = 'completed';
                 operation.message = 'Khong lay duoc cookie PASS nao tu Google Sheet.';
                 operation.lastError = operation.message;
+                operation.errorCode = 'NO_PASS_COOKIE';
+                operation.errorHttpStatus = 422;
                 operation.state = nextState;
                 return saveGetlinkOperation(operation);
             }
@@ -427,6 +449,8 @@ async function advanceGetlinkOperation(operationInput = {}) {
                     operation.phase = 'completed';
                     operation.message = `Khong lay du ${requiredCount} cookie PASS tu Google Sheet de sua loi qua tai.`;
                     operation.lastError = operation.message;
+                    operation.errorCode = 'NO_PASS_COOKIE';
+                    operation.errorHttpStatus = 422;
                     operation.state = nextState;
                     return saveGetlinkOperation(operation);
                 }
@@ -487,6 +511,8 @@ async function advanceGetlinkOperation(operationInput = {}) {
         operation.phase = nextState.phase || nextResult.phase || '';
         operation.message = nextState.message || nextResult.message || '';
         operation.lastError = '';
+        operation.errorCode = '';
+        operation.errorHttpStatus = 0;
         operation.status = nextResult.status === 'completed' ? 'completed' : 'pending';
         try {
             return await saveGetlinkOperation(operation);
@@ -522,6 +548,8 @@ async function advanceGetlinkOperation(operationInput = {}) {
         operation.phase = operation.phase || 'failed';
         operation.message = String(error && error.message ? error.message : 'Getlink operation failed').trim() || 'Getlink operation failed';
         operation.lastError = operation.message;
+        operation.errorCode = getGetlinkOperationErrorCode(error);
+        operation.errorHttpStatus = Math.max(0, Number(error && (error.httpStatus || error.statusCode) || 0) || 0);
         return saveGetlinkOperation(operation);
     }
 }

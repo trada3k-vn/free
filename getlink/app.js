@@ -3422,53 +3422,90 @@ function syncAdminImmediateModals() {
     }
 }
 
+function normalizeOverloadFixErrorCode(value = '') {
+    const normalized = String(value || '').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '_');
+    return normalized.slice(0, 48);
+}
+
+function formatOverloadFixErrorMeta(error = {}, responseData = {}) {
+    const status = Math.max(0, Number(responseData.errorHttpStatus || (error && error.httpStatus) || 0) || 0);
+    const operationId = String(responseData.operationId || '').trim().replace(/[^A-Za-z0-9._-]/g, '').slice(0, 80);
+    const phase = String(responseData.errorPhase || responseData.phase || '').trim().replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 48);
+    let code = normalizeOverloadFixErrorCode(responseData.errorCode || responseData.code || error.code);
+    if (!code) code = status ? `HTTP_${status}` : (phase ? `PHASE_${normalizeOverloadFixErrorCode(phase)}` : 'OVERLOAD_FIX_FAILED');
+
+    const parts = [];
+    if (status) parts.push(`HTTP ${status}`);
+    if (code) parts.push(code);
+    if (operationId) parts.push(`OPERATION: ${operationId}`);
+    if (phase) parts.push(`PHASE: ${phase}`);
+    return parts.length > 0 ? ` [${parts.join(' | ')}]` : '';
+}
+
 function normalizeOverloadFixErrorMessage(error) {
     const rawMessage = String(error && error.message ? error.message : '').trim();
     const config = getFixModeConfig(activeFixMode);
     const responseData = error && error.responseData && typeof error.responseData === 'object' ? error.responseData : {};
     const limit = responseData && responseData.limit && typeof responseData.limit === 'object' ? responseData.limit : null;
-    const code = String((responseData && responseData.code) || (error && error.code) || '').trim();
-    if (Number(error && error.httpStatus ? error.httpStatus : 0) === 429) {
+    const status = Number(responseData.errorHttpStatus || (error && error.httpStatus) || 0) || 0;
+    const code = String((responseData && (responseData.code || responseData.errorCode)) || (error && error.code) || '').trim();
+    const normalized = rawMessage.toLowerCase();
+    let message = '';
+
+    if (status === 429) {
         if (code === 'FIX_LIMIT_REACHED' || (limit && limit.limited === true)) {
             const max24h = limit ? Math.max(1, Number(limit.max24h || 4) || 4) : 4;
-            return `Link này đã dùng hết ${max24h} lần sửa lỗi thành công trong 24h, vui lòng liên hệ hỗ trợ.`;
+            message = `Link này đã dùng hết ${max24h} lần sửa lỗi thành công trong 24h, vui lòng liên hệ hỗ trợ.`;
+        } else {
+            const cooldownUntilMs = limit ? (Date.parse(String(limit.cooldownUntil || '').trim()) || 0) : 0;
+            if (code === 'FIX_COOLDOWN' || cooldownUntilMs > Date.now()) {
+                const minutes = cooldownUntilMs > Date.now()
+                    ? Math.max(1, Math.ceil((cooldownUntilMs - Date.now()) / 60000))
+                    : 5;
+                message = `Link này vừa sửa lỗi thành công, vui lòng thử lại sau ${minutes} phút.`;
+            }
         }
-        const cooldownUntilMs = limit ? (Date.parse(String(limit.cooldownUntil || '').trim()) || 0) : 0;
-        if (code === 'FIX_COOLDOWN' || cooldownUntilMs > Date.now()) {
-            const minutes = cooldownUntilMs > Date.now()
-                ? Math.max(1, Math.ceil((cooldownUntilMs - Date.now()) / 60000))
-                : 5;
-            return `Link này vừa sửa lỗi thành công, vui lòng thử lại sau ${minutes} phút.`;
-        }
-        return rawMessage || config.fallbackError;
-    }
-    if (!rawMessage) return config.fallbackError;
-
-    const normalized = rawMessage.toLowerCase();
-    if (normalized.includes('khong lay du') && normalized.includes('cookie pass tu google sheet')
-        || normalized.includes('không lấy đủ') && normalized.includes('cookie pass từ google sheet')) {
-        return `Không lấy đủ cookie sống từ Google Sheet để tự ${config.actionLabel}. Vui lòng bấm CẦN HỖ TRỢ / BẢO HÀNH để được hỗ trợ.`;
-    }
-    if (normalized.includes('apps script')
-        || normalized.includes('timeout')
-        || normalized.includes('timed out')) {
-        return `Không thể kết nối Google Sheet để ${config.actionLabel} lúc này. Vui lòng thử lại sau.`;
-    }
-    if (normalized.includes('het cookie du phong')
-        || normalized.includes('hết cookie dự phòng')
-        || normalized.includes('khong du cookie du phong')
-        || normalized.includes('không đủ cookie dự phòng')) {
-        return config.fallbackError;
-    }
-    if (normalized.includes('khong du cookie song truoc khi rotate')
-        || normalized.includes('không đủ cookie sống trước khi rotate')) {
-        if (normalized.includes('livecount=0') || normalized.includes('livecount:0')) {
-            return `Link này đã hết cookie sống, không thể dùng ${config.buttonText}. Vui lòng bấm CẦN HỖ TRỢ / BẢO HÀNH để được hỗ trợ.`;
-        }
-        return `Link này chỉ còn 1 cookie sống, không thể dùng ${config.buttonText}. Vui lòng bấm CẦN HỖ TRỢ / BẢO HÀNH để được hỗ trợ.`;
     }
 
-    return rawMessage;
+    if (!message && (code === 'NO_PASS_COOKIE'
+        || normalized.includes('khong lay du') && normalized.includes('cookie pass')
+        || normalized.includes('không lấy đủ') && normalized.includes('cookie pass'))) {
+        message = `Không tìm thấy đủ cookie PASS còn sống trong Google Sheet để ${config.actionLabel}. Vui lòng kiểm tra nguồn cookie hoặc liên hệ hỗ trợ.`;
+    }
+    if (!message && (status === 504 || normalized.includes('timeout') || normalized.includes('timed out'))) {
+        message = `Google Sheet hoặc bước kiểm tra cookie bị quá thời gian chờ khi ${config.actionLabel}. Vui lòng thử lại sau.`;
+    }
+    if (!message && (normalized.includes('html thay vì json')
+        || normalized.includes('du lieu khong hop le')
+        || normalized.includes('dữ liệu không hợp lệ')
+        || normalized.includes('json không hợp lệ'))) {
+        message = `Google Apps Script trả về dữ liệu không hợp lệ khi ${config.actionLabel}. Hãy kiểm tra URL /exec và bản deploy.`;
+    }
+    if (!message && (normalized.includes('apps script')
+        || normalized.includes('google sheet')
+        || normalized.includes('khong ket noi duoc apps script')
+        || normalized.includes('không kết nối được apps script'))) {
+        message = `Không thể kết nối Google Sheet để ${config.actionLabel}. Hãy kiểm tra URL, quyền truy cập và trạng thái Apps Script.`;
+    }
+    if (!message && (normalized.includes('khong du cookie song truoc khi rotate')
+        || normalized.includes('không đủ cookie sống trước khi rotate')
+        || normalized.includes('livecount=0')
+        || normalized.includes('livecount:0'))) {
+        message = `Link này đã hết cookie sống, không thể dùng ${config.buttonText}. Vui lòng bấm CẦN HỖ TRỢ / BẢO HÀNH.`;
+    }
+    if (!message && (normalized.includes('cookie') && (normalized.includes('invalid') || normalized.includes('không hợp lệ') || normalized.includes('khong hop le')))) {
+        message = `Cookie trong nguồn Google Sheet không hợp lệ hoặc đã hết hạn khi ${config.actionLabel}.`;
+    }
+    if (!message && (normalized.includes('tắt trong admin') || normalized.includes('tat trong admin'))) {
+        message = 'Tính năng truy cập Google Sheet đang bị tắt trong admin.';
+    }
+    if (!message && (normalized.includes('chưa cấu hình') || normalized.includes('chua cau hinh') || normalized.includes('url không hợp lệ'))) {
+        message = 'Google Apps Script chưa được cấu hình đúng cho Getlink.';
+    }
+    if (!message && rawMessage && rawMessage !== config.fallbackError) message = rawMessage;
+    if (!message) message = 'Sửa lỗi quá tải thất bại do lỗi máy chủ hoặc cấu hình. Vui lòng gửi mã lỗi cho hỗ trợ.';
+
+    return `${message}${formatOverloadFixErrorMeta(error, responseData)}`;
 }
 
 function getAutoFixFailureMessage() {
