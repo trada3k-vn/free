@@ -1954,6 +1954,33 @@ function buildSheetImportSummaryWithTimings(data = {}) {
     return timingText ? `${summary} | ${timingText}` : summary;
 }
 
+function playSheetImportSuccessSound() {
+    try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return;
+
+        const audioContext = new AudioContextClass();
+        const oscillator = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        const startedAt = audioContext.currentTime;
+
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(880, startedAt);
+        oscillator.frequency.setValueAtTime(1175, startedAt + 0.08);
+        gain.gain.setValueAtTime(0.0001, startedAt);
+        gain.gain.exponentialRampToValueAtTime(0.12, startedAt + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, startedAt + 0.18);
+
+        oscillator.connect(gain);
+        gain.connect(audioContext.destination);
+        oscillator.start(startedAt);
+        oscillator.stop(startedAt + 0.18);
+        oscillator.addEventListener('ended', () => audioContext.close().catch(() => {}), { once: true });
+    } catch (_) {
+        // Âm thanh chỉ là phản hồi bổ sung; không được làm gián đoạn luồng nhập cookie.
+    }
+}
+
 async function applySheetImportResult(scope = 'current', data = {}) {
     const context = getSheetImportContext(scope);
     clearSheetImportProgress(scope);
@@ -2022,8 +2049,10 @@ async function applySheetImportResult(scope = 'current', data = {}) {
         setSheetImportState(scope, autoSaveText, 'loading');
         context.setInfoState(autoSaveText, 'loading');
         context.setPrimaryState(autoSaveText, 'loading');
-        if (scope === 'create') await saveCreatedShareCookies();
-        else await adminSaveCookies();
+        const savedSuccessfully = scope === 'create'
+            ? await saveCreatedShareCookies()
+            : await adminSaveCookies();
+        if (savedSuccessfully) playSheetImportSuccessSound();
     }
 }
 
@@ -4891,14 +4920,14 @@ async function adminSearchShare() {
 }
 
 async function adminSaveCookies() {
-    if (!currentAdminShare || !currentAdminShare.id) return;
+    if (!currentAdminShare || !currentAdminShare.id) return false;
     const cookies = getCurrentShareEditableCookies();
     const note = getShareNoteInput('currentShareNoteInput');
     const expiryValue = String(el('currentShareExpiryInput') && el('currentShareExpiryInput').value || '').trim();
     const expiresAt = datetimeLocalToIso(expiryValue);
     if (expiryValue && !expiresAt) {
         setAdminSearchState('Hạn của link không hợp lệ.', 'warning');
-        return;
+        return false;
     }
 
     const btn = el('saveCurrentShareBtn');
@@ -4923,8 +4952,10 @@ async function adminSaveCookies() {
         );
         if (cookies.primary) setRuntimeProfiles(extractProfilesFromChecks(checkResults, 'primary'));
         setAdminSearchState('Đã cập nhật cookie và tự động check toàn bộ.', 'success');
+        return checkResults.length > 0 && checkResults.every((item) => item && item.ok === true);
     } catch (error) {
         setAdminSearchState(error.message || 'Không cập nhật được cookie.', 'error');
+        return false;
     } finally {
         setButtonBusy(btn, false);
     }
@@ -4933,7 +4964,7 @@ async function adminSaveCookies() {
 async function saveCreatedShareCookies() {
     if (!createdAdminShare || !createdAdminShare.id) {
         setShareState('Hãy tạo link ID server trước khi lưu cookie.', 'warning');
-        return;
+        return false;
     }
     const cookies = getCreatedShareEditableCookies();
     const note = getShareNoteInput('shareCreateNoteInput');
@@ -4962,8 +4993,10 @@ async function saveCreatedShareCookies() {
                 : 'Đã lưu cookie và auto-check xong, nhưng không tự copy lại được. Hãy bấm Sao chép.',
             copied ? 'success' : 'warning'
         );
+        return checkResults.length > 0 && checkResults.every((item) => item && item.ok === true);
     } catch (error) {
         setShareState(error.message || 'Không lưu được cookie cho link mới.', 'error');
+        return false;
     } finally {
         setButtonBusy(btn, false);
     }
