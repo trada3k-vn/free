@@ -196,7 +196,7 @@ function pushSheetDebugSample(debug = {}, row = {}, reason = '') {
 function buildEmptyQueueDebugMessage(state = {}) {
     const debug = normalizeSheetImportDebug(state.debug);
     const stoppedAtRow = Math.max(debug.lastScannedUntilRow, debug.scanStoppedAtRow, 0);
-    return `Da quet den row ${stoppedAtRow}. Visible ${debug.visibleRowsSeen}, eligible ${debug.eligibleRowsSeen}, empty cookie ${debug.rejectedByEmptyCookie}, duplicate ${debug.rejectedByDuplicate}.`;
+    return `Da quet den row ${stoppedAtRow}. Visible ${debug.visibleRowsSeen}, eligible ${debug.eligibleRowsSeen}, empty tai khoan ${debug.rejectedByEmptyCookie}, duplicate ${debug.rejectedByDuplicate}.`;
 }
 
 function buildEmptyVisibleBatchMessage(state = {}) {
@@ -213,7 +213,7 @@ function normalizeSeenCookies(input = []) {
 function createSheetImportState(slots = [], options = {}) {
     const targetSlots = normalizeSheetSlots(slots);
     if (targetSlots.length === 0) {
-        const error = new Error('Vui long chon it nhat 1 slot cookie.');
+        const error = new Error('Vui long chon it nhat 1 slot tai khoan.');
         error.httpStatus = 400;
         throw error;
     }
@@ -229,7 +229,7 @@ function createSheetImportState(slots = [], options = {}) {
         scannedPhysicalRows: 0,
         hasMore: true,
         phase: 'pending',
-        message: `Dang chuan bi quet Google Sheet cho ${targetSlots.length} cookie...`,
+        message: `Dang chuan bi quet Google Sheet cho ${targetSlots.length} tai khoan...`,
         timings: normalizeTimings(),
         debug: normalizeSheetImportDebug()
     };
@@ -239,7 +239,7 @@ function normalizeSheetImportState(input = {}, slotsFallback = []) {
     const source = input && typeof input === 'object' ? input : {};
     const targetSlots = normalizeSheetSlots(source.targetSlots && source.targetSlots.length ? source.targetSlots : slotsFallback);
     if (targetSlots.length === 0) {
-        const error = new Error('Vui long chon it nhat 1 slot cookie.');
+        const error = new Error('Vui long chon it nhat 1 slot tai khoan.');
         error.httpStatus = 400;
         throw error;
     }
@@ -311,7 +311,7 @@ function completeSheetImportState(state = {}, message = '') {
     const next = normalizeSheetImportState(state);
     next.phase = 'completed';
     next.message = String(message || '').trim() || (next.assigned.length > 0
-        ? `Da tim thay ${next.assigned.length}/${next.targetSlots.length} cookie PASS.`
+        ? `Da tim thay ${next.assigned.length}/${next.targetSlots.length} tai khoan PASS.`
         : 'Da quet xong Google Sheet.');
     next.hasMore = false;
     next.queuedRows = [];
@@ -338,13 +338,13 @@ async function runSheetImportChunk(stateInput = {}) {
     };
 
     if (state.assigned.length >= state.targetSlots.length) {
-        return finish(state, `Da tim thay du ${state.assigned.length}/${state.targetSlots.length} cookie PASS.`);
+        return finish(state, `Da tim thay du ${state.assigned.length}/${state.targetSlots.length} tai khoan PASS.`);
     }
 
     if (state.queuedRows.length === 0 && (!state.hasMore || state.scannedPhysicalRows >= GETLINK_SHEET_FETCH_LIMIT)) {
         return finish(state, state.assigned.length > 0
-            ? `Da quet xong va tim thay ${state.assigned.length}/${state.targetSlots.length} cookie PASS.`
-            : 'Da quet xong Google Sheet nhung khong tim thay cookie PASS nao.');
+            ? `Da quet xong va tim thay ${state.assigned.length}/${state.targetSlots.length} tai khoan PASS.`
+            : 'Da quet xong Google Sheet nhung khong tim thay tai khoan PASS nao.');
     }
 
     if (state.queuedRows.length === 0) {
@@ -395,8 +395,8 @@ async function runSheetImportChunk(stateInput = {}) {
         if (batch.rows.length === 0 && state.queuedRows.length === 0) {
             if (!state.hasMore || state.scannedPhysicalRows >= GETLINK_SHEET_FETCH_LIMIT) {
                 return finish(state, state.assigned.length > 0
-                    ? `Da tim thay ${state.assigned.length}/${state.targetSlots.length} cookie PASS.`
-                    : 'Da quet xong Google Sheet nhung khong tim thay cookie PASS nao.');
+                    ? `Da tim thay ${state.assigned.length}/${state.targetSlots.length} tai khoan PASS.`
+                    : 'Da quet xong Google Sheet nhung khong tim thay tai khoan PASS nao.');
             }
 
             state.debug.emptyVisibleBatches += 1;
@@ -420,7 +420,7 @@ async function runSheetImportChunk(stateInput = {}) {
 
     const windowRows = state.queuedRows.slice(0, GETLINK_SHEET_CHECK_CONCURRENCY);
     state.phase = 'checking_candidates';
-    state.message = `Dang check ${windowRows.length} cookie tu Google Sheet...`;
+    state.message = `Dang check ${windowRows.length} tai khoan tu Google Sheet...`;
     const checkStartedAt = Date.now();
     const windowResults = await withTimeout(
         Promise.all(windowRows.map(async (row) => ({
@@ -428,11 +428,11 @@ async function runSheetImportChunk(stateInput = {}) {
             cookieResult: await withTimeout(
                 evaluateGetlinkCookie(row.cookie),
                 GETLINK_COOKIE_CHECK_TIMEOUT_MS,
-                `Check cookie timeout sau ${GETLINK_COOKIE_CHECK_TIMEOUT_MS}ms.`
+                `Check tai khoan timeout sau ${GETLINK_COOKIE_CHECK_TIMEOUT_MS}ms.`
             )
         }))),
         GETLINK_COOKIE_CHECK_TIMEOUT_MS + 1000,
-        `Check cookie timeout sau ${GETLINK_COOKIE_CHECK_TIMEOUT_MS}ms.`
+        `Check tai khoan timeout sau ${GETLINK_COOKIE_CHECK_TIMEOUT_MS}ms.`
     );
     state.timings.cookieCheckMs += Date.now() - checkStartedAt;
 
@@ -489,18 +489,18 @@ async function runSheetImportChunk(stateInput = {}) {
     }
 
     if (state.assigned.length >= state.targetSlots.length) {
-        return finish(state, `Da tim thay du ${state.assigned.length}/${state.targetSlots.length} cookie PASS.`);
+        return finish(state, `Da tim thay du ${state.assigned.length}/${state.targetSlots.length} tai khoan PASS.`);
     }
 
     if (state.queuedRows.length === 0 && (!state.hasMore || state.scannedPhysicalRows >= GETLINK_SHEET_FETCH_LIMIT)) {
         return finish(state, state.assigned.length > 0
-            ? `Da tim thay ${state.assigned.length}/${state.targetSlots.length} cookie PASS.`
-            : 'Da quet xong Google Sheet nhung khong tim thay cookie PASS nao.');
+            ? `Da tim thay ${state.assigned.length}/${state.targetSlots.length} tai khoan PASS.`
+            : 'Da quet xong Google Sheet nhung khong tim thay tai khoan PASS nao.');
     }
 
     state.phase = state.queuedRows.length > 0 ? 'checking_candidates' : 'pulling_sheet';
     state.message = state.queuedRows.length > 0
-        ? `Da check xong mot nhom, con ${state.queuedRows.length} cookie dang cho check.`
+        ? `Da check xong mot nhom, con ${state.queuedRows.length} tai khoan dang cho check.`
         : `Da quet xong mot luot. Dang tiep tuc tu dong ${state.nextStartRow}...`;
     state.timings.totalMs += Date.now() - chunkStartedAt;
     return state;

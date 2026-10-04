@@ -61,7 +61,7 @@ async function resolveShareCookie(record) {
 
     for (const candidate of candidates) {
         if (!candidate.cookieRaw) {
-            checks.push({ slot: candidate.slot, ok: false, error: 'Cookie trong.' });
+            checks.push({ slot: candidate.slot, ok: false, error: 'Tài khoản trống.' });
             continue;
         }
         const result = await evaluateGetlinkCookie(candidate.cookieRaw);
@@ -89,7 +89,7 @@ async function resolveShareCookie(record) {
 
     return {
         ok: false,
-        error: 'Het cookie hop le. Vui long lien he admin de duoc bao hanh.',
+        error: 'Het tai khoan hop le. Vui long lien he admin de duoc bao hanh.',
         checks
     };
 }
@@ -100,7 +100,7 @@ async function checkShareCookiesHealth(record) {
 
     for (const candidate of candidates) {
         if (!candidate.cookieRaw) {
-            checks.push({ slot: candidate.slot, ok: false, error: 'Cookie trong.', summary: null });
+            checks.push({ slot: candidate.slot, ok: false, error: 'Tài khoản trống.', summary: null });
             continue;
         }
         const result = await evaluateGetlinkCookie(candidate.cookieRaw);
@@ -276,7 +276,7 @@ module.exports = async function (req, res) {
                 const health = await checkShareCookiesHealth(record);
                 if (health.liveCount <= 0) {
                     return res.status(422).json({
-                        error: 'Khong du cookie song truoc khi rotate. liveCount=0',
+                        error: 'Khong du tai khoan song truoc khi rotate. liveCount=0',
                         liveCount: 0,
                         checks: health.checks
                     });
@@ -320,7 +320,7 @@ module.exports = async function (req, res) {
                 const deadSlots = getDeadSlotsFromHealth(health.checks);
                 if (deadSlots.length < 1) {
                     return res.status(422).json({
-                        error: `Khong du cookie song truoc khi rotate. liveCount=${health.liveCount}`,
+                        error: `Khong du tai khoan song truoc khi rotate. liveCount=${health.liveCount}`,
                         liveCount: health.liveCount,
                         checks: health.checks
                     });
@@ -367,7 +367,7 @@ module.exports = async function (req, res) {
                 if (advanced.status === 'failed') {
                     return res.status(422).json({
                         ...payload,
-                        error: String(advanced.lastError || advanced.message || 'Khong lay duoc cookie PASS nao tu Google Sheet.').trim() || 'Khong lay duoc cookie PASS nao tu Google Sheet.'
+                        error: String(advanced.lastError || advanced.message || 'Khong lay duoc tai khoan PASS nao tu Google Sheet.').trim() || 'Khong lay duoc tai khoan PASS nao tu Google Sheet.'
                     });
                 }
                 return res.status(200).json(payload);

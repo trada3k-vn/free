@@ -292,7 +292,7 @@ async function updateGetlinkSheetRows(updates = []) {
 async function allocateCookiesFromSheetForSlots(slots = []) {
     const targetSlots = normalizeSheetSlots(slots);
     if (targetSlots.length === 0) {
-        const error = new Error('Vui long chon it nhat 1 slot cookie.');
+        const error = new Error('Vui long chon it nhat 1 slot tai khoan.');
         error.httpStatus = 400;
         throw error;
     }
@@ -394,7 +394,7 @@ async function allocateCookiesFromSheetForSlots(slots = []) {
     timings.totalMs = Date.now() - totalStartedAt;
     const filledSlots = new Set(assigned.map((item) => item.slot));
     const unfilledSlots = targetSlots.filter((slot) => !filledSlots.has(slot));
-    const message = `Assigned ${assigned.length} cookies, skipped ${skipped.length} failed cookies`;
+    const message = `Assigned ${assigned.length} tai khoan, skipped ${skipped.length} tai khoan loi`;
     console.log('[getlink sheet import]', {
         slots: targetSlots.length,
         assigned: assigned.length,

@@ -188,7 +188,7 @@ async function cancelGetlinkOperation(operationInput = {}) {
     }
     operation.status = 'cancelled';
     operation.phase = 'cancelled';
-    operation.message = 'Da huy nhap cookie tu Google Sheet.';
+    operation.message = 'Da huy nhap tai khoan tu Google Sheet.';
     operation.lastError = '';
     operation.errorCode = '';
     operation.errorHttpStatus = 0;
@@ -280,7 +280,7 @@ function countNonEmptyShareCookieSlots(record = null) {
 }
 
 function createCookieSlotError(code, message, details = {}) {
-    const error = new Error(String(message || 'Cookie slot write failed').trim());
+    const error = new Error(String(message || 'Tai khoan slot write failed').trim());
     error.code = String(code || 'COOKIE_SLOT_WRITE_FAILED').trim();
     error.httpStatus = 409;
     error.cookieSlotDetails = {
@@ -298,7 +298,7 @@ async function writeAndVerifyOverloadCookieSlot(shareId = '', assigned = []) {
     const targetSlot = Object.keys(cookiesToWrite)[0] || '';
     const expectedCookie = targetSlot ? String(cookiesToWrite[targetSlot] || '').trim() : '';
     if (!targetSlot || !expectedCookie) {
-        throw createCookieSlotError('COOKIE_SLOT_WRITE_FAILED', 'Khong co cookie hop le de ghi vao slot chet.', {
+        throw createCookieSlotError('COOKIE_SLOT_WRITE_FAILED', 'Khong co tai khoan hop le de ghi vao slot chet.', {
             slot: targetSlot,
             attempts: 0,
             cookieLength: expectedCookie.length
@@ -323,7 +323,7 @@ async function writeAndVerifyOverloadCookieSlot(shareId = '', assigned = []) {
                 nonEmptyBefore
             });
             if (attempt > COOKIE_SLOT_WRITE_RETRIES) {
-                throw createCookieSlotError('COOKIE_SLOT_WRITE_FAILED', 'Khong ghi duoc cookie vao slot chet.', {
+                throw createCookieSlotError('COOKIE_SLOT_WRITE_FAILED', 'Khong ghi duoc tai khoan vao slot chet.', {
                     slot: targetSlot,
                     attempts: attempt,
                     cookieLength: expectedCookie.length,
@@ -348,7 +348,7 @@ async function writeAndVerifyOverloadCookieSlot(shareId = '', assigned = []) {
                 errorStatus: Math.max(0, Number(error && (error.httpStatus || error.statusCode) || 0) || 0)
             });
             if (attempt > COOKIE_SLOT_WRITE_RETRIES) {
-                throw createCookieSlotError('COOKIE_SLOT_WRITE_FAILED', 'Khong doc lai duoc slot cookie sau khi ghi.', {
+                throw createCookieSlotError('COOKIE_SLOT_WRITE_FAILED', 'Khong doc lai duoc slot tai khoan sau khi ghi.', {
                     slot: targetSlot,
                     attempts: attempt,
                     cookieLength: expectedCookie.length,
@@ -383,7 +383,7 @@ async function writeAndVerifyOverloadCookieSlot(shareId = '', assigned = []) {
         if (attempt <= COOKIE_SLOT_WRITE_RETRIES) continue;
 
         if (!slotMatches) {
-            throw createCookieSlotError('COOKIE_SLOT_WRITE_FAILED', `Khong xac nhan duoc cookie da ghi vao ${targetSlot}.`, {
+            throw createCookieSlotError('COOKIE_SLOT_WRITE_FAILED', `Khong xac nhan duoc tai khoan da ghi vao ${targetSlot}.`, {
                 slot: targetSlot,
                 attempts: attempt,
                 cookieLength: expectedCookie.length,
@@ -392,7 +392,7 @@ async function writeAndVerifyOverloadCookieSlot(shareId = '', assigned = []) {
             });
         }
 
-        throw createCookieSlotError('BACKUP_COOKIE_MISSING', `Da ghi cookie vao ${targetSlot} nhung link van chua du 2 slot cookie.`, {
+        throw createCookieSlotError('BACKUP_COOKIE_MISSING', `Da ghi tai khoan vao ${targetSlot} nhung link van chua du 2 slot tai khoan.`, {
             slot: targetSlot,
             attempts: attempt,
             cookieLength: expectedCookie.length,
@@ -401,7 +401,7 @@ async function writeAndVerifyOverloadCookieSlot(shareId = '', assigned = []) {
         });
     }
 
-    throw createCookieSlotError('COOKIE_SLOT_WRITE_FAILED', 'Khong xac nhan duoc cookie da ghi vao slot chet.', {
+    throw createCookieSlotError('COOKIE_SLOT_WRITE_FAILED', 'Khong xac nhan duoc tai khoan da ghi vao slot chet.', {
         slot: targetSlot,
         attempts: COOKIE_SLOT_WRITE_RETRIES + 1,
         cookieLength: expectedCookie.length,
@@ -590,7 +590,7 @@ async function advanceGetlinkOperation(operationInput = {}) {
             if ((Array.isArray(nextResult.assigned) ? nextResult.assigned.length : 0) === 0) {
                 operation.status = 'failed';
                 operation.phase = 'completed';
-                operation.message = 'Khong lay duoc cookie PASS nao tu Google Sheet.';
+                operation.message = 'Khong lay duoc tai khoan PASS nao tu Google Sheet.';
                 operation.lastError = operation.message;
                 operation.errorCode = 'NO_PASS_COOKIE';
                 operation.errorHttpStatus = 422;
@@ -599,7 +599,7 @@ async function advanceGetlinkOperation(operationInput = {}) {
             }
 
             operation.phase = 'updating_share';
-            operation.message = 'Dang cap nhat cookie moi vao link...';
+            operation.message = 'Dang cap nhat tai khoan moi vao link...';
             const shareUpdateStartedAt = Date.now();
             await updateShareCookies(operation.shareId, buildAutoFixCookies(nextResult.assigned), 'guest-auto-fix');
             nextState.shareUpdated = true;
@@ -607,7 +607,7 @@ async function advanceGetlinkOperation(operationInput = {}) {
             nextState.timings.shareUpdateMs = Math.max(0, Number(nextState.timings.shareUpdateMs || 0) || 0) + (Date.now() - shareUpdateStartedAt);
             nextState.timings.totalMs = Math.max(0, Number(nextState.timings.totalMs || 0) || 0) + (Date.now() - shareUpdateStartedAt);
             nextState.phase = 'completed';
-            nextState.message = 'Da cap nhat 1 cookie hop le cho link.';
+            nextState.message = 'Da cap nhat 1 tai khoan hop le cho link.';
             nextResult = buildSheetImportResult(nextState);
         }
 
@@ -628,7 +628,7 @@ async function advanceGetlinkOperation(operationInput = {}) {
                 if (assignedCount < requiredCount) {
                     operation.status = 'failed';
                     operation.phase = 'completed';
-                    operation.message = `Khong lay du ${requiredCount} cookie PASS tu Google Sheet de sua loi qua tai.`;
+                    operation.message = `Khong lay du ${requiredCount} tai khoan PASS tu Google Sheet de sua loi qua tai.`;
                     operation.lastError = operation.message;
                     operation.errorCode = 'NO_PASS_COOKIE';
                     operation.errorHttpStatus = 422;
@@ -645,7 +645,7 @@ async function advanceGetlinkOperation(operationInput = {}) {
                 }
 
                 operation.phase = 'updating_share';
-                operation.message = `Dang bo sung ${requiredCount} cookie moi vao o da chet...`;
+                    operation.message = `Dang bo sung ${requiredCount} tai khoan moi vao o da chet...`;
                 const finalizeStartedAt = Date.now();
                 const shareUpdateStartedAt = finalizeStartedAt;
                 await writeAndVerifyOverloadCookieSlot(operation.shareId, nextResult.assigned);
@@ -654,7 +654,7 @@ async function advanceGetlinkOperation(operationInput = {}) {
                 nextState.timings.shareUpdateMs = Math.max(0, Number(nextState.timings.shareUpdateMs || 0) || 0) + (Date.now() - shareUpdateStartedAt);
 
                 operation.phase = 'rotating_cookie';
-                operation.message = 'Dang thay cookie chinh va hoan tat sua loi qua tai...';
+                    operation.message = 'Dang thay tai khoan chinh va hoan tat sua loi qua tai...';
                 const rotateStartedAt = Date.now();
                 let rotated;
                 try {
@@ -669,7 +669,7 @@ async function advanceGetlinkOperation(operationInput = {}) {
                 nextState.timings.shareUpdateMs = Math.max(0, Number(nextState.timings.shareUpdateMs || 0) || 0) + (Date.now() - rotateStartedAt);
                 nextState.timings.totalMs = Math.max(0, Number(nextState.timings.totalMs || 0) || 0) + (Date.now() - finalizeStartedAt);
                 nextState.phase = 'completed';
-                nextState.message = `Da bo sung ${requiredCount} cookie moi va sua loi qua tai thanh cong.`;
+                nextState.message = `Da bo sung ${requiredCount} tai khoan moi va sua loi qua tai thanh cong.`;
                 nextResult = buildSheetImportResult(nextState);
             }
 

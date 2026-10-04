@@ -377,7 +377,7 @@ async function updateShareAdminFields(shareId = '', options = {}, actor = 'admin
 async function updateShareCookieSlot(shareId = '', slot = '', cookieRaw = '', actor = 'admin') {
     const normalizedSlot = normalizeSlotName(slot);
     if (!normalizedSlot) {
-        const err = new Error('Invalid cookie slot');
+        const err = new Error('Invalid tai khoan slot');
         err.httpStatus = 400;
         throw err;
     }
@@ -430,7 +430,7 @@ async function rotateShareCookies(shareId = '', actor = 'guest-rotate') {
     ];
     const usableCount = ordered.filter(Boolean).length;
     if (usableCount < 2) {
-        const err = new Error('Link này đã hết cookie dự phòng. Vui lòng bấm CẦN HỖ TRỢ / BẢO HÀNH để được hỗ trợ.');
+        const err = new Error('Link này đã hết tài khoản dự phòng. Vui lòng bấm CẦN HỖ TRỢ / BẢO HÀNH để được hỗ trợ.');
         err.httpStatus = 400;
         throw err;
     }

@@ -109,15 +109,15 @@ const DEFAULT_GETLINK_CONTENT = {
         genericNoticeTitle: 'Thông báo',
         desktopOnlyMessage: 'GÓI NETFLIX TẶNG KÈM CHỈ CÓ THỂ XEM ĐƯỢC TRÊN MÁY TÍNH',
         defaultSupportMessage: 'Vui lòng nhắn tin qua fanpage để được hỗ trợ bảo hành nhanh nhất.',
-        sbdTitle: 'Cookie bị SBD',
-        deadTitle: 'Cookie đã lỗi',
+        sbdTitle: 'Tài khoản bị SBD',
+        deadTitle: 'Tài khoản đã lỗi',
         holdTitle: 'Tài khoản đang bị hold',
-        unknownCookieTitle: 'Cookie đang lỗi',
-        noLiveCookieTitle: 'Link đã hết cookie hợp lệ',
+        unknownCookieTitle: 'Tài khoản đang lỗi',
+        noLiveCookieTitle: 'Link đã hết tài khoản hợp lệ',
         linkNotFoundTitle: 'Link không tồn tại',
         linkRevokedTitle: 'Link đã bị thu hồi',
         linkExpiredTitle: 'Link đã hết hạn',
-        invalidCookieLinkTitle: 'Link cookie không hợp lệ',
+        invalidCookieLinkTitle: 'Link tài khoản không hợp lệ',
         invalidShareLinkTitle: 'Link không hợp lệ',
         guardDefaultTitle: 'Không tìm thấy link hợp lệ',
         guardDefaultMessage: 'Hãy mở đúng link /getlink?s=... hoặc /getlink?c=... để tiếp tục.',
@@ -130,13 +130,13 @@ const DEFAULT_GETLINK_CONTENT = {
         linkExpiredLookup: 'Link chia sẻ này đã hết hạn.',
         linkExpiredGuardTitle: 'Link đã hết hạn',
         linkExpiredGuardMessage: 'Link này đã hết hạn sử dụng. Vui lòng liên hệ admin để được cấp lại link.',
-        noLiveCookieLookup: 'Link này đã hết cookie hợp lệ. Bạn có thể bấm SỬA LỖI TỰ ĐỘNG để hệ thống thử khắc phục.',
-        noLiveCookieGuardTitle: 'Link đã hết cookie hợp lệ',
-        noLiveCookieGuardMessage: 'Link này vẫn còn hạn nhưng hiện không còn cookie dùng được. Bạn có thể bấm SỬA LỖI TỰ ĐỘNG hoặc nhắn fanpage để được hỗ trợ bảo hành.',
-        invalidShareLookup: 'Không tải được cookie từ link chia sẻ.',
-        invalidCookieLookup: 'Link cookie không hợp lệ.',
-        invalidCookieGuardTitle: 'Link cookie không hợp lệ',
-        invalidCookieGuardMessage: 'Không giải mã được cookie trong link chia sẻ. Hãy mở lại đúng link được cấp.'
+        noLiveCookieLookup: 'Link này đã hết tài khoản hợp lệ. Bạn có thể bấm SỬA LỖI TỰ ĐỘNG để hệ thống thử khắc phục.',
+        noLiveCookieGuardTitle: 'Link đã hết tài khoản hợp lệ',
+        noLiveCookieGuardMessage: 'Link này vẫn còn hạn nhưng hiện không còn tài khoản dùng được. Bạn có thể bấm SỬA LỖI TỰ ĐỘNG hoặc nhắn fanpage để được hỗ trợ bảo hành.',
+        invalidShareLookup: 'Không tải được tài khoản từ link chia sẻ.',
+        invalidCookieLookup: 'Link tài khoản không hợp lệ.',
+        invalidCookieGuardTitle: 'Link tài khoản không hợp lệ',
+        invalidCookieGuardMessage: 'Không giải mã được tài khoản trong link chia sẻ. Hãy mở lại đúng link được cấp.'
     },
     fix: {
         common: {
@@ -159,7 +159,7 @@ const DEFAULT_GETLINK_CONTENT = {
             successEyebrow: 'Đã sửa lỗi',
             successTitle: 'Đã sửa lỗi thành công',
             busyLabel: 'Đang sửa lỗi...',
-            loadingText: 'Đang kiểm tra cookie và chuẩn bị sửa lỗi quá tải...',
+            loadingText: 'Đang kiểm tra tài khoản và chuẩn bị sửa lỗi quá tải...',
             fallbackError: 'Không thể sửa lỗi quá tải lúc này.'
         },
         household: {
@@ -175,7 +175,7 @@ const DEFAULT_GETLINK_CONTENT = {
             successEyebrow: 'Đã sửa lỗi hộ gia đình',
             successTitle: 'Đã sửa lỗi hộ gia đình thành công',
             busyLabel: 'Đang sửa lỗi...',
-            loadingText: 'Đang kiểm tra cookie và chuẩn bị sửa lỗi hộ gia đình...',
+            loadingText: 'Đang kiểm tra tài khoản và chuẩn bị sửa lỗi hộ gia đình...',
             fallbackError: 'Không thể sửa lỗi hộ gia đình lúc này.'
         }
     },
@@ -263,19 +263,19 @@ const activeSheetImportCancelStates = new Map();
 let toastTimer = null;
 let toastNode = null;
 const SHARE_COOKIE_SLOTS = [
-    { key: 'primary', label: 'Cookie chính', viewInputId: 'currentShareCookiePrimaryDisplay', viewStateId: 'currentShareCookiePrimaryState', viewCheckBtnId: 'viewCheckPrimaryCookieBtn', viewUseBtnId: 'viewUsePrimaryCookieBtn' },
-    { key: 'backup1', label: 'Cookie phụ 1', viewInputId: 'currentShareCookieBackup1Display', viewStateId: 'currentShareCookieBackup1State', viewCheckBtnId: 'viewCheckBackup1CookieBtn', viewUseBtnId: 'viewUseBackup1CookieBtn' },
-    { key: 'backup2', label: 'Cookie phụ 2', viewInputId: 'currentShareCookieBackup2Display', viewStateId: 'currentShareCookieBackup2State', viewCheckBtnId: 'viewCheckBackup2CookieBtn', viewUseBtnId: 'viewUseBackup2CookieBtn' }
+    { key: 'primary', label: 'Tài khoản chính', viewInputId: 'currentShareCookiePrimaryDisplay', viewStateId: 'currentShareCookiePrimaryState', viewCheckBtnId: 'viewCheckPrimaryCookieBtn', viewUseBtnId: 'viewUsePrimaryCookieBtn' },
+    { key: 'backup1', label: 'Tài khoản phụ 1', viewInputId: 'currentShareCookieBackup1Display', viewStateId: 'currentShareCookieBackup1State', viewCheckBtnId: 'viewCheckBackup1CookieBtn', viewUseBtnId: 'viewUseBackup1CookieBtn' },
+    { key: 'backup2', label: 'Tài khoản phụ 2', viewInputId: 'currentShareCookieBackup2Display', viewStateId: 'currentShareCookieBackup2State', viewCheckBtnId: 'viewCheckBackup2CookieBtn', viewUseBtnId: 'viewUseBackup2CookieBtn' }
 ];
 const CREATED_SHARE_COOKIE_SLOTS = [
-    { key: 'primary', label: 'Cookie chính', viewInputId: 'creatorShareCookiePrimaryInput', viewStateId: 'creatorShareCookiePrimaryState', viewCheckBtnId: 'creatorCheckPrimaryCookieBtn', viewUseBtnId: 'creatorUsePrimaryCookieBtn' },
-    { key: 'backup1', label: 'Cookie phụ 1', viewInputId: 'creatorShareCookieBackup1Input', viewStateId: 'creatorShareCookieBackup1State', viewCheckBtnId: 'creatorCheckBackup1CookieBtn', viewUseBtnId: 'creatorUseBackup1CookieBtn' },
-    { key: 'backup2', label: 'Cookie phụ 2', viewInputId: 'creatorShareCookieBackup2Input', viewStateId: 'creatorShareCookieBackup2State', viewCheckBtnId: 'creatorCheckBackup2CookieBtn', viewUseBtnId: 'creatorUseBackup2CookieBtn' }
+    { key: 'primary', label: 'Tài khoản chính', viewInputId: 'creatorShareCookiePrimaryInput', viewStateId: 'creatorShareCookiePrimaryState', viewCheckBtnId: 'creatorCheckPrimaryCookieBtn', viewUseBtnId: 'creatorUsePrimaryCookieBtn' },
+    { key: 'backup1', label: 'Tài khoản phụ 1', viewInputId: 'creatorShareCookieBackup1Input', viewStateId: 'creatorShareCookieBackup1State', viewCheckBtnId: 'creatorCheckBackup1CookieBtn', viewUseBtnId: 'creatorUseBackup1CookieBtn' },
+    { key: 'backup2', label: 'Tài khoản phụ 2', viewInputId: 'creatorShareCookieBackup2Input', viewStateId: 'creatorShareCookieBackup2State', viewCheckBtnId: 'creatorCheckBackup2CookieBtn', viewUseBtnId: 'creatorUseBackup2CookieBtn' }
 ];
 const SHEET_IMPORT_SLOT_META = [
-    { key: 'primary', label: 'Cookie chính' },
-    { key: 'backup1', label: 'Cookie phụ 1' },
-    { key: 'backup2', label: 'Cookie phụ 2' }
+    { key: 'primary', label: 'Tài khoản chính' },
+    { key: 'backup1', label: 'Tài khoản phụ 1' },
+    { key: 'backup2', label: 'Tài khoản phụ 2' }
 ];
 
 function el(id) {
@@ -1372,10 +1372,10 @@ function getSheetImportPhaseLabel(phase = '') {
     const labels = {
         pending: 'Đang chuẩn bị',
         pulling_sheet: 'Đang lấy dữ liệu Google Sheet',
-        checking_candidates: 'Đang check cookie',
+        checking_candidates: 'Đang check tài khoản',
         writing_marks: 'Đang cập nhật dòng trong Sheet',
         updating_share: 'Đang cập nhật link',
-        rotating_cookie: 'Đang thay cookie chính',
+        rotating_cookie: 'Đang thay tài khoản chính',
         completed: 'Đã hoàn tất',
         cancelled: 'Đã huỷ',
         blocked: 'Đã bị chặn',
@@ -1671,7 +1671,7 @@ function renderCookieCheckCardsTo(contentId, results = [], slotConfigs = SHARE_C
     if (!content) return;
     const cards = Array.isArray(results) ? results : [];
     if (cards.length === 0) {
-        content.innerHTML = '<p class="admin-cookie-info-placeholder">Chưa có dữ liệu cookie info.</p>';
+        content.innerHTML = '<p class="admin-cookie-info-placeholder">Chưa có dữ liệu tài khoản.</p>';
         return;
     }
 
@@ -1725,7 +1725,7 @@ function renderCookieCheckCardsTo(contentId, results = [], slotConfigs = SHARE_C
                             <span class="cookie-check-value">${escapeHtml(profilesValue)}</span>
                         </div>
                     </div>
-                    <p class="cookie-check-note">${escapeHtml(errorText || (item.ok ? 'Cookie dùng được.' : 'Cookie không dùng được.'))}</p>
+                    <p class="cookie-check-note">${escapeHtml(errorText || (item.ok ? 'Tài khoản dùng được.' : 'Tài khoản không dùng được.'))}</p>
                 </article>
             `;
         }).join('')
@@ -1856,7 +1856,7 @@ function resetCreatedShareComposer(options = {}) {
     }
     setShareState('', 'idle');
     setShareCreateExpiryState('', 'idle');
-    setCreatorCookieInfoState('Tạo hoặc cập nhật cookie rồi bấm check để xem kết quả ngay tại đây.', 'idle');
+    setCreatorCookieInfoState('Tạo hoặc cập nhật tài khoản rồi bấm check để xem kết quả ngay tại đây.', 'idle');
     setSheetImportState('create', '', 'idle');
     clearSheetImportTiming('create');
     clearSheetImportSelections('create');
@@ -1890,7 +1890,7 @@ async function runCookieChecksForShare(
 
     if (keysToCheck.length === 0) {
         renderCards([]);
-        setInfoState('Chưa có cookie nào để check.', 'idle');
+        setInfoState('Chưa có tài khoản nào để check.', 'idle');
         return [];
     }
 
@@ -1908,7 +1908,7 @@ async function runCookieChecksForShare(
         results = keysToCheck.map((key) => ({
             slot: key,
             ok: false,
-            error: error.message || 'Check cookie thất bại.',
+            error: error.message || 'Check tài khoản thất bại.',
             summary: {}
         }));
         for (const key of keysToCheck) {
@@ -1921,14 +1921,14 @@ async function runCookieChecksForShare(
         results.push({
             slot: key,
             ok: false,
-            error: 'Không check được cookie.',
+            error: 'Không check được tài khoản.',
             summary: {}
         });
         setSlotState(key, 'FAIL', false);
     }
 
     renderCards(results);
-    setInfoState('Đã check xong các cookie đã nhập.', results.every((item) => item.ok) ? 'success' : 'warning');
+    setInfoState('Đã check xong các tài khoản đã nhập.', results.every((item) => item.ok) ? 'success' : 'warning');
     return results;
 }
 
@@ -1937,11 +1937,11 @@ function buildSheetImportSummary(data = {}) {
     const skipped = Array.isArray(data.skipped) ? data.skipped : [];
     const unfilledSlots = Array.isArray(data.unfilledSlots) ? data.unfilledSlots : [];
     const assignedText = assigned.length
-        ? `Đã nhập ${assigned.length} cookie PASS`
-        : 'Chưa nhập được cookie PASS nào';
+        ? `Đã nhập ${assigned.length} tài khoản PASS`
+        : 'Chưa nhập được tài khoản PASS nào';
     const skippedText = skipped.length
-        ? `skip ${skipped.length} cookie fail`
-        : 'không có cookie fail';
+        ? `skip ${skipped.length} tài khoản fail`
+        : 'không có tài khoản fail';
     const unfilledText = unfilledSlots.length
         ? `Thiếu: ${unfilledSlots.map(getCookieSlotLabel).join(', ')}.`
         : 'Đã đủ slot được chọn.';
@@ -1977,7 +1977,7 @@ function playSheetImportSuccessSound() {
         oscillator.stop(startedAt + 0.18);
         oscillator.addEventListener('ended', () => audioContext.close().catch(() => {}), { once: true });
     } catch (_) {
-        // Âm thanh chỉ là phản hồi bổ sung; không được làm gián đoạn luồng nhập cookie.
+        // Âm thanh chỉ là phản hồi bổ sung; không được làm gián đoạn luồng nhập tài khoản.
     }
 }
 
@@ -2028,13 +2028,13 @@ async function applySheetImportResult(scope = 'current', data = {}) {
         context.renderCards(results);
         context.setInfoState(
             `${unfilledSlots.length > 0
-                ? 'Đã nhập một phần cookie PASS từ Sheet.'
-                : 'Đã nhập và check xong cookie từ Sheet.'}${timingText ? ` ${timingText}` : ''}`,
+                ? 'Đã nhập một phần tài khoản PASS từ Sheet.'
+                : 'Đã nhập và check xong tài khoản từ Sheet.'}${timingText ? ` ${timingText}` : ''}`,
             unfilledSlots.length > 0 || skipped.length > 0 ? 'warning' : 'success'
         );
     } else {
         context.renderCards([]);
-        context.setInfoState(`Không tìm được cookie PASS nào từ Sheet.${timingText ? ` ${timingText}` : ''}`, 'warning');
+        context.setInfoState(`Không tìm được tài khoản PASS nào từ Sheet.${timingText ? ` ${timingText}` : ''}`, 'warning');
     }
 
     setSheetImportState(
@@ -2045,7 +2045,7 @@ async function applySheetImportResult(scope = 'current', data = {}) {
     clearSheetImportSelections(scope);
 
     if (assigned.length > 0) {
-        const autoSaveText = 'Đã nhập cookie PASS từ Sheet, đang tự lưu...';
+        const autoSaveText = 'Đã nhập tài khoản PASS từ Sheet, đang tự lưu...';
         setSheetImportState(scope, autoSaveText, 'loading');
         context.setInfoState(autoSaveText, 'loading');
         context.setPrimaryState(autoSaveText, 'loading');
@@ -2124,8 +2124,8 @@ async function importCookiesFromSheet(scope = 'current') {
 
     const context = getSheetImportContext(scope);
     if (!context.share || !context.share.id) {
-        if (scope === 'create') setShareState('Hãy tạo link ID server trước khi nhập cookie từ Sheet.', 'warning');
-        else setAdminSearchState('Hãy tìm link ID trước khi nhập cookie từ Sheet.', 'warning');
+        if (scope === 'create') setShareState('Hãy tạo link ID server trước khi nhập tài khoản từ Sheet.', 'warning');
+        else setAdminSearchState('Hãy tìm link ID trước khi nhập tài khoản từ Sheet.', 'warning');
         return;
     }
 
@@ -2140,14 +2140,14 @@ async function importCookiesFromSheet(scope = 'current') {
     renderSheetImportProgress(scope, {
         status: 'pending',
         phase: 'pending',
-        message: `Đang quét Google Sheet và check ${slots.length} cookie...`,
+        message: `Đang quét Google Sheet và check ${slots.length} tài khoản...`,
         assigned: [],
         skipped: [],
         unfilledSlots: slots,
         debug: {}
     }, 0);
-    setSheetImportState(scope, `Đang quét Google Sheet và check ${slots.length} cookie...`, 'loading');
-    context.setInfoState('Đang lấy cookie từ Google Sheet...', 'loading');
+    setSheetImportState(scope, `Đang quét Google Sheet và check ${slots.length} tài khoản...`, 'loading');
+    context.setInfoState('Đang lấy tài khoản từ Google Sheet...', 'loading');
 
     try {
         let data = await apiRequest('/api/getlink-admin/sheet-cookie-import', 'POST', {
@@ -2173,7 +2173,7 @@ async function importCookiesFromSheet(scope = 'current') {
                 const text = buildGetlinkOperationText(
                     payload,
                     elapsedMs,
-                    `Đang quét Google Sheet và check ${slots.length} cookie...`
+                    `Đang quét Google Sheet và check ${slots.length} tài khoản...`
                 );
                 renderSheetImportProgress(scope, payload, elapsedMs);
                 setSheetImportState(scope, text, 'loading');
@@ -2201,15 +2201,15 @@ async function importCookiesFromSheet(scope = 'current') {
 
         if (cancelState.requested || String(data && data.status || '').trim() === 'cancelled') {
             clearSheetImportProgress(scope);
-            setSheetImportState(scope, 'Đã huỷ nhập cookie từ Sheet.', 'warning');
-            context.setInfoState('Đã huỷ nhập cookie từ Sheet.', 'warning');
+            setSheetImportState(scope, 'Đã huỷ nhập tài khoản từ Sheet.', 'warning');
+            context.setInfoState('Đã huỷ nhập tài khoản từ Sheet.', 'warning');
         } else {
             await applySheetImportResult(scope, data);
         }
     } catch (error) {
         clearSheetImportOperationMeta(scope);
         const timingText = formatAutoFixTimings(error && error.responseData ? error.responseData.timings : null);
-        const message = error.message || 'Không nhập được cookie từ Sheet.';
+        const message = error.message || 'Không nhập được tài khoản từ Sheet.';
         clearSheetImportProgress(scope);
         setSheetImportState(scope, timingText ? `${message} | ${timingText}` : message, 'error');
         context.setInfoState(timingText ? `${message} ${timingText}` : message, 'error');
@@ -2231,7 +2231,7 @@ async function cancelSheetImportOperation(scope = 'current') {
     state.cancelling = true;
     setSheetImportOperationControls(scope, true, true);
     clearActiveGetlinkOperationTimer(`sheet-import-${scope}`);
-    setSheetImportState(scope, 'Đang huỷ nhập cookie từ Sheet…', 'loading');
+    setSheetImportState(scope, 'Đang huỷ nhập tài khoản từ Sheet…', 'loading');
 
     state.cancelPromise = (async () => {
         try {
@@ -2242,12 +2242,12 @@ async function cancelSheetImportOperation(scope = 'current') {
             state.requested = true;
             clearSheetImportOperationMeta(scope);
             clearSheetImportProgress(scope);
-            setSheetImportState(scope, 'Đã huỷ nhập cookie từ Sheet.', 'warning');
+            setSheetImportState(scope, 'Đã huỷ nhập tài khoản từ Sheet.', 'warning');
             const context = getSheetImportContext(scope);
-            if (context && context.setInfoState) context.setInfoState('Đã huỷ nhập cookie từ Sheet.', 'warning');
+            if (context && context.setInfoState) context.setInfoState('Đã huỷ nhập tài khoản từ Sheet.', 'warning');
         } catch (error) {
             setSheetImportOperationControls(scope, true, false);
-            setSheetImportState(scope, error.message || 'Không huỷ được nhập cookie từ Sheet.', 'error');
+            setSheetImportState(scope, error.message || 'Không huỷ được nhập tài khoản từ Sheet.', 'error');
         } finally {
             state.cancelling = false;
         }
@@ -2268,18 +2268,18 @@ function isNo(value) {
     return String(value || '').trim().toLowerCase() === 'no';
 }
 
-function renderCookieInfoPlaceholder(text = 'Chua co du lieu cookie info.') {
+function renderCookieInfoPlaceholder(text = 'Chua co du lieu tai khoan.') {
     const content = el('adminCookieInfoContent');
     if (!content) return;
     content.innerHTML = `<p class="admin-cookie-info-placeholder">${escapeHtml(text)}</p>`;
 }
 
-function renderCookieInfoError(message = 'Khong kiem tra duoc cookie.', meta = {}) {
+function renderCookieInfoError(message = 'Khong kiem tra duoc tai khoan.', meta = {}) {
     const content = el('adminCookieInfoContent');
     if (!content) return;
     const overloadMessage = String(meta.overloadMessage || '').trim();
     const signal = String(meta.overloadSignal || '').trim();
-    const finalMessage = String(message || 'Khong kiem tra duoc cookie.').trim();
+    const finalMessage = String(message || 'Khong kiem tra duoc tai khoan.').trim();
 
     const extra = overloadMessage
         ? `<div class="admin-info-grid"><strong>Overload:</strong><span>${escapeHtml(overloadMessage)}</span></div>`
@@ -2302,7 +2302,7 @@ function renderCookieInfoError(message = 'Khong kiem tra duoc cookie.', meta = {
         ${extra}
         ${signalHtml}
     `;
-    setAdminCookieInfoState('Cookie dang loi hoac khong LIVE, nhung link van duoc tao neu tao link thanh cong.', 'warning');
+    setAdminCookieInfoState('Tai khoan dang loi hoac khong LIVE, nhung link van duoc tao neu tao link thanh cong.', 'warning');
 }
 
 function renderCookieInfoSuccess(accountInfo, meta = {}) {
@@ -2356,9 +2356,9 @@ function renderCookieInfoSuccess(accountInfo, meta = {}) {
     `;
 
     if (info.ok) {
-        setAdminCookieInfoState('Cookie LIVE. Da cap nhat bang thong tin ben phai.', 'success');
+        setAdminCookieInfoState('Tai khoan LIVE. Da cap nhat bang thong tin ben phai.', 'success');
     } else {
-        setAdminCookieInfoState('Cookie da duoc check nhung trang thai khong LIVE.', 'warning');
+        setAdminCookieInfoState('Tai khoan da duoc check nhung trang thai khong LIVE.', 'warning');
     }
 }
 
@@ -2367,7 +2367,7 @@ async function checkCookieForShareInfo(cookie = '') {
     if (!cookieStr) {
         return {
             ok: false,
-            error: 'Cookie rong, khong the kiem tra.'
+            error: 'Tai khoan rong, khong the kiem tra.'
         };
     }
     try {
@@ -2385,7 +2385,7 @@ async function checkCookieForShareInfo(cookie = '') {
     } catch (error) {
         return {
             ok: false,
-            error: String(error && error.message ? error.message : 'Khong kiem tra duoc cookie.').trim()
+            error: String(error && error.message ? error.message : 'Khong kiem tra duoc tai khoan.').trim()
         };
     }
 }
@@ -2556,7 +2556,7 @@ async function checkRuntimeCookieHealth() {
         return {
             ok: false,
             blockedReason: 'missing_cookie',
-            detailMessage: 'Không có cookie hợp lệ.'
+            detailMessage: 'Không có tài khoản hợp lệ.'
         };
     }
 
@@ -2604,20 +2604,20 @@ async function checkRuntimeCookieHealth() {
             return {
                 ok: false,
                 blockedReason: 'sbd',
-                detailMessage: 'Cookie bị chặn SBD.'
+                detailMessage: 'Tài khoản bị chặn SBD.'
             };
         }
         if (reason === 'dead') {
             return {
                 ok: false,
                 blockedReason: 'dead',
-                detailMessage: 'Cookie đã dead hoặc hết hạn.'
+                detailMessage: 'Tài khoản đã dead hoặc hết hạn.'
             };
         }
         return {
             ok: false,
             blockedReason: 'error',
-            detailMessage: String(error && error.message ? error.message : 'Không thể kiểm tra cookie.')
+            detailMessage: String(error && error.message ? error.message : 'Không thể kiểm tra tài khoản.')
         };
     }
 }
@@ -2656,7 +2656,7 @@ function setGuestGuard(active, text = '') {
     if (guard) guard.classList.toggle('hidden', !guestGuardActive);
     if (guardTitle) {
         const title = options.title
-            || (options.kind === 'cookie' ? 'Cookie hiện đang lỗi' : 'Không tìm thấy link hợp lệ');
+            || (options.kind === 'cookie' ? 'Tài khoản hiện đang lỗi' : 'Không tìm thấy link hợp lệ');
         guardTitle.textContent = String(title || '').trim();
     }
     if (guardText && text) guardText.textContent = String(text).trim();
@@ -3018,11 +3018,11 @@ function setRuntimeCookie(rawCookie, options = {}) {
         setGuestGuard(false);
         if (!silent) {
             if (source === 'share-id') {
-                setLookupState('Đã tải cookie từ share link. Hãy chọn thiết bị để tiếp tục.', 'success');
+                setLookupState('Đã tải tài khoản từ share link. Hãy chọn thiết bị để tiếp tục.', 'success');
             } else if (source === 'cookie-link') {
-                setLookupState('Đã giải mã cookie từ link chia sẻ. Hãy chọn thiết bị để tiếp tục.', 'success');
+                setLookupState('Đã giải mã tài khoản từ link chia sẻ. Hãy chọn thiết bị để tiếp tục.', 'success');
             } else if (source === 'admin') {
-                setLookupState('Admin da ap dung cookie cho phien hien tai.', 'success');
+                setLookupState('Admin da ap dung tai khoan cho phien hien tai.', 'success');
             }
         }
         updateReadyState();
@@ -3036,7 +3036,7 @@ function setRuntimeCookie(rawCookie, options = {}) {
             title: entryErrors.guardDefaultTitle,
             kind: 'link'
         });
-        setLookupState('Không có cookie hợp lệ. Chỉ có thể tiếp tục bằng link được cấp.', 'warning');
+        setLookupState('Không có tài khoản hợp lệ. Chỉ có thể tiếp tục bằng link được cấp.', 'warning');
     }
     updateReadyState();
 }
@@ -3554,19 +3554,19 @@ function normalizeOverloadFixErrorMessage(error) {
     if (!message && (code === 'NO_PASS_COOKIE'
         || normalized.includes('khong lay du') && normalized.includes('cookie pass')
         || normalized.includes('không lấy đủ') && normalized.includes('cookie pass'))) {
-        message = `Không tìm thấy đủ cookie PASS còn sống trong Google Sheet để ${config.actionLabel}. Vui lòng kiểm tra nguồn cookie hoặc liên hệ hỗ trợ.`;
+        message = `Không tìm thấy đủ tài khoản PASS còn sống trong Google Sheet để ${config.actionLabel}. Vui lòng kiểm tra nguồn tài khoản hoặc liên hệ hỗ trợ.`;
     }
     if (!message && code === 'COOKIE_SLOT_WRITE_FAILED') {
-        message = `Đã tìm thấy cookie PASS nhưng không ghi xác nhận được vào slot cookie chết. Vui lòng thử lại hoặc liên hệ hỗ trợ.`;
+        message = `Đã tìm thấy tài khoản PASS nhưng không ghi xác nhận được vào slot tài khoản chết. Vui lòng thử lại hoặc liên hệ hỗ trợ.`;
     }
     if (!message && code === 'BACKUP_COOKIE_MISSING') {
-        message = 'Đã ghi cookie mới nhưng link vẫn chưa đủ 2 slot cookie để xoay. Vui lòng thử lại hoặc liên hệ hỗ trợ.';
+        message = 'Đã ghi tài khoản mới nhưng link vẫn chưa đủ 2 slot tài khoản để xoay. Vui lòng thử lại hoặc liên hệ hỗ trợ.';
     }
     if (!message && code === 'ROTATE_FAILED') {
-        message = `Đã bổ sung cookie nhưng bước xoay cookie thất bại. Vui lòng thử lại hoặc liên hệ hỗ trợ.`;
+        message = `Đã bổ sung tài khoản nhưng bước xoay tài khoản thất bại. Vui lòng thử lại hoặc liên hệ hỗ trợ.`;
     }
     if (!message && (status === 504 || normalized.includes('timeout') || normalized.includes('timed out'))) {
-        message = `Google Sheet hoặc bước kiểm tra cookie bị quá thời gian chờ khi ${config.actionLabel}. Vui lòng thử lại sau.`;
+        message = `Google Sheet hoặc bước kiểm tra tài khoản bị quá thời gian chờ khi ${config.actionLabel}. Vui lòng thử lại sau.`;
     }
     if (!message && (normalized.includes('html thay vì json')
         || normalized.includes('du lieu khong hop le')
@@ -3584,10 +3584,10 @@ function normalizeOverloadFixErrorMessage(error) {
         || normalized.includes('không đủ cookie sống trước khi rotate')
         || normalized.includes('livecount=0')
         || normalized.includes('livecount:0'))) {
-        message = `Link này đã hết cookie sống, không thể dùng ${config.buttonText}. Vui lòng bấm CẦN HỖ TRỢ / BẢO HÀNH.`;
+        message = `Link này đã hết tài khoản sống, không thể dùng ${config.buttonText}. Vui lòng bấm CẦN HỖ TRỢ / BẢO HÀNH.`;
     }
     if (!message && (normalized.includes('cookie') && (normalized.includes('invalid') || normalized.includes('không hợp lệ') || normalized.includes('khong hop le')))) {
-        message = `Cookie trong nguồn Google Sheet không hợp lệ hoặc đã hết hạn khi ${config.actionLabel}.`;
+        message = `Tài khoản trong nguồn Google Sheet không hợp lệ hoặc đã hết hạn khi ${config.actionLabel}.`;
     }
     if (!message && (normalized.includes('tắt trong admin') || normalized.includes('tat trong admin'))) {
         message = 'Tính năng truy cập Google Sheet đang bị tắt trong admin.';
@@ -3888,12 +3888,12 @@ async function resumePendingSheetImportOperation(scope = 'current') {
 
     let snapshot = {
         status: 'pending',
-        message: 'Đang nối lại tiến độ nhập cookie từ Google Sheet...',
+        message: 'Đang nối lại tiến độ nhập tài khoản từ Google Sheet...',
         timings: null
     };
     const renderPending = (payload) => {
         const elapsedMs = Date.now() - Number(meta.startedAt || Date.now());
-        const text = buildGetlinkOperationText(payload, elapsedMs, 'Đang nối lại tiến độ nhập cookie từ Google Sheet...');
+        const text = buildGetlinkOperationText(payload, elapsedMs, 'Đang nối lại tiến độ nhập tài khoản từ Google Sheet...');
         renderSheetImportProgress(scope, payload, elapsedMs);
         setSheetImportState(scope, text, 'loading');
         context.setInfoState(text, 'loading');
@@ -3918,14 +3918,14 @@ async function resumePendingSheetImportOperation(scope = 'current') {
         clearSheetImportOperationMeta(scope);
         if (cancelState.requested || String(snapshot && snapshot.status || '').trim() === 'cancelled') {
             clearSheetImportProgress(scope);
-            setSheetImportState(scope, 'Đã huỷ nhập cookie từ Sheet.', 'warning');
-            context.setInfoState('Đã huỷ nhập cookie từ Sheet.', 'warning');
+            setSheetImportState(scope, 'Đã huỷ nhập tài khoản từ Sheet.', 'warning');
+            context.setInfoState('Đã huỷ nhập tài khoản từ Sheet.', 'warning');
         } else {
             await applySheetImportResult(scope, snapshot);
         }
     } catch (error) {
         const timingText = formatAutoFixTimings(error && error.responseData ? error.responseData.timings : null);
-        const message = error.message || 'Không thể nối lại tiến độ nhập cookie từ Sheet.';
+        const message = error.message || 'Không thể nối lại tiến độ nhập tài khoản từ Sheet.';
         clearSheetImportProgress(scope);
         setSheetImportState(scope, timingText ? `${message} | ${timingText}` : message, 'error');
         context.setInfoState(timingText ? `${message} ${timingText}` : message, 'error');
@@ -4020,7 +4020,7 @@ async function resumePendingAutoFixOperation() {
 async function checkOverloadFixCookieHealth(shareId = '') {
     const normalizedShareId = String(shareId || '').trim();
     if (!normalizedShareId) {
-        const error = new Error('Không đủ cookie sống trước khi rotate.');
+        const error = new Error('Không đủ tài khoản sống trước khi rotate.');
         error.code = 'PRECHECK_INVALID_SHARE';
         throw error;
     }
@@ -4036,7 +4036,7 @@ async function checkOverloadFixCookieHealth(shareId = '') {
             || normalized.includes('invalid share id')) {
             throw error;
         }
-        const fallbackError = new Error('Không thể kiểm tra cookie lúc này. Vui lòng thử lại sau.');
+        const fallbackError = new Error('Không thể kiểm tra tài khoản lúc này. Vui lòng thử lại sau.');
         fallbackError.code = 'PRECHECK_FAILED';
         throw fallbackError;
     }
@@ -4147,7 +4147,7 @@ async function generateDeviceLink(device, mobileOs = 'android') {
     const cookie = getRuntimeCookie();
     if (!cookie) {
         const entryErrors = getContentConfig().entryErrors;
-        setLookupState('Không có cookie hợp lệ để tạo link.', 'warning');
+        setLookupState('Không có tài khoản hợp lệ để tạo link.', 'warning');
         setGuestGuard(true, entryErrors.guardDefaultMessage, {
             title: entryErrors.guardDefaultTitle,
             kind: 'link'
@@ -4158,7 +4158,7 @@ async function generateDeviceLink(device, mobileOs = 'android') {
     const frontendDevice = String(device || '').trim();
     if (!frontendDevice) return;
 
-    setLookupState('Đang kiểm tra tình trạng cookie...', 'loading');
+    setLookupState('Đang kiểm tra tình trạng tài khoản...', 'loading');
     const health = await checkRuntimeCookieHealth();
     if (!health.ok) {
         applyCookieBlockedState(health.blockedReason, health.detailMessage);
@@ -4172,7 +4172,7 @@ async function generateDeviceLink(device, mobileOs = 'android') {
     busy = true;
     setButtonBusy(button, true, 'Đang tạo link...');
     setDeviceButtonsEnabled(false);
-    setLookupState('Đang kiểm tra cookie LIVE và tạo link...', 'loading');
+    setLookupState('Đang kiểm tra tài khoản LIVE và tạo link...', 'loading');
     showLookupLoadingOverlay('Xin vui lòng chờ trong giây lát');
 
     const shouldAutoOpen = apiDevice === 'desktop';
@@ -4276,7 +4276,7 @@ async function generateShareIdLink() {
 
     const btn = el('generateShareLinkBtn');
     setButtonBusy(btn, true, 'Đang tạo...');
-    setCreatorCookieInfoState('Đang chờ dữ liệu cookie của link ID.', 'idle');
+    setCreatorCookieInfoState('Đang chờ dữ liệu tài khoản của link ID.', 'idle');
     setShareCreateExpiryState(
         expiresAt
             ? (quickDaysParse.usingQuickDays
@@ -4308,7 +4308,7 @@ async function generateShareIdLink() {
             setShareCreateExpiryState('', 'idle');
         }
         renderCreatorCookieCheckCards([]);
-        setCreatorCookieInfoState('Tạo hoặc cập nhật cookie rồi bấm check để xem kết quả ngay tại đây.', 'idle');
+        setCreatorCookieInfoState('Tạo hoặc cập nhật tài khoản rồi bấm check để xem kết quả ngay tại đây.', 'idle');
     } catch (error) {
         resetCreatedShareComposer({ keepExpiryInputs: true });
         setShareState(error.message || 'Không tạo được link chia sẻ.', 'error');
@@ -4320,7 +4320,7 @@ async function generateShareIdLink() {
 async function runEntryCookieHealthCheck() {
     const cookie = getRuntimeCookie();
     if (!cookie) return;
-    setLookupState('Đang kiểm tra tình trạng cookie từ link...', 'loading');
+    setLookupState('Đang kiểm tra tình trạng tài khoản từ link...', 'loading');
     const health = await checkRuntimeCookieHealth();
     if (!health.ok) {
         applyCookieBlockedState(health.blockedReason, health.detailMessage);
@@ -4328,7 +4328,7 @@ async function runEntryCookieHealthCheck() {
     }
     clearCookieBlockedState();
     resetEntryAlertState();
-    setLookupState('Cookie hợp lệ. Hãy chọn thiết bị để tiếp tục.', 'success');
+    setLookupState('Tài khoản hợp lệ. Hãy chọn thiết bị để tiếp tục.', 'success');
     updateReadyState();
     requestUpgradeNotice();
 }
@@ -4341,8 +4341,8 @@ async function applyCookieFromQuery() {
     if (shareId) {
         setRuntimeShareDesktopOnly(false);
         pendingShareIdFromUrl = shareId;
-        showLookupLoadingOverlay('Đang kiểm tra cookie của link ID, vui lòng chờ...');
-        setLookupState('Đang thử cookie phù hợp từ link ID...', 'loading');
+        showLookupLoadingOverlay('Đang kiểm tra tài khoản của link ID, vui lòng chờ...');
+        setLookupState('Đang thử tài khoản phù hợp từ link ID...', 'loading');
         try {
             const data = await apiRequest(`/api/getlink-shares/${encodeURIComponent(shareId)}`, 'GET');
             const cookieStr = normalizeCookie(data.cookieStr || '');
@@ -4465,13 +4465,13 @@ function renderAdminWorkspace() {
     if (shareCreatorBox) shareCreatorBox.classList.toggle('hidden', !adminAuthenticated || activeTab !== 'create');
     if (cookieInfoPanel) cookieInfoPanel.classList.toggle('hidden', !adminAuthenticated);
     if (currentShareSummaryBox) currentShareSummaryBox.classList.toggle('hidden', !adminAuthenticated || activeTab !== 'search' || !currentAdminShare);
-    if (cookieInfoTitle) cookieInfoTitle.textContent = activeTab === 'create' ? 'Kết quả check cookie link mới' : 'Thông tin cookie của link ID';
+    if (cookieInfoTitle) cookieInfoTitle.textContent = activeTab === 'create' ? 'Kết quả check tài khoản link mới' : 'Thông tin tài khoản của link ID';
     populateAdminWarningConfigInputs(warningBannerConfig);
     if (adminAuthenticated && !cookieHealthBlocked) {
         if (activeTab === 'create') {
-            setCreatorCookieInfoState('Tạo hoặc cập nhật cookie rồi bấm check để xem kết quả ngay tại đây.', 'idle');
+            setCreatorCookieInfoState('Tạo hoặc cập nhật tài khoản rồi bấm check để xem kết quả ngay tại đây.', 'idle');
         } else {
-            setAdminCookieInfoState('Tạo hoặc tìm link ID rồi check từng cookie hay check toàn bộ.', 'idle');
+            setAdminCookieInfoState('Tạo hoặc tìm link ID rồi check từng tài khoản hoặc check toàn bộ.', 'idle');
         }
     }
     if (adminAuthenticated) {
@@ -4488,7 +4488,7 @@ function renderAdminWorkspace() {
         createdAdminShare = null;
         renderCookieCheckCards([]);
         renderCreatorCookieCheckCards([]);
-        setCreatorCookieInfoState('Tạo hoặc cập nhật cookie rồi bấm check để xem kết quả ngay tại đây.', 'idle');
+        setCreatorCookieInfoState('Tạo hoặc cập nhật tài khoản rồi bấm check để xem kết quả ngay tại đây.', 'idle');
         setShareCookieViewOutputs({ primary: '', backup1: '', backup2: '' });
         setCreatedShareCookieOutputs({ primary: '', backup1: '', backup2: '' });
         setShareNoteInput('currentShareNoteInput', '');
@@ -4780,7 +4780,7 @@ async function loadAdminShareFromPendingUrl(options = {}) {
         renderAdminShare(data.share || null);
         setAdminTab('search', { resetManual: true });
         autoLoadedAdminShareId = shareId;
-        setAdminSearchState('Da tu dong nap link ID tu URL. Ban co the sua cookie ngay.', 'success');
+        setAdminSearchState('Da tu dong nap link ID tu URL. Ban co the sua tai khoan ngay.', 'success');
     } catch (error) {
         renderAdminShare(null);
         autoLoadedAdminShareId = '';
@@ -4951,10 +4951,10 @@ async function adminSaveCookies() {
             { renderCards: renderCookieCheckCards, setInfoState: setAdminCookieInfoState }
         );
         if (cookies.primary) setRuntimeProfiles(extractProfilesFromChecks(checkResults, 'primary'));
-        setAdminSearchState('Đã cập nhật cookie và tự động check toàn bộ.', 'success');
+        setAdminSearchState('Đã cập nhật tài khoản và tự động check toàn bộ.', 'success');
         return checkResults.length > 0 && checkResults.every((item) => item && item.ok === true);
     } catch (error) {
-        setAdminSearchState(error.message || 'Không cập nhật được cookie.', 'error');
+        setAdminSearchState(error.message || 'Không cập nhật được tài khoản.', 'error');
         return false;
     } finally {
         setButtonBusy(btn, false);
@@ -4963,7 +4963,7 @@ async function adminSaveCookies() {
 
 async function saveCreatedShareCookies() {
     if (!createdAdminShare || !createdAdminShare.id) {
-        setShareState('Hãy tạo link ID server trước khi lưu cookie.', 'warning');
+        setShareState('Hãy tạo link ID server trước khi lưu tài khoản.', 'warning');
         return false;
     }
     const cookies = getCreatedShareEditableCookies();
@@ -4989,13 +4989,13 @@ async function saveCreatedShareCookies() {
         const copied = await autoCopyShareLinkOrWarn(link);
         setShareState(
             copied
-                ? 'Đã lưu cookie, auto-check xong và tự động sao chép lại link ID server.'
-                : 'Đã lưu cookie và auto-check xong, nhưng không tự copy lại được. Hãy bấm Sao chép.',
+                ? 'Đã lưu tài khoản, auto-check xong và tự động sao chép lại link ID server.'
+                : 'Đã lưu tài khoản và auto-check xong, nhưng không tự copy lại được. Hãy bấm Sao chép.',
             copied ? 'success' : 'warning'
         );
         return checkResults.length > 0 && checkResults.every((item) => item && item.ok === true);
     } catch (error) {
-        setShareState(error.message || 'Không lưu được cookie cho link mới.', 'error');
+        setShareState(error.message || 'Không lưu được tài khoản cho link mới.', 'error');
         return false;
     } finally {
         setButtonBusy(btn, false);
@@ -5011,7 +5011,7 @@ async function adminCheckCookieSlot(slotKey) {
     if (!cookies[slotKey]) {
         setShareCookieSlotState(slotKey, 'Để trống', null);
         renderCookieCheckCards([]);
-        setAdminCookieInfoState('Ô cookie này đang để trống.', 'idle');
+        setAdminCookieInfoState('Ô tài khoản này đang để trống.', 'idle');
         return;
     }
     setButtonBusy(button, true, 'Đang check...');
@@ -5028,7 +5028,7 @@ async function adminCheckCookieSlot(slotKey) {
         setAdminCookieInfoState(`Đã check ${slot.label.toLowerCase()}.`, result.ok ? 'success' : 'warning');
     } catch (error) {
         setShareCookieSlotState(slotKey, 'FAIL', false);
-        setAdminCookieInfoState(error.message || 'Check cookie thất bại.', 'error');
+        setAdminCookieInfoState(error.message || 'Check tài khoản thất bại.', 'error');
     } finally {
         setButtonBusy(button, false);
     }
@@ -5039,11 +5039,11 @@ async function adminCheckAllShareCookies() {
     const btn = el('viewCheckAllShareCookiesBtn');
     const cookies = getShareCookiesForCurrentMode();
     setButtonBusy(btn, true, 'Đang check...');
-    setAdminCookieInfoState('Đang check toàn bộ cookie của link...', 'loading');
+    setAdminCookieInfoState('Đang check toàn bộ tài khoản của link...', 'loading');
     try {
         await runCookieChecksForShare(currentAdminShare.id, cookies, SHARE_COOKIE_SLOTS, setShareCookieSlotState);
     } catch (error) {
-        setAdminCookieInfoState(error.message || 'Check toàn bộ cookie thất bại.', 'error');
+        setAdminCookieInfoState(error.message || 'Check toàn bộ tài khoản thất bại.', 'error');
     } finally {
         setButtonBusy(btn, false);
     }
@@ -5051,7 +5051,7 @@ async function adminCheckAllShareCookies() {
 
 async function creatorCheckCookieSlot(slotKey) {
     if (!createdAdminShare || !createdAdminShare.id) {
-        setShareState('Hãy tạo link ID server trước khi check cookie.', 'warning');
+        setShareState('Hãy tạo link ID server trước khi check tài khoản.', 'warning');
         return;
     }
     const slot = CREATED_SHARE_COOKIE_SLOTS.find((item) => item.key === slotKey);
@@ -5061,7 +5061,7 @@ async function creatorCheckCookieSlot(slotKey) {
     if (!cookies[slotKey]) {
         setCreatedShareCookieSlotState(slotKey, 'Để trống', null);
         renderCreatorCookieCheckCards([]);
-        setCreatorCookieInfoState('Ô cookie này đang để trống.', 'idle');
+        setCreatorCookieInfoState('Ô tài khoản này đang để trống.', 'idle');
         return;
     }
     setButtonBusy(button, true, 'Đang check...');
@@ -5078,7 +5078,7 @@ async function creatorCheckCookieSlot(slotKey) {
         setCreatorCookieInfoState(`Đã check ${slot.label.toLowerCase()}.`, result.ok ? 'success' : 'warning');
     } catch (error) {
         setCreatedShareCookieSlotState(slotKey, 'FAIL', false);
-        setCreatorCookieInfoState(error.message || 'Check cookie thất bại.', 'error');
+        setCreatorCookieInfoState(error.message || 'Check tài khoản thất bại.', 'error');
     } finally {
         setButtonBusy(button, false);
     }
@@ -5086,13 +5086,13 @@ async function creatorCheckCookieSlot(slotKey) {
 
 async function creatorCheckAllShareCookies() {
     if (!createdAdminShare || !createdAdminShare.id) {
-        setShareState('Hãy tạo link ID server trước khi check cookie.', 'warning');
+        setShareState('Hãy tạo link ID server trước khi check tài khoản.', 'warning');
         return;
     }
     const btn = el('creatorCheckAllShareCookiesBtn');
     const cookies = getCreatedShareEditableCookies();
     setButtonBusy(btn, true, 'Đang check...');
-    setCreatorCookieInfoState('Đang check toàn bộ cookie của link mới...', 'loading');
+    setCreatorCookieInfoState('Đang check toàn bộ tài khoản của link mới...', 'loading');
     try {
         await runCookieChecksForShare(
             createdAdminShare.id,
@@ -5102,7 +5102,7 @@ async function creatorCheckAllShareCookies() {
             { renderCards: renderCreatorCookieCheckCards, setInfoState: setCreatorCookieInfoState }
         );
     } catch (error) {
-        setCreatorCookieInfoState(error.message || 'Check toàn bộ cookie thất bại.', 'error');
+        setCreatorCookieInfoState(error.message || 'Check toàn bộ tài khoản thất bại.', 'error');
     } finally {
         setButtonBusy(btn, false);
     }
@@ -5112,24 +5112,24 @@ function useShareCookieSlotForRuntime(slotKey) {
     const cookies = getShareCookiesForCurrentMode();
     const cookieRaw = normalizeCookie(cookies[slotKey] || '');
     if (!cookieRaw) {
-        setAdminSearchState('Không có cookie để áp dụng.', 'warning');
+        setAdminSearchState('Không có tài khoản để áp dụng.', 'warning');
         return;
     }
     setRuntimeCookie(cookieRaw, { source: 'admin' });
     refreshRuntimeProfilesForCurrentCookie().catch(() => setRuntimeProfiles('Không rõ'));
-    setAdminSearchState(`Đã áp dụng ${slotKey === 'primary' ? 'cookie chính' : (slotKey === 'backup1' ? 'cookie phụ 1' : 'cookie phụ 2')} vào runtime.`, 'success');
+    setAdminSearchState(`Đã áp dụng ${slotKey === 'primary' ? 'tài khoản chính' : (slotKey === 'backup1' ? 'tài khoản phụ 1' : 'tài khoản phụ 2')} vào runtime.`, 'success');
 }
 
 function useCreatedShareCookieSlotForRuntime(slotKey) {
     const cookies = getCreatedShareEditableCookies();
     const cookieRaw = normalizeCookie(cookies[slotKey] || '');
     if (!cookieRaw) {
-        setShareState('Không có cookie để áp dụng.', 'warning');
+        setShareState('Không có tài khoản để áp dụng.', 'warning');
         return;
     }
     setRuntimeCookie(cookieRaw, { source: 'admin' });
     refreshRuntimeProfilesForCurrentCookie().catch(() => setRuntimeProfiles('Không rõ'));
-    setShareState(`Đã áp dụng ${slotKey === 'primary' ? 'cookie chính' : (slotKey === 'backup1' ? 'cookie phụ 1' : 'cookie phụ 2')} vào runtime.`, 'success');
+    setShareState(`Đã áp dụng ${slotKey === 'primary' ? 'tài khoản chính' : (slotKey === 'backup1' ? 'tài khoản phụ 1' : 'tài khoản phụ 2')} vào runtime.`, 'success');
 }
 
 async function adminRotateId() {
@@ -5660,12 +5660,12 @@ function bindEvents() {
         adminUseShareCookieBtn.addEventListener('click', () => {
             const cookieRaw = normalizeCookie(el('currentShareCookiePrimaryDisplay') && el('currentShareCookiePrimaryDisplay').value || '');
             if (!cookieRaw) {
-                setAdminSearchState('Không có cookie để áp dụng.', 'warning');
+                setAdminSearchState('Không có tài khoản để áp dụng.', 'warning');
                 return;
             }
             setRuntimeCookie(cookieRaw, { source: 'admin' });
             refreshRuntimeProfilesForCurrentCookie().catch(() => setRuntimeProfiles('Không rõ'));
-            setAdminRuntimeCookieState('Đã áp dụng cookie chính của share này vào runtime.', 'success');
+            setAdminRuntimeCookieState('Đã áp dụng tài khoản chính của share này vào runtime.', 'success');
         });
     }
 

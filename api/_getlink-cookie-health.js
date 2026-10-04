@@ -66,7 +66,7 @@ async function evaluateGetlinkCookie(cookieRaw = '') {
         return {
             ok: false,
             reason: 'missing_cookie',
-            error: 'Cookie trong.',
+            error: 'Tai khoan trong.',
             accountInfo: null,
             summary: summarizeCookieCheck(null)
         };
@@ -80,7 +80,7 @@ async function evaluateGetlinkCookie(cookieRaw = '') {
         const result = {
             ok: false,
             reason: 'invalid_cookie',
-            error: 'Khong tim thay NetflixId hop le trong cookie.',
+            error: 'Khong tim thay NetflixId hop le trong tai khoan.',
             accountInfo: null,
             summary: summarizeCookieCheck(null)
         };
@@ -96,7 +96,7 @@ async function evaluateGetlinkCookie(cookieRaw = '') {
         const result = {
             ok: false,
             reason: tokenResult.outcome || 'token_error',
-            error: String(tokenResult.error || 'Khong tao duoc link tu cookie.').trim(),
+            error: String(tokenResult.error || 'Khong tao duoc link tu tai khoan.').trim(),
             accountInfo,
             summary
         };
@@ -108,7 +108,7 @@ async function evaluateGetlinkCookie(cookieRaw = '') {
         const result = {
             ok: false,
             reason: 'missing_account_info',
-            error: 'Khong lay duoc thong tin tai khoan tu cookie.',
+            error: 'Khong lay duoc thong tin tai khoan tu tai khoan.',
             accountInfo: null,
             summary
         };
@@ -120,7 +120,7 @@ async function evaluateGetlinkCookie(cookieRaw = '') {
         const result = {
             ok: false,
             reason: 'payment_hold',
-            error: 'Cookie dang bi payment hold = yes.',
+            error: 'Tai khoan dang bi payment hold = yes.',
             accountInfo,
             summary
         };
@@ -132,7 +132,7 @@ async function evaluateGetlinkCookie(cookieRaw = '') {
         const result = {
             ok: false,
             reason: 'unknown_plan',
-            error: 'Cookie co plan = unknow/unknown.',
+            error: 'Tai khoan co plan = unknow/unknown.',
             accountInfo,
             summary
         };
@@ -151,8 +151,8 @@ async function evaluateGetlinkCookie(cookieRaw = '') {
         overloadOutcome: overcap.overloaded ? 'overloaded' : 'live_ok',
         overloadSignal: overcap.signal || '',
         overloadMessage: overcap.overloaded
-            ? 'Cookie LIVE nhung co dau hieu qua tai nguoi dung.'
-            : 'Cookie LIVE va khong co dau hieu qua tai.'
+            ? 'Tai khoan LIVE nhung co dau hieu qua tai nguoi dung.'
+            : 'Tai khoan LIVE va khong co dau hieu qua tai.'
     };
     writeCachedCookieCheck(finalCookie, result);
     return result;
