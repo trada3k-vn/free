@@ -290,13 +290,6 @@ module.exports = async function (req, res) {
                     });
                 }
                 const health = await checkShareCookiesHealth(record);
-                if (health.liveCount <= 0) {
-                    return res.status(422).json({
-                        error: 'Khong du tai khoan song truoc khi rotate. liveCount=0',
-                        liveCount: 0,
-                        checks: health.checks
-                    });
-                }
 
                 if (health.liveCount >= 2) {
                     const fixStartedAt = new Date().toISOString();
@@ -337,21 +330,35 @@ module.exports = async function (req, res) {
                 if (deadSlots.length < 1) {
                     return res.status(422).json({
                         error: `Khong du tai khoan song truoc khi rotate. liveCount=${health.liveCount}`,
+                        code: 'NO_LIVE_COOKIE',
                         liveCount: health.liveCount,
                         checks: health.checks
                     });
                 }
 
                 if (!(await isSheetAccessEnabled())) {
-                    return res.status(403).json({ error: 'Truy cap Google Sheet dang duoc tat trong admin.' });
+                    return res.status(403).json({
+                        error: 'Truy cap Google Sheet dang duoc tat trong admin.',
+                        code: health.liveCount <= 0 ? 'NO_LIVE_COOKIE' : 'SHEET_ACCESS_DISABLED',
+                        liveCount: health.liveCount,
+                        checks: health.checks
+                    });
                 }
 
-                const refillSlots = deadSlots.slice(0, 1);
-                const operation = await createOverloadFixOperation(shareId, refillSlots, health.liveCount, fixMode);
+                const recoveryMode = health.liveCount <= 0 ? 'zero-live' : '';
+                const refillSlots = recoveryMode === 'zero-live' ? ['primary'] : deadSlots.slice(0, 1);
+                const operation = await createOverloadFixOperation(
+                    shareId,
+                    refillSlots,
+                    health.liveCount,
+                    fixMode,
+                    recoveryMode
+                );
                 const advanced = await advanceGetlinkOperation(operation);
                 const payload = shapeOperationPayload(advanced);
                 if (advanced.status === 'failed') {
-                    return res.status(422).json({
+                    const failureStatus = Number(advanced.errorHttpStatus || 0) || 422;
+                    return res.status(failureStatus).json({
                         ...payload,
                         error: String(advanced.lastError || advanced.message || 'Khong the sua loi qua tai tu dong.').trim() || 'Khong the sua loi qua tai tu dong.'
                     });
@@ -383,7 +390,8 @@ module.exports = async function (req, res) {
                 const advanced = await advanceGetlinkOperation(operation);
                 const payload = shapeOperationPayload(advanced);
                 if (advanced.status === 'failed') {
-                    return res.status(422).json({
+                    const failureStatus = Number(advanced.errorHttpStatus || 0) || 422;
+                    return res.status(failureStatus).json({
                         ...payload,
                         error: String(advanced.lastError || advanced.message || 'Khong lay duoc tai khoan PASS nao tu Google Sheet.').trim() || 'Khong lay duoc tai khoan PASS nao tu Google Sheet.'
                     });

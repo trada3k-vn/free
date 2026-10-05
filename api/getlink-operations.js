@@ -41,7 +41,8 @@ module.exports = async function (req, res) {
         const advanced = await advanceGetlinkOperation(operation);
         const payload = shapeOperationPayload(advanced);
         if (advanced.status === 'failed') {
-            return res.status(422).json({
+            const failureStatus = Number(advanced.errorHttpStatus || 0) || 422;
+            return res.status(failureStatus).json({
                 ...payload,
                 error: String(advanced.lastError || advanced.message || 'Getlink operation failed').trim() || 'Getlink operation failed'
             });

@@ -293,10 +293,11 @@ function createCookieSlotError(code, message, details = {}) {
     return error;
 }
 
-async function writeAndVerifyOverloadCookieSlot(shareId = '', assigned = []) {
+async function writeAndVerifyOverloadCookieSlot(shareId = '', assigned = [], options = {}) {
     const cookiesToWrite = buildAssignedSlotCookies(assigned);
     const targetSlot = Object.keys(cookiesToWrite)[0] || '';
     const expectedCookie = targetSlot ? String(cookiesToWrite[targetSlot] || '').trim() : '';
+    const requireTwoCookies = options.requireTwoCookies !== false;
     if (!targetSlot || !expectedCookie) {
         throw createCookieSlotError('COOKIE_SLOT_WRITE_FAILED', 'Khong co tai khoan hop le de ghi vao slot chet.', {
             slot: targetSlot,
@@ -376,7 +377,7 @@ async function writeAndVerifyOverloadCookieSlot(shareId = '', assigned = []) {
             hasTwoCookies
         });
 
-        if (slotMatches && hasTwoCookies) {
+        if (slotMatches && (!requireTwoCookies || hasTwoCookies)) {
             return lastRecord;
         }
 
@@ -440,9 +441,11 @@ function normalizeOverloadFixState(input = {}, slotsFallback = []) {
     return {
         ...baseState,
         fixMode: normalizeFixMode(source.fixMode),
+        recoveryMode: String(source.recoveryMode || '').trim(),
         liveCountPrecheck: Math.max(0, Number(source.liveCountPrecheck || 0) || 0),
         shareUpdated: source.shareUpdated === true,
         rotated: source.rotated === true,
+        recovered: source.recovered === true,
         historyRecorded: source.historyRecorded === true,
         finalCookieStr: String(source.finalCookieStr || '').trim(),
         finalShare: buildOperationShareSnapshot(source.finalShare)
@@ -465,6 +468,7 @@ function resolveOperationState(operation = {}) {
 function shapeOperationPayload(operation = {}) {
     const state = resolveOperationState(operation);
     const result = buildSheetImportResult(state);
+    const resultDebug = result && result.debug && typeof result.debug === 'object' ? result.debug : {};
     const payload = {
         success: operation.status !== 'failed',
         status: operation.status,
@@ -478,7 +482,14 @@ function shapeOperationPayload(operation = {}) {
         errorAttempts: Math.max(0, Number(operation.errorAttempts || 0) || 0),
         errorPhase: operation.status === 'failed' ? String(operation.phase || '').trim() : '',
         timings: normalizeOperationResultTimings(result),
-        debug: result && result.debug && typeof result.debug === 'object' ? result.debug : {}
+        debug: {
+            ...resultDebug,
+            sheetAttempted: Number(resultDebug.fetchCalls || 0) > 0,
+            rowsScanned: Math.max(0, Number(resultDebug.scannedPhysicalRows || 0) || 0),
+            cookieChecks: (Array.isArray(result.assigned) ? result.assigned.length : 0)
+                + (Array.isArray(result.skipped) ? result.skipped.length : 0),
+            passFound: Array.isArray(result.assigned) ? result.assigned.length : 0
+        }
     };
 
     if (operation.type === 'sheet_import') {
@@ -495,6 +506,8 @@ function shapeOperationPayload(operation = {}) {
         payload.unfilledSlots = Array.isArray(result.unfilledSlots) ? result.unfilledSlots : [];
         payload.shareId = String(operation.shareId || '').trim();
         payload.liveCount = Math.max(0, Number(overloadState.liveCountPrecheck || 0) || 0);
+        payload.recoveryMode = overloadState.recoveryMode;
+        payload.recovered = overloadState.recovered;
         payload.cookieStr = String(overloadState.finalCookieStr || '').trim();
         if (overloadState.finalShare) {
             payload.share = overloadState.finalShare;
@@ -531,13 +544,14 @@ async function createAutoFixOperation(shareId = '') {
     });
 }
 
-async function createOverloadFixOperation(shareId = '', slots = [], liveCountPrecheck = 0, fixMode = 'overload') {
+async function createOverloadFixOperation(shareId = '', slots = [], liveCountPrecheck = 0, fixMode = 'overload', recoveryMode = '') {
     const state = normalizeOverloadFixState({
         ...createSheetImportState(slots, {
             seenCookies: await getExistingShareCookiesById(shareId)
         }),
         liveCountPrecheck,
-        fixMode
+        fixMode,
+        recoveryMode
     }, normalizeSheetSlots(slots));
     return createGetlinkOperation({
         type: 'overload_fix',
@@ -640,7 +654,8 @@ async function advanceGetlinkOperation(operationInput = {}) {
         if (operation.type === 'overload_fix') {
             nextState = normalizeOverloadFixState({
                 ...nextState,
-                liveCountPrecheck: currentState && currentState.liveCountPrecheck
+                liveCountPrecheck: currentState && currentState.liveCountPrecheck,
+                recoveryMode: currentState && currentState.recoveryMode
             }, normalizeSheetSlots(nextState && nextState.targetSlots));
             nextResult = buildSheetImportResult(nextState);
 
@@ -671,35 +686,53 @@ async function advanceGetlinkOperation(operationInput = {}) {
                 }
 
                 operation.phase = 'updating_share';
-                    operation.message = `Dang bo sung ${requiredCount} tai khoan moi vao o da chet...`;
+                operation.message = nextState.recoveryMode === 'zero-live'
+                    ? 'Dang ghi tai khoan moi vao slot primary de khoi phuc link...'
+                    : `Dang bo sung ${requiredCount} tai khoan moi vao o da chet...`;
                 const finalizeStartedAt = Date.now();
                 const shareUpdateStartedAt = finalizeStartedAt;
-                await writeAndVerifyOverloadCookieSlot(operation.shareId, nextResult.assigned);
+                const recoveredShare = await writeAndVerifyOverloadCookieSlot(
+                    operation.shareId,
+                    nextResult.assigned,
+                    { requireTwoCookies: nextState.recoveryMode !== 'zero-live' }
+                );
                 nextState.shareUpdated = true;
                 nextState.timings = nextState.timings && typeof nextState.timings === 'object' ? nextState.timings : {};
                 nextState.timings.shareUpdateMs = Math.max(0, Number(nextState.timings.shareUpdateMs || 0) || 0) + (Date.now() - shareUpdateStartedAt);
 
-                operation.phase = 'rotating_cookie';
+                if (nextState.recoveryMode === 'zero-live') {
+                    nextState.recovered = true;
+                    nextState.finalCookieStr = String(recoveredShare && recoveredShare.cookieRaw || '').trim();
+                    nextState.finalShare = buildOperationShareSnapshot(recoveredShare);
+                    nextState.timings.totalMs = Math.max(0, Number(nextState.timings.totalMs || 0) || 0) + (Date.now() - finalizeStartedAt);
+                    nextState.phase = 'completed';
+                    nextState.message = 'Da khoi phuc link bang tai khoan PASS moi tu Google Sheet.';
+                    nextResult = buildSheetImportResult(nextState);
+                } else {
+                    operation.phase = 'rotating_cookie';
                     operation.message = 'Dang thay tai khoan chinh va hoan tat sua loi qua tai...';
-                const rotateStartedAt = Date.now();
-                let rotated;
-                try {
-                    rotated = await rotateShareCookies(operation.shareId, 'guest-overload-fix');
-                } catch (error) {
-                    error.code = 'ROTATE_FAILED';
-                    throw error;
+                    const rotateStartedAt = Date.now();
+                    let rotated;
+                    try {
+                        rotated = await rotateShareCookies(operation.shareId, 'guest-overload-fix');
+                    } catch (error) {
+                        error.code = 'ROTATE_FAILED';
+                        throw error;
+                    }
+                    nextState.rotated = true;
+                    nextState.finalCookieStr = String(rotated && rotated.cookieRaw ? rotated.cookieRaw : '').trim();
+                    nextState.finalShare = buildOperationShareSnapshot(rotated);
+                    nextState.timings.shareUpdateMs = Math.max(0, Number(nextState.timings.shareUpdateMs || 0) || 0) + (Date.now() - rotateStartedAt);
+                    nextState.timings.totalMs = Math.max(0, Number(nextState.timings.totalMs || 0) || 0) + (Date.now() - finalizeStartedAt);
+                    nextState.phase = 'completed';
+                    nextState.message = `Da bo sung ${requiredCount} tai khoan moi va sua loi qua tai thanh cong.`;
+                    nextResult = buildSheetImportResult(nextState);
                 }
-                nextState.rotated = true;
-                nextState.finalCookieStr = String(rotated && rotated.cookieRaw ? rotated.cookieRaw : '').trim();
-                nextState.finalShare = buildOperationShareSnapshot(rotated);
-                nextState.timings.shareUpdateMs = Math.max(0, Number(nextState.timings.shareUpdateMs || 0) || 0) + (Date.now() - rotateStartedAt);
-                nextState.timings.totalMs = Math.max(0, Number(nextState.timings.totalMs || 0) || 0) + (Date.now() - finalizeStartedAt);
-                nextState.phase = 'completed';
-                nextState.message = `Da bo sung ${requiredCount} tai khoan moi va sua loi qua tai thanh cong.`;
-                nextResult = buildSheetImportResult(nextState);
             }
 
-            if (nextResult.status === 'completed' && nextState.rotated === true && nextState.historyRecorded !== true) {
+            if (nextResult.status === 'completed'
+                && (nextState.rotated === true || nextState.recovered === true)
+                && nextState.historyRecorded !== true) {
                 operation.state = nextState;
                 operation.phase = nextState.phase || nextResult.phase || '';
                 operation.message = nextState.message || nextResult.message || '';
