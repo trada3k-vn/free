@@ -89,6 +89,10 @@ function sanitizeDesktopOnly(value) {
     return value === true;
 }
 
+function sanitizeSheetAutomationDisabled(value) {
+    return value === true;
+}
+
 function normalizeSlotName(slot = '') {
     const normalized = String(slot || '').trim().toLowerCase();
     if (normalized === 'primary') return 'primary';
@@ -118,6 +122,7 @@ function mapShareFieldsToRecord(fields = {}) {
         cookieRaw: cookies.primary,
         cookies,
         desktopOnly: parseFirestoreBoolean(fields.desktopOnly, false),
+        sheetAutomationDisabled: parseFirestoreBoolean(fields.sheetAutomationDisabled, false),
         status: sanitizeShareStatus(parseFirestoreString(fields.status)),
         createdAt: parseFirestoreString(fields.createdAt),
         updatedAt: parseFirestoreString(fields.updatedAt),
@@ -139,6 +144,7 @@ function mapShareRecordToFields(record = {}) {
         cookieBackup1Raw: toStringValue(cookies.backup1 || ''),
         cookieBackup2Raw: toStringValue(cookies.backup2 || ''),
         desktopOnly: { booleanValue: sanitizeDesktopOnly(record.desktopOnly) },
+        sheetAutomationDisabled: { booleanValue: sanitizeSheetAutomationDisabled(record.sheetAutomationDisabled) },
         status: toStringValue(sanitizeShareStatus(record.status)),
         createdAt: toStringValue(record.createdAt || ''),
         updatedAt: toStringValue(record.updatedAt || ''),
@@ -270,6 +276,7 @@ async function saveShareRecord(record = {}) {
         ...record,
         cookies: sanitizeShareCookies(record.cookies || {}),
         desktopOnly: sanitizeDesktopOnly(record.desktopOnly),
+        sheetAutomationDisabled: sanitizeSheetAutomationDisabled(record.sheetAutomationDisabled),
         note: sanitizeShareNote(record.note || '')
     };
     next.cookieRaw = next.cookies.primary || '';
@@ -282,11 +289,12 @@ async function saveShareRecord(record = {}) {
     return next;
 }
 
-async function createShare(cookieRaw = '', createdBy = 'guest', expiresAt = '', desktopOnly = false, note = '') {
+async function createShare(cookieRaw = '', createdBy = 'guest', expiresAt = '', desktopOnly = false, note = '', sheetAutomationDisabled = false) {
     const finalCookie = sanitizeCookieRaw(cookieRaw);
     const finalExpiresAt = normalizeExpiryInput(expiresAt);
     const finalDesktopOnly = sanitizeDesktopOnly(desktopOnly);
     const finalNote = sanitizeShareNote(note);
+    const finalSheetAutomationDisabled = sanitizeSheetAutomationDisabled(sheetAutomationDisabled);
 
     const now = new Date().toISOString();
     for (let i = 0; i < 12; i += 1) {
@@ -303,6 +311,7 @@ async function createShare(cookieRaw = '', createdBy = 'guest', expiresAt = '', 
                 backup2: ''
             },
             desktopOnly: finalDesktopOnly,
+            sheetAutomationDisabled: finalSheetAutomationDisabled,
             status: 'active',
             createdAt: now,
             updatedAt: now,
@@ -341,6 +350,7 @@ async function updateShareCookies(shareId = '', cookiesInput = {}, actor = 'admi
         ...current,
         cookies: nextCookies,
         cookieRaw: nextCookies.primary || '',
+        sheetAutomationDisabled: sanitizeSheetAutomationDisabled(current.sheetAutomationDisabled),
         updatedAt: new Date().toISOString(),
         updatedBy: String(actor || 'admin').trim()
     };
@@ -369,6 +379,9 @@ async function updateShareAdminFields(shareId = '', options = {}, actor = 'admin
     };
     if (options && Object.prototype.hasOwnProperty.call(options, 'note')) {
         next.note = sanitizeShareNote(options.note || '');
+    }
+    if (options && Object.prototype.hasOwnProperty.call(options, 'sheetAutomationDisabled')) {
+        next.sheetAutomationDisabled = sanitizeSheetAutomationDisabled(options.sheetAutomationDisabled);
     }
 
     return saveShareRecord(next);

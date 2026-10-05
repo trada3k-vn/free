@@ -562,6 +562,19 @@ async function advanceGetlinkOperation(operationInput = {}) {
     }
 
     try {
+        if (operation.shareId && (operation.type === 'auto_fix' || operation.type === 'overload_fix')) {
+            const share = await readShareById(operation.shareId);
+            if (share && share.sheetAutomationDisabled) {
+                operation.status = 'failed';
+                operation.phase = 'blocked';
+                operation.message = 'Link này đã tắt tự động lấy cookie và sửa lỗi.';
+                operation.lastError = operation.message;
+                operation.errorCode = 'SHEET_AUTOMATION_DISABLED';
+                operation.errorHttpStatus = 403;
+                return saveGetlinkOperation(operation);
+            }
+        }
+
         if (!(await isSheetAccessEnabled())) {
             operation.status = 'failed';
             operation.phase = 'blocked';
@@ -580,6 +593,19 @@ async function advanceGetlinkOperation(operationInput = {}) {
         const latestAfterChunk = await readGetlinkOperationById(operation.id);
         if (latestAfterChunk && latestAfterChunk.status === 'cancelled') {
             return latestAfterChunk;
+        }
+        if (operation.shareId && (operation.type === 'auto_fix' || operation.type === 'overload_fix')) {
+            const shareAfterChunk = await readShareById(operation.shareId);
+            if (shareAfterChunk && shareAfterChunk.sheetAutomationDisabled) {
+                operation.status = 'failed';
+                operation.phase = 'blocked';
+                operation.message = 'Link này đã tắt tự động lấy cookie và sửa lỗi.';
+                operation.lastError = operation.message;
+                operation.errorCode = 'SHEET_AUTOMATION_DISABLED';
+                operation.errorHttpStatus = 403;
+                operation.state = currentState;
+                return saveGetlinkOperation(operation);
+            }
         }
 
         if (operation.type === 'auto_fix' && nextResult.status === 'completed' && nextState.shareUpdated !== true) {

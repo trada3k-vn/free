@@ -1721,6 +1721,13 @@
                                     </label>
                                     <p class="share-option-hint">Bật mục này nếu link chỉ được dùng trên máy tính.</p>
                                 </div>
+                                <div class="share-create-option-row">
+                                    <label class="share-option-label" for="shareSheetAutomationDisabledInput">
+                                        <input id="shareSheetAutomationDisabledInput" class="share-option-check" type="checkbox">
+                                        <span>Không tự động lấy cookie từ Google Sheet và không sửa lỗi tự động</span>
+                                    </label>
+                                    <p class="share-option-hint">Link vẫn dùng cookie thủ công, nhưng sẽ không tự động lấy cookie hoặc sửa lỗi quá tải.</p>
+                                </div>
                                 <textarea id="shareCreateNoteInput" class="text-input share-note-input" maxlength="1000" rows="3" placeholder="Note nội bộ cho admin"></textarea>
                                 <div id="shareCreateExpiryState" class="state-text state-idle hidden"></div>
                             </div>
@@ -1813,6 +1820,13 @@
                                 </div>
                                 <input id="currentShareUrlDisplay" class="text-input mono-input" type="text" readonly>
                                 <textarea id="currentShareNoteInput" class="text-input share-note-input" maxlength="1000" rows="3" placeholder="Note nội bộ cho admin" readonly></textarea>
+                                <div class="share-create-option-row">
+                                    <label class="share-option-label" for="currentShareSheetAutomationDisabledInput">
+                                        <input id="currentShareSheetAutomationDisabledInput" class="share-option-check" type="checkbox" disabled>
+                                        <span>Không tự động lấy cookie từ Google Sheet và không sửa lỗi tự động</span>
+                                    </label>
+                                    <p class="share-option-hint">Bấm Sửa để thay đổi trạng thái này.</p>
+                                </div>
                                 <div class="cookie-slot-grid current-cookie-grid">
                                     <div class="cookie-slot-card">
                                         <div class="cookie-slot-head">
@@ -2239,6 +2253,13 @@
                                 <input id="adminShareExpiryInput" class="text-input" type="datetime-local">
                             </div>
                             <textarea id="adminShareNoteInput" class="text-input share-note-input" maxlength="1000" rows="3" placeholder="Note noi bo cho admin"></textarea>
+                            <div class="share-create-option-row">
+                                <label class="share-option-label" for="adminShareSheetAutomationDisabledInput">
+                                    <input id="adminShareSheetAutomationDisabledInput" class="share-option-check" type="checkbox">
+                                    <span>Không tự động lấy cookie từ Google Sheet và không sửa lỗi tự động</span>
+                                </label>
+                                <p class="share-option-hint">Bấm Lưu note để lưu cả trạng thái này.</p>
+                            </div>
                             <div class="admin-expiry-quick-actions">
                                 <button class="btn btn-ghost admin-expiry-quick-btn" type="button" data-add-days="1">+1 ngay</button>
                                 <button class="btn btn-ghost admin-expiry-quick-btn" type="button" data-add-days="3">+3 ngay</button>

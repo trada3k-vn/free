@@ -51,6 +51,7 @@ function shareDto(record, req) {
         revokedAt: record.revokedAt || '',
         expiresAt: record.expiresAt || '',
         desktopOnly: !!record.desktopOnly,
+        sheetAutomationDisabled: !!record.sheetAutomationDisabled,
         shareUrl: `${origin}/getlink?s=${encodeURIComponent(record.id)}`
     };
 }
@@ -147,7 +148,14 @@ module.exports = async function (req, res) {
         if (req.method === 'POST' && pathname === '/api/getlink-shares') {
             const body = parseBody(req.body);
             const expiresAt = body.expiresAt !== undefined ? normalizeExpiryInput(body.expiresAt) : '';
-            const created = await createShare('', 'guest', expiresAt, body.desktopOnly === true, body.note || '');
+            const created = await createShare(
+                '',
+                'guest',
+                expiresAt,
+                body.desktopOnly === true,
+                body.note || '',
+                body.sheetAutomationDisabled === true
+            );
             const dto = shareDto(created, req);
             return res.status(200).json({ success: true, ...dto, share: dto });
         }
@@ -169,7 +177,9 @@ module.exports = async function (req, res) {
             if (!resolved.ok) {
                 return res.status(410).json({
                     error: resolved.error,
-                    checks: resolved.checks || []
+                    checks: resolved.checks || [],
+                    sheetAutomationDisabled: !!record.sheetAutomationDisabled,
+                    share: shareDto(record, req)
                 });
             }
 
@@ -179,6 +189,7 @@ module.exports = async function (req, res) {
                 cookieStr: resolved.cookieStr,
                 resolvedSlot: resolved.slot,
                 desktopOnly: !!(resolved.share || record).desktopOnly,
+                sheetAutomationDisabled: !!(resolved.share || record).sheetAutomationDisabled,
                 checks: resolved.checks || [],
                 share: shareDto(resolved.share || record, req)
             });
@@ -198,7 +209,6 @@ module.exports = async function (req, res) {
                 if (isShareExpired(record)) {
                     return res.status(410).json({ error: 'Share link has expired' });
                 }
-
                 const health = await checkShareCookiesHealth(record);
                 return res.status(200).json({
                     success: true,
@@ -220,6 +230,9 @@ module.exports = async function (req, res) {
                 }
                 if (isShareExpired(record)) {
                     return res.status(410).json({ error: 'Share link has expired' });
+                }
+                if (record.sheetAutomationDisabled) {
+                    return res.status(403).json({ error: 'Link này đã tắt tự động lấy cookie và sửa lỗi.' });
                 }
 
                 const fixStartedAt = new Date().toISOString();
@@ -265,6 +278,9 @@ module.exports = async function (req, res) {
                 }
                 if (isShareExpired(record)) {
                     return res.status(410).json({ error: 'Share link has expired' });
+                }
+                if (record.sheetAutomationDisabled) {
+                    return res.status(403).json({ error: 'Link này đã tắt tự động lấy cookie và sửa lỗi.' });
                 }
 
                 if (fixMode === 'overload') {
@@ -345,10 +361,6 @@ module.exports = async function (req, res) {
 
             const autoFixMatch = pathname.match(/^\/api\/getlink-shares\/([^/]+)\/auto-fix-cookies$/);
             if (autoFixMatch) {
-                if (!(await isSheetAccessEnabled())) {
-                    return res.status(403).json({ error: 'Truy cap Google Sheet dang duoc tat trong admin.' });
-                }
-
                 const shareId = decodeURIComponent(autoFixMatch[1] || '');
                 if (!isValidShareId(shareId)) return res.status(400).json({ error: 'Invalid share id' });
 
@@ -359,6 +371,12 @@ module.exports = async function (req, res) {
                 }
                 if (isShareExpired(record)) {
                     return res.status(410).json({ error: 'Share link has expired' });
+                }
+                if (record.sheetAutomationDisabled) {
+                    return res.status(403).json({ error: 'Link này đã tắt tự động lấy cookie và sửa lỗi.' });
+                }
+                if (!(await isSheetAccessEnabled())) {
+                    return res.status(403).json({ error: 'Truy cap Google Sheet dang duoc tat trong admin.' });
                 }
 
                 const operation = await createAutoFixOperation(shareId);

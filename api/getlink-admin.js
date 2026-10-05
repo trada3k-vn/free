@@ -514,6 +514,7 @@ function toAdminShareDto(record, req) {
         revokedAt: record.revokedAt || '',
         expiresAt: record.expiresAt || '',
         note: record.note || '',
+        sheetAutomationDisabled: !!record.sheetAutomationDisabled,
         expired: isShareExpired(record),
         shareUrl: `${origin}/getlink?s=${encodeURIComponent(record.id)}`
     };
@@ -742,10 +743,17 @@ module.exports = async function (req, res) {
 
             const body = parseBody(req.body);
             let updated = null;
-            if (body && (typeof body.cookies === 'object' || Object.prototype.hasOwnProperty.call(body, 'note'))) {
+            if (body && (
+                typeof body.cookies === 'object'
+                || Object.prototype.hasOwnProperty.call(body, 'note')
+                || Object.prototype.hasOwnProperty.call(body, 'sheetAutomationDisabled')
+            )) {
                 const updateOptions = {};
                 if (typeof body.cookies === 'object') updateOptions.cookies = sanitizeShareCookies(body.cookies || {});
                 if (Object.prototype.hasOwnProperty.call(body, 'note')) updateOptions.note = body.note;
+                if (Object.prototype.hasOwnProperty.call(body, 'sheetAutomationDisabled')) {
+                    updateOptions.sheetAutomationDisabled = body.sheetAutomationDisabled === true;
+                }
                 updated = await updateShareAdminFields(shareId, updateOptions, adminUser.email);
             } else {
                 const cookieStr = sanitizeCookieRaw(body.cookieStr || '');
