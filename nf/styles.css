@@ -1480,3 +1480,248 @@ body.nf-locked .nf-shell {
         transform: rotate(360deg);
     }
 }
+
+/* /getlink theme: CapCut-style surfaces with a Netflix red accent. */
+.getlink-page {
+    --bg-a: #101112;
+    --bg-b: #17191b;
+    --surface: #191b1e;
+    --surface-2: #151719;
+    --line: #303438;
+    --line-2: #42484d;
+    --text: #f4f5f6;
+    --muted: #a7adb2;
+    --accent: #e50914;
+    --accent-2: #b20710;
+    --ring: 0 0 0 2px rgba(229, 9, 20, 0.24);
+    --shadow: 0 18px 40px rgba(0, 0, 0, 0.34);
+    background: #101112;
+    color: #f4f5f6;
+}
+
+body.getlink-page {
+    background: #101112;
+}
+
+.getlink-page .bg-noise,
+.getlink-page .bg-vignette,
+.getlink-page .bg-neon {
+    opacity: 0;
+}
+
+.getlink-page .panel,
+.getlink-page .customer-card,
+.getlink-page .modal-card,
+.getlink-page .lookup-loading-box,
+.getlink-page .support-card,
+.getlink-page .device-confirm-card,
+.getlink-page .mobile-os-card,
+.getlink-page .admin-settings-card,
+.getlink-page .cookie-slot-card,
+.getlink-page .share-box,
+.getlink-page .admin-box {
+    background: #191b1e;
+    border-color: #303438;
+    border-radius: 12px;
+    box-shadow: none;
+    backdrop-filter: none;
+}
+
+.getlink-page .hero {
+    padding: 1.2rem;
+}
+
+.getlink-page .hero-title,
+.getlink-page .device-section-title,
+.getlink-page .modal-head h2,
+.getlink-page .section-head h3,
+.getlink-page .share-box-title {
+    color: #f4f5f6;
+    text-shadow: none;
+}
+
+.getlink-page .eyebrow {
+    color: #ffb3b7;
+    background: rgba(229, 9, 20, 0.12);
+    border-color: rgba(229, 9, 20, 0.35);
+}
+
+.getlink-page .text-input,
+.getlink-page .text-input:disabled,
+.getlink-page .raw-editor-textarea {
+    color: #f4f5f6;
+    background: #111315;
+    border-color: #3a3f43;
+    border-radius: 7px;
+}
+
+.getlink-page .text-input::placeholder {
+    color: #858c91;
+}
+
+.getlink-page .text-input:focus-visible,
+.getlink-page .raw-editor-textarea:focus-visible {
+    border-color: #e50914;
+    box-shadow: var(--ring);
+}
+
+.getlink-page .btn {
+    border-radius: 7px;
+    box-shadow: none;
+}
+
+.getlink-page .btn:hover {
+    transform: none;
+    filter: brightness(1.08);
+}
+
+.getlink-page .btn-primary,
+.getlink-page .tab-btn.active {
+    background: #e50914;
+    color: #fff;
+    box-shadow: none;
+}
+
+.getlink-page .btn-primary:hover,
+.getlink-page .tab-btn.active:hover {
+    background: #f6121d;
+}
+
+.getlink-page .btn-ghost,
+.getlink-page .btn-tiny,
+.getlink-page .tab-row {
+    background: #202427;
+    border-color: #42484d;
+}
+
+.getlink-page .btn-ghost,
+.getlink-page .btn-tiny,
+.getlink-page .tab-btn {
+    color: #d7dcdf;
+}
+
+.getlink-page .btn-support {
+    border-color: rgba(229, 9, 20, 0.42);
+    background: rgba(229, 9, 20, 0.1);
+}
+
+.getlink-page .btn-support:hover,
+.getlink-page .btn-tiny:hover,
+.getlink-page .btn-device:hover:not(:disabled) {
+    border-color: rgba(229, 9, 20, 0.7);
+    background: rgba(229, 9, 20, 0.16);
+}
+
+.getlink-page .btn-device {
+    background: #202427;
+    border-color: #3a3f43;
+}
+
+.getlink-page .device-icon {
+    color: #e50914;
+}
+
+.getlink-page .admin-fab {
+    background: #e50914;
+    border-color: #f04a52;
+    box-shadow: none;
+}
+
+.getlink-page .admin-fab.is-admin {
+    background: #198754;
+}
+
+.getlink-page .admin-fab:focus-visible {
+    box-shadow: var(--ring);
+}
+
+.getlink-page .lookup-loading-overlay,
+.getlink-page .modal-backdrop {
+    background: rgba(0, 0, 0, 0.68);
+    backdrop-filter: blur(2px);
+}
+
+.getlink-page .lookup-loading-spinner {
+    border-top-color: #e50914;
+}
+
+.getlink-page .modal-head {
+    background: #191b1e;
+    border-color: #303438;
+    backdrop-filter: none;
+}
+
+.getlink-page .admin-bar,
+.getlink-page .admin-identity,
+.getlink-page .section-head p,
+.getlink-page .auth-box p,
+.getlink-page .muted,
+.getlink-page .state-idle {
+    color: #a7adb2;
+}
+
+.getlink-page .state-success,
+.getlink-page .ok {
+    color: #75e3c0;
+}
+
+.getlink-page .state-warning {
+    color: #e4bd72;
+}
+
+.getlink-page .state-error,
+.getlink-page .bad,
+.getlink-page .expired-title {
+    color: #ff9fa6;
+}
+
+.getlink-page .expired-section {
+    background: #2a1b1d;
+    border-color: #6f343b;
+}
+
+.getlink-page .cookie-slot-card,
+.getlink-page .share-box,
+.getlink-page .admin-settings-section,
+.getlink-page .row-action-menu,
+.getlink-page .toast {
+    background: #151719;
+    border-color: #303438;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.34);
+}
+
+.getlink-page .admin-settings-section,
+.getlink-page .cookie-slot-card {
+    border-radius: 10px;
+}
+
+.getlink-page .toast.ok {
+    background: #173b32;
+}
+
+.getlink-page .toast.warn {
+    background: #4a3920;
+}
+
+.getlink-page .toast.bad {
+    background: #482a2e;
+}
+
+.getlink-page .check-cell,
+.getlink-page .table-wrap,
+.getlink-page table,
+.getlink-page th,
+.getlink-page td {
+    border-color: #303438;
+}
+
+.getlink-page th {
+    background: #202427;
+    color: #d7dcdf;
+}
+
+@media (max-width: 900px) {
+    .getlink-page .hero {
+        padding: 1rem;
+    }
+}

@@ -9,6 +9,14 @@ let config = {};
 let initialNoticeShown = false;
 let busy = false;
 
+function setupAdminActionPlacement() {
+  const adminCard = $('#adminCard');
+  const emptyCard = $('#emptyCard');
+  const adminButton = $('#adminAssignBtn');
+  if (adminCard && emptyCard) emptyCard.insertAdjacentElement('beforebegin', adminCard);
+  if (adminButton) adminButton.textContent = 'NHẬP ACC MỚI';
+}
+
 function setState(message, type = '') {
   const node = $('#state');
   node.textContent = message;
@@ -185,7 +193,7 @@ async function assignForAdmin() {
   try {
     const data = await request(`/api/capcut/links/${encodeURIComponent(currentLink.id)}/assign`, { method: 'POST' });
     render(data.link);
-    showNotice('Đã nhập tài khoản', 'Tài khoản mới đã được cập nhật cho link này.');
+    showNotice('Đã nhập acc mới', 'Tài khoản mới đã được cập nhật cho link này.');
   } catch (error) {
     $('#adminActionState').textContent = error.message;
     $('#adminActionState').className = 'notice-text error';
@@ -194,7 +202,7 @@ async function assignForAdmin() {
     busy = false;
     setProgress('#adminProgress', false);
     button.disabled = Boolean(currentLink?.expired);
-    button.textContent = 'NHẬP TÀI KHOẢN';
+    button.textContent = 'NHẬP ACC MỚI';
   }
 }
 
@@ -221,6 +229,7 @@ $('#noticeOk').addEventListener('click', () => $('#notice').classList.add('hidde
 
 const firebaseApp = initializeApp(window.NF_FIREBASE_CONFIG);
 const auth = getAuth(firebaseApp);
+setupAdminActionPlacement();
 onAuthStateChanged(auth, async (user) => {
   token = user ? await user.getIdToken() : '';
   await load();

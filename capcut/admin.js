@@ -5,7 +5,8 @@ const $ = (selector) => document.querySelector(selector);
 let auth;
 let token = '';
 let current = null;
-let historyState = { linkId: '', visible: false, loading: false, error: '', data: null, assignmentLimit: 10, warrantyLimit: 10 };
+let historyState = { visible: false, loading: false, error: '', data: null, limit: 10 };
+let settingsOpen = false;
 
 async function api(url, options = {}) {
   options.headers = { ...(options.headers || {}), Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
@@ -58,28 +59,39 @@ function setProgress(selector, visible, title = '', detail = '') {
   if (detail) panel.querySelector('[id$="ProgressDetail"]').textContent = detail;
 }
 
-function renderHistory(link) {
-  let panel = $('#historyPanel');
-  if (!panel) {
-    panel = document.createElement('div');
-    panel.id = 'historyPanel';
-    panel.className = 'history-panel';
-    $('#assignAlert').parentElement.insertAdjacentElement('afterend', panel);
-  }
-  historyState = {
-    linkId: String(link?.id || ''), visible: false, loading: false, error: '', data: null,
-    assignmentLimit: 10, warrantyLimit: 10
-  };
-  const assignmentCount = Number(link?.assignmentCount || 0);
-  const warrantyCount = Number(link?.warrantyCount || 0);
-  panel.innerHTML = `<div class="history-heading"><div><span class="info-label">Lịch sử link</span><h3>Nhập tài khoản và bảo hành tự động</h3></div><div class="history-counts"><span><strong data-history-count="assignment">${assignmentCount}</strong> lần nhập acc</span><span><strong data-history-count="warranty">${warrantyCount}</strong> lần bảo hành</span></div></div><button class="button button-secondary history-toggle" type="button" data-history-toggle="true">Xem lịch sử</button><div class="history-content hidden"></div>`;
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character]));
 }
 
-function updateHistoryView() {
-  const panel = $('#historyPanel');
+function ensureHistoryPanel() {
+  let panel = $('#globalHistoryCard');
+  if (panel) return panel;
+  const settings = $('#saveConfig')?.closest('section');
+  if (!settings) return null;
+  panel = document.createElement('section');
+  panel.id = 'globalHistoryCard';
+  panel.className = 'card history-panel global-history-panel';
+  settings.insertAdjacentElement('beforebegin', panel);
+  renderGlobalHistoryPanel();
+  return panel;
+}
+
+function renderGlobalHistoryPanel() {
+  const panel = $('#globalHistoryCard');
+  if (!panel) return;
+  const data = historyState.data || {};
+  panel.innerHTML = `<div class="history-heading"><div><span class="info-label">Lịch sử hoạt động</span><h2>Lịch sử tất cả link</h2><p class="muted">Theo dõi các lần nhập tài khoản và bảo hành tự động.</p></div><div class="history-counts"><span><strong data-history-summary="assignment">${Number(data.assignmentCount || 0)}</strong> lần nhập acc</span><span><strong data-history-summary="warranty">${Number(data.warrantyCount || 0)}</strong> lần bảo hành</span><span><strong data-history-summary="link">${Number(data.linkCount || 0)}</strong> link</span></div></div><button class="button button-secondary history-toggle" type="button" data-global-history-toggle="true">Xem lịch sử</button><div class="history-content hidden"></div>`;
+}
+
+function updateGlobalHistoryView() {
+  const panel = ensureHistoryPanel();
   if (!panel) return;
   const content = panel.querySelector('.history-content');
-  const toggle = panel.querySelector('[data-history-toggle]');
+  const toggle = panel.querySelector('[data-global-history-toggle]');
+  const data = historyState.data || {};
+  panel.querySelector('[data-history-summary="assignment"]').textContent = String(Number(data.assignmentCount || 0));
+  panel.querySelector('[data-history-summary="warranty"]').textContent = String(Number(data.warrantyCount || 0));
+  panel.querySelector('[data-history-summary="link"]').textContent = String(Number(data.linkCount || 0));
   content.classList.toggle('hidden', !historyState.visible);
   toggle.textContent = historyState.visible ? 'Ẩn lịch sử' : 'Xem lịch sử';
   if (!historyState.visible) return;
@@ -88,56 +100,156 @@ function updateHistoryView() {
     return;
   }
   if (historyState.error) {
-    content.innerHTML = `<div class="history-error">${historyState.error}</div>`;
+    content.innerHTML = `<div class="history-error">${escapeHtml(historyState.error)}</div>`;
     return;
   }
   if (!historyState.data) {
     content.innerHTML = '<div class="history-loading">Chưa có dữ liệu lịch sử.</div>';
     return;
   }
-  const renderMore = (type, limit) => {
-    const items = type === 'assignment' ? historyState.data.assignmentHistory : historyState.data.warrantyHistory;
-    const ordered = (Array.isArray(items) ? items : []).slice().reverse();
-    const visibleItems = ordered.slice(0, limit);
-    return (visibleItems.length
-      ? visibleItems.map((item) => `<div class="history-entry">${formatDate(item.at)}</div>`).join('')
-      : '<span class="muted">Chưa có lịch sử.</span>')
-      + (visibleItems.length < ordered.length ? `<button class="button button-secondary history-more" type="button" data-history-more="${type}">Tiếp tục</button>` : '');
-  };
-  content.innerHTML = `<div class="history-grid"><div><div class="history-label">Thời gian nhập acc</div><div class="history-list">${renderMore('assignment', historyState.assignmentLimit)}</div></div><div><div class="history-label">Thời gian bảo hành tự động</div><div class="history-list">${renderMore('warranty', historyState.warrantyLimit)}</div></div></div>`;
+  const events = Array.isArray(historyState.data.events) ? historyState.data.events : [];
+  const visible = events.slice(0, historyState.limit);
+  const rows = visible.length ? visible.map((item) => {
+    const isWarranty = item.type === 'warranty';
+    const label = isWarranty ? 'Bảo hành tự động' : 'Nhập tài khoản';
+    return `<div class="global-history-entry"><div class="global-history-main"><span class="history-event-type ${isWarranty ? 'warranty' : 'assignment'}">${label}</span><a href="${escapeHtml(item.shareUrl)}" target="_blank" rel="noopener">${escapeHtml(item.linkId)}</a></div><time>${formatDate(item.at)}</time></div>`;
+  }).join('') : '<span class="muted">Chưa có lịch sử.</span>';
+  const more = visible.length < events.length ? '<button class="button button-secondary history-more" type="button" data-global-history-more="true">Tiếp tục</button>' : '';
+  content.innerHTML = `<div class="global-history-list">${rows}${more}</div>`;
 }
 
-async function loadHistory() {
-  const linkId = historyState.linkId;
-  if (!linkId || historyState.loading || historyState.data) return;
+async function loadGlobalHistory() {
+  if (historyState.loading || historyState.data) return;
   historyState.loading = true;
   historyState.error = '';
-  updateHistoryView();
+  updateGlobalHistoryView();
   try {
-    const response = await api(`/api/capcut/links/${encodeURIComponent(linkId)}/history`);
-    if (historyState.linkId !== linkId) return;
-    const history = response.link || {};
+    const data = await api('/api/capcut/history');
     historyState.data = {
-      assignmentHistory: Array.isArray(history.assignmentHistory) ? history.assignmentHistory : [],
-      warrantyHistory: Array.isArray(history.warrantyHistory) ? history.warrantyHistory : []
+      events: Array.isArray(data.events) ? data.events : [],
+      assignmentCount: Number(data.assignmentCount || 0),
+      warrantyCount: Number(data.warrantyCount || 0),
+      linkCount: Number(data.linkCount || 0)
     };
-    current.assignmentCount = Number(history.assignmentCount || historyState.data.assignmentHistory.length);
-    current.warrantyCount = Number(history.warrantyCount || historyState.data.warrantyHistory.length);
-    panelCount('#historyPanel [data-history-count="assignment"]', current.assignmentCount);
-    panelCount('#historyPanel [data-history-count="warranty"]', current.warrantyCount);
   } catch (error) {
-    if (historyState.linkId === linkId) historyState.error = error.message || 'Không tải được lịch sử.';
+    historyState.error = error.message || 'Không tải được lịch sử.';
   } finally {
-    if (historyState.linkId === linkId) {
-      historyState.loading = false;
-      updateHistoryView();
-    }
+    historyState.loading = false;
+    updateGlobalHistoryView();
   }
 }
 
-function panelCount(selector, value) {
-  const node = $(selector);
-  if (node) node.textContent = String(value);
+function setupSettingsPanel() {
+  const section = $('#saveConfig')?.closest('section');
+  if (!section || section.dataset.collapsibleReady) return;
+  section.dataset.collapsibleReady = 'true';
+  const heading = section.querySelector('.section-heading');
+  const content = document.createElement('div');
+  content.className = 'settings-content hidden';
+  while (heading.nextSibling) content.appendChild(heading.nextSibling);
+  section.appendChild(content);
+  heading.classList.add('settings-toggle');
+  heading.setAttribute('role', 'button');
+  heading.setAttribute('tabindex', '0');
+  heading.setAttribute('aria-expanded', 'false');
+  heading.insertAdjacentHTML('beforeend', '<span class="settings-chevron" aria-hidden="true">⌄</span>');
+}
+
+function toggleSettings() {
+  setSettingsOpen(!settingsOpen);
+}
+
+function setSettingsOpen(open) {
+  const heading = $('.settings-toggle');
+  const content = $('.settings-content');
+  if (!heading || !content) return;
+  settingsOpen = Boolean(open);
+  content.classList.toggle('hidden', !settingsOpen);
+  heading.classList.toggle('expanded', settingsOpen);
+  heading.setAttribute('aria-expanded', String(settingsOpen));
+}
+
+function dateInputValue(value) {
+  const date = new Date(value || '');
+  if (Number.isNaN(date.getTime())) return '';
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function ensureLinkManagementPanel() {
+  let panel = $('#linkManagementPanel');
+  if (panel) return panel;
+  const infoGrid = $('#linkStatus')?.closest('.info-grid');
+  if (!infoGrid) return null;
+  panel = document.createElement('div');
+  panel.id = 'linkManagementPanel';
+  panel.className = 'link-management-panel hidden';
+  infoGrid.insertAdjacentElement('afterend', panel);
+  panel.innerHTML = `<div class="management-heading"><div><span class="info-label">Quản lý link</span><h3>Thời hạn và trạng thái</h3></div><span class="badge badge-muted">Admin</span></div><div class="management-grid"><label class="field"><span>Đặt ngày hết hạn mới</span><div class="management-action"><input id="linkExpiryInput" class="input" type="date"><button id="updateExpiry" class="button button-secondary" type="button">Cập nhật hạn</button></div></label><label class="field"><span>Cộng thêm thời hạn</span><div class="management-action"><input id="extendDaysInput" class="input" type="number" min="1" max="3650" placeholder="Số ngày"><button id="extendExpiry" class="button button-secondary" type="button">Cộng ngày</button></div></label></div><div class="management-actions"><button id="revokeLink" class="button button-danger" type="button">Thu hồi link</button><button id="restoreLink" class="button button-primary hidden" type="button">Khôi phục link</button></div><p id="linkManagementState" class="notice-text"></p>`;
+  panel.querySelector('#updateExpiry').addEventListener('click', () => manageLink('expiry'));
+  panel.querySelector('#extendExpiry').addEventListener('click', () => manageLink('extend'));
+  panel.querySelector('#revokeLink').addEventListener('click', () => manageLink('revoke'));
+  panel.querySelector('#restoreLink').addEventListener('click', () => manageLink('restore'));
+  return panel;
+}
+
+function setManagementBusy(busy) {
+  const panel = $('#linkManagementPanel');
+  if (!panel) return;
+  panel.querySelectorAll('button, input').forEach((control) => { control.disabled = busy; });
+}
+
+function renderLinkManagement(link) {
+  const panel = ensureLinkManagementPanel();
+  if (!panel) return;
+  panel.classList.remove('hidden');
+  $('#linkExpiryInput').value = dateInputValue(link?.expiresAt);
+  $('#extendDaysInput').value = '';
+  $('#revokeLink').classList.toggle('hidden', link?.status === 'revoked');
+  $('#restoreLink').classList.toggle('hidden', link?.status !== 'revoked');
+  $('#linkManagementState').textContent = '';
+  $('#linkManagementState').className = 'notice-text';
+}
+
+async function manageLink(action) {
+  if (!current?.id) return;
+  if (action === 'revoke' && !window.confirm('Bạn có chắc muốn thu hồi link này không?')) return;
+  const panel = ensureLinkManagementPanel();
+  const state = $('#linkManagementState');
+  const requestOptions = { method: action === 'expiry' ? 'PATCH' : 'POST' };
+  if (action === 'expiry') {
+    const expiryDate = $('#linkExpiryInput').value;
+    if (!expiryDate) {
+      state.textContent = 'Vui lòng chọn ngày hết hạn mới.';
+      state.className = 'notice-text error';
+      return;
+    }
+    requestOptions.body = JSON.stringify({ expiryDate });
+  } else if (action === 'extend') {
+    const days = Number($('#extendDaysInput').value);
+    if (!Number.isFinite(days) || days <= 0) {
+      state.textContent = 'Vui lòng nhập số ngày cộng thêm hợp lệ.';
+      state.className = 'notice-text error';
+      return;
+    }
+    requestOptions.body = JSON.stringify({ days });
+  }
+  setManagementBusy(true);
+  state.textContent = 'Đang cập nhật link...';
+  state.className = 'notice-text';
+  try {
+    const data = await api(`/api/capcut/links/${encodeURIComponent(current.id)}/${action}`, requestOptions);
+    renderResult(data.link, action === 'revoke' ? 'Link đã được thu hồi.' : action === 'restore' ? 'Link đã được khôi phục.' : 'Đã cập nhật link.');
+    $('#linkManagementState').textContent = 'Đã cập nhật link thành công.';
+    $('#linkManagementState').className = 'notice-text success';
+  } catch (error) {
+    state.textContent = error.message || 'Không cập nhật được link.';
+    state.className = 'notice-text error';
+  } finally {
+    setManagementBusy(false);
+  }
 }
 
 function renderResult(link, subtitle = 'Link đã được tạo.') {
@@ -145,8 +257,9 @@ function renderResult(link, subtitle = 'Link đã được tạo.') {
   $('#resultCard').classList.remove('hidden');
   $('#resultSubtitle').textContent = subtitle;
   $('#linkOutput').value = link?.shareUrl || '';
-  $('#linkStatus').textContent = link?.expired ? 'Đã hết hạn' : 'Đang hoạt động';
-  $('#linkStatus').className = `info-value${link?.expired ? ' danger-text' : ''}`;
+  const revoked = link?.status === 'revoked';
+  $('#linkStatus').textContent = revoked ? 'Đã thu hồi' : (link?.expired ? 'Đã hết hạn' : 'Đang hoạt động');
+  $('#linkStatus').className = `info-value${revoked || link?.expired ? ' danger-text' : ''}`;
   $('#linkExpiry').textContent = formatDate(link?.expiresAt);
 
   const assigned = Boolean(link?.accountAssigned && link?.username);
@@ -157,7 +270,7 @@ function renderResult(link, subtitle = 'Link đã được tạo.') {
   $('#accountUsername').value = assigned ? link.username : '';
   $('#accountPassword').value = assigned ? link.password : '';
   $('#assign').disabled = Boolean(link?.expired);
-  renderHistory(link);
+  renderLinkManagement(link);
 }
 
 async function loadConfig() {
@@ -175,6 +288,9 @@ async function loadConfig() {
 async function bootUser(user) {
   if (!user) {
     token = '';
+    historyState = { visible: false, loading: false, error: '', data: null, limit: 10 };
+    settingsOpen = false;
+    setSettingsOpen(false);
     $('#loginCard').classList.remove('hidden');
     $('#workspace').classList.add('hidden');
     $('#logout').classList.add('hidden');
@@ -183,6 +299,10 @@ async function bootUser(user) {
   token = await user.getIdToken();
   try {
     await loadConfig();
+    setupSettingsPanel();
+    ensureHistoryPanel();
+    renderGlobalHistoryPanel();
+    setSettingsOpen(false);
     $('#loginCard').classList.add('hidden');
     $('#workspace').classList.remove('hidden');
     $('#logout').classList.remove('hidden');
@@ -332,16 +452,22 @@ $('#copyLink').addEventListener('click', (event) => copyValue($('#linkOutput').v
 document.addEventListener('click', (event) => {
   const button = event.target.closest('[data-copy]');
   if (button) copyValue($(`#${button.dataset.copy}`).value, button);
-  const historyToggle = event.target.closest('[data-history-toggle]');
+  const historyToggle = event.target.closest('[data-global-history-toggle]');
   if (historyToggle) {
     historyState.visible = !historyState.visible;
-    updateHistoryView();
-    if (historyState.visible) loadHistory();
+    updateGlobalHistoryView();
+    if (historyState.visible) loadGlobalHistory();
   }
-  const historyMore = event.target.closest('[data-history-more]');
+  const historyMore = event.target.closest('[data-global-history-more]');
   if (historyMore) {
-    if (historyMore.dataset.historyMore === 'assignment') historyState.assignmentLimit += 10;
-    if (historyMore.dataset.historyMore === 'warranty') historyState.warrantyLimit += 10;
-    updateHistoryView();
+    historyState.limit += 10;
+    updateGlobalHistoryView();
+  }
+  if (event.target.closest('.settings-toggle')) toggleSettings();
+});
+document.addEventListener('keydown', (event) => {
+  if ((event.key === 'Enter' || event.key === ' ') && event.target.closest('.settings-toggle')) {
+    event.preventDefault();
+    toggleSettings();
   }
 });

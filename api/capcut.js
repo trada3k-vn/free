@@ -137,6 +137,30 @@ async function firestoreDoc(docPath, method = 'GET', fields) {
     try { return JSON.parse(response.body); } catch (_) { return {}; }
 }
 
+async function firestoreList(collectionPath) {
+    const documents = [];
+    let pageToken = '';
+    do {
+        const query = `&pageSize=1000${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`;
+        const response = await httpRequest({
+            hostname: 'firestore.googleapis.com',
+            port: 443,
+            path: `${firestorePath(collectionPath)}${query}`,
+            method: 'GET'
+        });
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+            const error = new Error('Firestore list operation failed');
+            error.httpStatus = response.statusCode || 500;
+            throw error;
+        }
+        let data = {};
+        try { data = JSON.parse(response.body || '{}'); } catch (_) { data = {}; }
+        documents.push(...(Array.isArray(data.documents) ? data.documents : []));
+        pageToken = String(data.nextPageToken || '');
+    } while (pageToken);
+    return documents;
+}
+
 async function readLink(id) {
     const doc = await firestoreDoc(`${CAPCUT_COLLECTION}/${encodeURIComponent(id)}`);
     return doc && doc.fields ? mapFields(doc.fields) : null;
@@ -145,6 +169,15 @@ async function readLink(id) {
 async function saveLink(record) {
     await firestoreDoc(`${CAPCUT_COLLECTION}/${encodeURIComponent(record.id)}`, 'PATCH', mapRecord(record));
     return record;
+}
+
+async function readAllLinks() {
+    const documents = await firestoreList(CAPCUT_COLLECTION);
+    return documents.map((document) => {
+        const record = mapFields(document.fields || {});
+        if (!record.id && document.name) record.id = decodeURIComponent(String(document.name).split('/').pop());
+        return record;
+    }).filter((record) => record.id);
 }
 
 async function readConfig() {
@@ -257,6 +290,35 @@ function adminHistoryDto(record) {
         assignmentCount: (record.assignmentHistory || []).length,
         warrantyCount: (record.warrantyHistory || []).length
     };
+}
+
+async function allHistory(req) {
+    const records = await readAllLinks();
+    const events = [];
+    let assignmentCount = 0;
+    let warrantyCount = 0;
+    let linkCount = 0;
+    for (const record of records) {
+        const assignments = record.assignmentHistory || [];
+        const warranties = record.warrantyHistory || [];
+        if (assignments.length || warranties.length) linkCount += 1;
+        assignmentCount += assignments.length;
+        warrantyCount += warranties.length;
+        for (const item of assignments) events.push({
+            linkId: record.id,
+            shareUrl: `${origin(req)}/capcut/${encodeURIComponent(record.id)}`,
+            type: 'assignment',
+            at: item.at
+        });
+        for (const item of warranties) events.push({
+            linkId: record.id,
+            shareUrl: `${origin(req)}/capcut/${encodeURIComponent(record.id)}`,
+            type: 'warranty',
+            at: item.at
+        });
+    }
+    events.sort((a, b) => parseMs(b.at) - parseMs(a.at));
+    return { events, assignmentCount, warrantyCount, linkCount };
 }
 
 function bearer(headers = {}) {
@@ -417,13 +479,63 @@ async function assignUnlocked(req, id, action = 'assigned') {
     return next;
 }
 
+async function readAdminLink(id) {
+    const record = await readLink(id);
+    if (!record) throw Object.assign(new Error('Link CapCut không tồn tại.'), { httpStatus: 404 });
+    return record;
+}
+
+async function updateLinkExpiry(req, id, body = {}) {
+    const record = await readAdminLink(id);
+    const expiresAt = normalizeCapcutExpiry(body.expiryDate || body.expiresAt);
+    const now = new Date().toISOString();
+    const next = { ...record, expiresAt, updatedAt: now, lastAction: 'expiry-updated', lastActionAt: now };
+    await saveLink(next);
+    return adminLinkDto(next, req, await readConfig());
+}
+
+async function extendLinkExpiry(req, id, body = {}) {
+    const record = await readAdminLink(id);
+    const days = Number(body.days);
+    if (!Number.isFinite(days) || days <= 0 || days > MAX_ADD_DAYS) {
+        throw Object.assign(new Error('Số ngày cộng thêm không hợp lệ.'), { httpStatus: 400 });
+    }
+    const nowMs = Date.now();
+    const currentExpiryMs = parseMs(record.expiresAt);
+    const baseMs = currentExpiryMs > nowMs ? currentExpiryMs : nowMs;
+    const expiresAt = new Date(baseMs + days * 86400000).toISOString();
+    const now = new Date().toISOString();
+    const next = { ...record, expiresAt, updatedAt: now, lastAction: 'expiry-extended', lastActionAt: now };
+    await saveLink(next);
+    return adminLinkDto(next, req, await readConfig());
+}
+
+async function revokeLink(req, id) {
+    const record = await readAdminLink(id);
+    const now = new Date().toISOString();
+    const next = { ...record, status: 'revoked', updatedAt: now, lastAction: 'revoked', lastActionAt: now };
+    await saveLink(next);
+    return adminLinkDto(next, req, await readConfig());
+}
+
+async function restoreLink(req, id) {
+    const record = await readAdminLink(id);
+    if (!parseMs(record.expiresAt) || isExpired(record.expiresAt)) {
+        throw Object.assign(new Error('Link đã hết hạn. Hãy chỉnh hạn hoặc cộng thêm ngày trước khi khôi phục.'), { httpStatus: 400 });
+    }
+    const now = new Date().toISOString();
+    const next = { ...record, status: 'active', updatedAt: now, lastAction: 'restored', lastActionAt: now };
+    await saveLink(next);
+    return adminLinkDto(next, req, await readConfig());
+}
+
 module.exports = async function capcutHandler(req, res) {
-    applyCors(req, res, 'GET,POST,PUT,OPTIONS');
+    applyCors(req, res, 'GET,POST,PUT,PATCH,OPTIONS');
     applySecurityHeaders(res);
     if (req.method === 'OPTIONS') return res.status(200).end();
     try {
         const pathname = String(req.url || '').split('?')[0];
-        const match = pathname.match(/^\/api\/capcut\/links\/([^/]+)(?:\/(assign|warranty|history))?$/);
+        const match = pathname.match(/^\/api\/capcut\/links\/([^/]+)(?:\/(assign|warranty|history|expiry|extend|revoke|restore))?$/);
         if (pathname === '/api/capcut/links' && req.method === 'POST') {
             if (!await requireAdmin(req, res)) return;
             const created = await createLink(req, parseBody(req.body));
@@ -443,6 +555,10 @@ module.exports = async function capcutHandler(req, res) {
                 ...(isAdmin ? { sheetAppsScriptUrl: config.sheetAppsScriptUrl } : {})
             } });
         }
+        if (pathname === '/api/capcut/history' && req.method === 'GET') {
+            if (!await requireAdmin(req, res)) return;
+            return res.status(200).json({ success: true, ...(await allHistory(req)) });
+        }
         if (pathname === '/api/capcut/config' && req.method === 'PUT') {
             if (!await requireAdmin(req, res)) return;
             return res.status(200).json({ success: true, config: await saveConfig(parseBody(req.body)) });
@@ -455,6 +571,22 @@ module.exports = async function capcutHandler(req, res) {
         if (!match || !validId(decodeURIComponent(match[1]))) return res.status(404).json({ error: 'Not found' });
         const id = decodeURIComponent(match[1]);
         const action = match[2] || '';
+        if (action === 'expiry' && req.method === 'PATCH') {
+            if (!await requireAdmin(req, res)) return;
+            return res.status(200).json({ success: true, link: await updateLinkExpiry(req, id, parseBody(req.body)) });
+        }
+        if (action === 'extend' && req.method === 'POST') {
+            if (!await requireAdmin(req, res)) return;
+            return res.status(200).json({ success: true, link: await extendLinkExpiry(req, id, parseBody(req.body)) });
+        }
+        if (action === 'revoke' && req.method === 'POST') {
+            if (!await requireAdmin(req, res)) return;
+            return res.status(200).json({ success: true, link: await revokeLink(req, id) });
+        }
+        if (action === 'restore' && req.method === 'POST') {
+            if (!await requireAdmin(req, res)) return;
+            return res.status(200).json({ success: true, link: await restoreLink(req, id) });
+        }
         if (req.method === 'GET' && action === 'history') {
             if (!await requireAdmin(req, res)) return;
             const record = await readLink(id);
