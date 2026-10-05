@@ -1680,10 +1680,12 @@ function getShareNoteInput(id) {
 function setSlotStateForConfig(slotConfigs, slotKey, text = 'Chưa check', ok = null) {
     const slot = slotConfigs.find((item) => item.key === slotKey);
     if (!slot) return;
-    const node = el(slot.viewStateId);
-    if (!node) return;
-    node.textContent = String(text || '').trim();
-    node.style.color = ok === true ? '#86efac' : (ok === false ? '#fca5a5' : '#9cb5e8');
+    const normalizedText = String(text || '').trim();
+    const input = el(slot.viewInputId);
+    if (input) {
+        input.dataset.cookieState = normalizedText;
+        input.dataset.cookieOk = ok === true ? 'true' : (ok === false ? 'false' : 'unknown');
+    }
 }
 
 function setShareCookieSlotState(slotKey, text = 'Chưa check', ok = null) {

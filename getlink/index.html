@@ -864,9 +864,12 @@
 
         .cookie-slot-head {
             display: flex;
-            justify-content: space-between;
             align-items: center;
             gap: 0.5rem;
+        }
+
+        .cookie-slot-import-btn {
+            width: 100%;
         }
 
         .cookie-slot-label {
@@ -892,7 +895,7 @@
 
         .cookie-slot-actions {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 0.45rem;
         }
 
@@ -1788,38 +1791,32 @@
                                 <div class="cookie-slot-grid creator-cookie-grid">
                                     <div class="cookie-slot-card">
                                         <div class="cookie-slot-head">
-                                            <span class="cookie-slot-label">Tài khoản chính</span>
-                                            <span id="creatorShareCookiePrimaryState" class="cookie-slot-state">Chưa check</span>
+                                            <button id="creatorImportPrimaryCookieBtn" class="btn btn-ghost cookie-slot-import-btn" type="button">Nhập từ Sheet</button>
                                         </div>
                                         <textarea id="creatorShareCookiePrimaryInput" class="text-input readonly-cookie-input" rows="1" wrap="off"></textarea>
                                         <div class="cookie-slot-actions">
                                             <button id="creatorCheckPrimaryCookieBtn" class="btn btn-ghost" type="button">Check tài khoản</button>
                                             <button id="creatorUsePrimaryCookieBtn" class="btn btn-ghost" type="button">Dùng runtime</button>
-                                            <button id="creatorImportPrimaryCookieBtn" class="btn btn-ghost" type="button">Nhập từ Sheet</button>
                                         </div>
                                     </div>
                                     <div class="cookie-slot-card">
                                         <div class="cookie-slot-head">
-                                            <span class="cookie-slot-label">Tài khoản phụ 1</span>
-                                            <span id="creatorShareCookieBackup1State" class="cookie-slot-state">Chưa check</span>
+                                            <button id="creatorImportBackup1CookieBtn" class="btn btn-ghost cookie-slot-import-btn" type="button">Nhập từ Sheet</button>
                                         </div>
                                         <textarea id="creatorShareCookieBackup1Input" class="text-input readonly-cookie-input" rows="1" wrap="off"></textarea>
                                         <div class="cookie-slot-actions">
                                             <button id="creatorCheckBackup1CookieBtn" class="btn btn-ghost" type="button">Check tài khoản</button>
                                             <button id="creatorUseBackup1CookieBtn" class="btn btn-ghost" type="button">Dùng runtime</button>
-                                            <button id="creatorImportBackup1CookieBtn" class="btn btn-ghost" type="button">Nhập từ Sheet</button>
                                         </div>
                                     </div>
                                     <div class="cookie-slot-card">
                                         <div class="cookie-slot-head">
-                                            <span class="cookie-slot-label">Tài khoản phụ 2</span>
-                                            <span id="creatorShareCookieBackup2State" class="cookie-slot-state">Chưa check</span>
+                                            <button id="creatorImportBackup2CookieBtn" class="btn btn-ghost cookie-slot-import-btn" type="button">Nhập từ Sheet</button>
                                         </div>
                                         <textarea id="creatorShareCookieBackup2Input" class="text-input readonly-cookie-input" rows="1" wrap="off"></textarea>
                                         <div class="cookie-slot-actions">
                                             <button id="creatorCheckBackup2CookieBtn" class="btn btn-ghost" type="button">Check tài khoản</button>
                                             <button id="creatorUseBackup2CookieBtn" class="btn btn-ghost" type="button">Dùng runtime</button>
-                                            <button id="creatorImportBackup2CookieBtn" class="btn btn-ghost" type="button">Nhập từ Sheet</button>
                                         </div>
                                     </div>
                                 </div>
@@ -1888,38 +1885,32 @@
                                 <div class="cookie-slot-grid current-cookie-grid">
                                     <div class="cookie-slot-card">
                                         <div class="cookie-slot-head">
-                                            <span class="cookie-slot-label">Tài khoản chính</span>
-                                            <span id="currentShareCookiePrimaryState" class="cookie-slot-state">Chưa check</span>
+                                            <button id="viewImportPrimaryCookieBtn" class="btn btn-ghost cookie-slot-import-btn" type="button">Nhập từ Sheet</button>
                                         </div>
                                         <textarea id="currentShareCookiePrimaryDisplay" class="text-input readonly-cookie-input" rows="1" wrap="off" readonly></textarea>
                                         <div class="cookie-slot-actions">
                                             <button id="viewCheckPrimaryCookieBtn" class="btn btn-ghost" type="button">Check tài khoản</button>
                                             <button id="viewUsePrimaryCookieBtn" class="btn btn-ghost" type="button">Dùng runtime</button>
-                                            <button id="viewImportPrimaryCookieBtn" class="btn btn-ghost" type="button">Nhập từ Sheet</button>
                                         </div>
                                     </div>
                                     <div class="cookie-slot-card">
                                         <div class="cookie-slot-head">
-                                            <span class="cookie-slot-label">Tài khoản phụ 1</span>
-                                            <span id="currentShareCookieBackup1State" class="cookie-slot-state">Chưa check</span>
+                                            <button id="viewImportBackup1CookieBtn" class="btn btn-ghost cookie-slot-import-btn" type="button">Nhập từ Sheet</button>
                                         </div>
                                         <textarea id="currentShareCookieBackup1Display" class="text-input readonly-cookie-input" rows="1" wrap="off" readonly></textarea>
                                         <div class="cookie-slot-actions">
                                             <button id="viewCheckBackup1CookieBtn" class="btn btn-ghost" type="button">Check tài khoản</button>
                                             <button id="viewUseBackup1CookieBtn" class="btn btn-ghost" type="button">Dùng runtime</button>
-                                            <button id="viewImportBackup1CookieBtn" class="btn btn-ghost" type="button">Nhập từ Sheet</button>
                                         </div>
                                     </div>
                                     <div class="cookie-slot-card">
                                         <div class="cookie-slot-head">
-                                            <span class="cookie-slot-label">Tài khoản phụ 2</span>
-                                            <span id="currentShareCookieBackup2State" class="cookie-slot-state">Chưa check</span>
+                                            <button id="viewImportBackup2CookieBtn" class="btn btn-ghost cookie-slot-import-btn" type="button">Nhập từ Sheet</button>
                                         </div>
                                         <textarea id="currentShareCookieBackup2Display" class="text-input readonly-cookie-input" rows="1" wrap="off" readonly></textarea>
                                         <div class="cookie-slot-actions">
                                             <button id="viewCheckBackup2CookieBtn" class="btn btn-ghost" type="button">Check tài khoản</button>
                                             <button id="viewUseBackup2CookieBtn" class="btn btn-ghost" type="button">Dùng runtime</button>
-                                            <button id="viewImportBackup2CookieBtn" class="btn btn-ghost" type="button">Nhập từ Sheet</button>
                                         </div>
                                     </div>
                                 </div>
