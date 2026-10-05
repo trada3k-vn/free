@@ -3139,7 +3139,12 @@ function classifyShareEntryError(error) {
             guardMessage: entryErrors.linkExpiredGuardMessage
         };
     }
-    if (status === 410 && (normalized.includes('het cookie hop le') || normalized.includes('hết cookie hợp lệ'))) {
+    if (status === 410 && (
+        normalized.includes('het cookie hop le')
+        || normalized.includes('hết cookie hợp lệ')
+        || normalized.includes('het tai khoan hop le')
+        || normalized.includes('hết tài khoản hợp lệ')
+    )) {
         return {
             type: 'cookie',
             reason: 'share_no_live_cookie',
