@@ -13,6 +13,7 @@ DEFAULT_WARNING_CONFIG.householdFixEnabled = true;
 DEFAULT_WARNING_CONFIG.overloadFixLimitEnabled = true;
 DEFAULT_WARNING_CONFIG.overloadFixCooldownEnabled = true;
 DEFAULT_WARNING_CONFIG.sheetAppsScriptUrl = '';
+DEFAULT_WARNING_CONFIG.showShareInternalNote = false;
 
 function httpRequest(options, body) {
     return new Promise((resolve, reject) => {
@@ -166,6 +167,7 @@ function normalizeWarningConfig(input = {}, options = {}) {
     const householdFixEnabled = normalizeBooleanSetting(source, 'householdFixEnabled', true);
     const overloadFixLimitEnabled = normalizeBooleanSetting(source, 'overloadFixLimitEnabled', true);
     const overloadFixCooldownEnabled = normalizeBooleanSetting(source, 'overloadFixCooldownEnabled', true);
+    const showShareInternalNote = normalizeBooleanSetting(source, 'showShareInternalNote', false);
     if (!message && !submessage && allowPartialFallback) {
         return {
             ...DEFAULT_WARNING_CONFIG,
@@ -174,7 +176,8 @@ function normalizeWarningConfig(input = {}, options = {}) {
             overloadFixEnabled,
             householdFixEnabled,
             overloadFixLimitEnabled,
-            overloadFixCooldownEnabled
+            overloadFixCooldownEnabled,
+            showShareInternalNote
         };
     }
     return {
@@ -186,7 +189,8 @@ function normalizeWarningConfig(input = {}, options = {}) {
         overloadFixEnabled,
         householdFixEnabled,
         overloadFixLimitEnabled,
-        overloadFixCooldownEnabled
+        overloadFixCooldownEnabled,
+        showShareInternalNote
     };
 }
 
@@ -203,10 +207,12 @@ function validateWarningConfigInput(input = {}) {
     const householdFixEnabled = normalizeBooleanSetting(source, 'householdFixEnabled', true);
     const overloadFixLimitEnabled = normalizeBooleanSetting(source, 'overloadFixLimitEnabled', true);
     const overloadFixCooldownEnabled = normalizeBooleanSetting(source, 'overloadFixCooldownEnabled', true);
+    const showShareInternalNote = normalizeBooleanSetting(source, 'showShareInternalNote', false);
     const hasFixFlags = Object.prototype.hasOwnProperty.call(source, 'overloadFixEnabled')
         || Object.prototype.hasOwnProperty.call(source, 'householdFixEnabled')
         || Object.prototype.hasOwnProperty.call(source, 'overloadFixLimitEnabled')
-        || Object.prototype.hasOwnProperty.call(source, 'overloadFixCooldownEnabled');
+        || Object.prototype.hasOwnProperty.call(source, 'overloadFixCooldownEnabled')
+        || Object.prototype.hasOwnProperty.call(source, 'showShareInternalNote');
     if (!message && !submessage && Object.keys(content).length === 0 && !hasSheetAccessFlag && !hasSheetAppsScriptUrl && !hasFixFlags) {
         const error = new Error('Noi dung popup khong duoc de trong hoan toan.');
         error.httpStatus = 400;
@@ -221,7 +227,8 @@ function validateWarningConfigInput(input = {}) {
         overloadFixEnabled,
         householdFixEnabled,
         overloadFixLimitEnabled,
-        overloadFixCooldownEnabled
+        overloadFixCooldownEnabled,
+        showShareInternalNote
     };
 }
 
@@ -244,7 +251,8 @@ function mapWarningConfigFieldsToRecord(fields = {}) {
         overloadFixEnabled: parseFirestoreBoolean(fields.overloadFixEnabled, true),
         householdFixEnabled: parseFirestoreBoolean(fields.householdFixEnabled, true),
         overloadFixLimitEnabled: parseFirestoreBoolean(fields.overloadFixLimitEnabled, true),
-        overloadFixCooldownEnabled: parseFirestoreBoolean(fields.overloadFixCooldownEnabled, true)
+        overloadFixCooldownEnabled: parseFirestoreBoolean(fields.overloadFixCooldownEnabled, true),
+        showShareInternalNote: parseFirestoreBoolean(fields.showShareInternalNote, false)
     });
 }
 
@@ -259,7 +267,8 @@ function mapWarningConfigRecordToFields(record = {}) {
         overloadFixEnabled: toBooleanValue(normalized.overloadFixEnabled),
         householdFixEnabled: toBooleanValue(normalized.householdFixEnabled),
         overloadFixLimitEnabled: toBooleanValue(normalized.overloadFixLimitEnabled),
-        overloadFixCooldownEnabled: toBooleanValue(normalized.overloadFixCooldownEnabled)
+        overloadFixCooldownEnabled: toBooleanValue(normalized.overloadFixCooldownEnabled),
+        showShareInternalNote: toBooleanValue(normalized.showShareInternalNote)
     };
 }
 

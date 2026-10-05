@@ -256,7 +256,8 @@ let warningBannerConfig = {
     sheetAccessEnabled: DEFAULT_SHEET_ACCESS_ENABLED,
     sheetAppsScriptUrl: '',
     overloadFixEnabled: true,
-    householdFixEnabled: true
+    householdFixEnabled: true,
+    showShareInternalNote: false
 };
 let warningBannerConfigLoaded = false;
 const activeGetlinkOperationTimers = new Map();
@@ -692,6 +693,7 @@ function normalizeWarningBannerConfig(input = {}, options = {}) {
     const householdFixEnabled = source.householdFixEnabled !== false;
     const overloadFixLimitEnabled = source.overloadFixLimitEnabled !== false;
     const overloadFixCooldownEnabled = source.overloadFixCooldownEnabled !== false;
+    const showShareInternalNote = source.showShareInternalNote === true;
     if (!message && !submessage && !allowBlank) {
         return {
             message: DEFAULT_GETLINK_WARNING_MESSAGE,
@@ -702,7 +704,8 @@ function normalizeWarningBannerConfig(input = {}, options = {}) {
             overloadFixEnabled,
             householdFixEnabled,
             overloadFixLimitEnabled,
-            overloadFixCooldownEnabled
+            overloadFixCooldownEnabled,
+            showShareInternalNote
         };
     }
     return {
@@ -714,7 +717,8 @@ function normalizeWarningBannerConfig(input = {}, options = {}) {
         overloadFixEnabled,
         householdFixEnabled,
         overloadFixLimitEnabled,
-        overloadFixCooldownEnabled
+        overloadFixCooldownEnabled,
+        showShareInternalNote
     };
 }
 
@@ -728,7 +732,11 @@ function isFixModeEnabled(mode = 'overload') {
 }
 
 function setSheetAccessImportControlsEnabled(enabled) {
-    ['creatorImportCookiesFromSheetBtn', 'currentImportCookiesFromSheetBtn'].forEach((id) => {
+    [
+        'creatorImportCookiesFromSheetBtn', 'currentImportCookiesFromSheetBtn',
+        'creatorImportPrimaryCookieBtn', 'creatorImportBackup1CookieBtn', 'creatorImportBackup2CookieBtn',
+        'viewImportPrimaryCookieBtn', 'viewImportBackup1CookieBtn', 'viewImportBackup2CookieBtn'
+    ].forEach((id) => {
         const button = el(id);
         if (!button) return;
         button.disabled = !enabled;
@@ -749,6 +757,11 @@ function setSheetImportOperationControls(scope = 'current', busy = false, cancel
         cancelBtn.disabled = !!cancelling;
         cancelBtn.textContent = cancelling ? 'Đang huỷ…' : 'Huỷ';
     }
+    const prefix = scope === 'create' ? 'creator' : 'view';
+    ['Primary', 'Backup1', 'Backup2'].forEach((suffix) => {
+        const button = el(`${prefix}Import${suffix}CookieBtn`);
+        if (button) button.disabled = !!busy || !isSheetAccessEnabled();
+    });
 }
 
 function setAdminWarningConfigState(text, mode = 'idle') {
@@ -916,6 +929,11 @@ function populateAdminWarningConfigInputs(config = null) {
     if (overloadFixCooldownEnabledInput && document.activeElement !== overloadFixCooldownEnabledInput) {
         overloadFixCooldownEnabledInput.checked = normalized.overloadFixCooldownEnabled !== false;
     }
+    const showShareInternalNoteInput = el('adminShowShareInternalNoteInput');
+    if (showShareInternalNoteInput && document.activeElement !== showShareInternalNoteInput) {
+        showShareInternalNoteInput.checked = normalized.showShareInternalNote === true;
+    }
+    updateShareInternalNoteVisibility(normalized.showShareInternalNote === true);
     setInputValue('adminDisclaimerEyebrowInput', content.disclaimer.eyebrow);
     setInputValue('adminDisclaimerTitleInput', content.disclaimer.title);
     setInputValue('adminDisclaimerLeadInput', content.disclaimer.lead);
@@ -1056,6 +1074,7 @@ function getAdminWarningConfigInputValues() {
         householdFixEnabled: el('adminHouseholdFixEnabledInput')?.checked !== false,
         overloadFixLimitEnabled: el('adminOverloadFixLimitEnabledInput')?.checked !== false,
         overloadFixCooldownEnabled: el('adminOverloadFixCooldownEnabledInput')?.checked !== false,
+        showShareInternalNote: el('adminShowShareInternalNoteInput')?.checked === true,
         content: {
             disclaimer: {
                 eyebrow: el('adminDisclaimerEyebrowInput')?.value || '',
@@ -1258,8 +1277,11 @@ async function adminSaveWarningBannerConfig() {
         renderGetlinkContent();
         populateAdminWarningConfigInputs(warningBannerConfig);
         setAdminWarningConfigState('Da luu noi dung /getlink.', 'success');
+        notifyGetlinkSuccess('Đã lưu cài đặt /getlink.');
     } catch (error) {
-        setAdminWarningConfigState(error.message || 'Khong luu duoc noi dung popup.', 'error');
+        const message = error.message || 'Khong luu duoc noi dung popup.';
+        setAdminWarningConfigState(message, 'error');
+        notifyGetlinkError(message);
     } finally {
         setButtonBusy(btn, false);
     }
@@ -1445,7 +1467,13 @@ function setSheetImportState(scope = 'current', text = '', mode = 'idle') {
     setStateClass(node, mode);
 }
 
-function getSelectedSheetImportSlots(scope = 'current') {
+function getSelectedSheetImportSlots(scope = 'current', requestedSlots = null) {
+    if (Array.isArray(requestedSlots) && requestedSlots.length > 0) {
+        const allowed = new Set(SHEET_IMPORT_SLOT_META.map((slot) => slot.key));
+        return requestedSlots.filter((slotKey, index, list) => {
+            return allowed.has(slotKey) && list.indexOf(slotKey) === index;
+        });
+    }
     const prefix = scope === 'create' ? 'creator' : 'current';
     const selected = SHEET_IMPORT_SLOT_META
         .filter((slot) => {
@@ -1638,6 +1666,13 @@ function setShareNoteInput(id, note = '') {
     if (input) input.value = normalizeShareNote(note);
 }
 
+function updateShareInternalNoteVisibility(visible = false) {
+    ['shareCreateNoteRow', 'currentShareNoteRow', 'adminShareNoteRow', 'adminSaveNoteBtn'].forEach((id) => {
+        const node = el(id);
+        if (node) node.classList.toggle('hidden', !visible);
+    });
+}
+
 function getShareNoteInput(id) {
     return normalizeShareNote(el(id) && el(id).value || '');
 }
@@ -1782,12 +1817,14 @@ function setInlineEditMode(nextMode) {
     const cancelBtn = el('cancelCurrentShareEditBtn');
     const expiryInput = el('currentShareExpiryInput');
     const noteInput = el('currentShareNoteInput');
+    const desktopOnlyInput = el('currentShareDesktopOnlyInput');
     const automationInput = el('currentShareSheetAutomationDisabledInput');
     if (editBtn) editBtn.classList.toggle('hidden', isInlineEditMode);
     if (saveBtn) saveBtn.classList.toggle('hidden', !isInlineEditMode);
     if (cancelBtn) cancelBtn.classList.toggle('hidden', !isInlineEditMode);
     if (expiryInput) expiryInput.disabled = !isInlineEditMode;
     if (noteInput) noteInput.readOnly = !isInlineEditMode;
+    if (desktopOnlyInput) desktopOnlyInput.disabled = !isInlineEditMode;
     if (automationInput) automationInput.disabled = !isInlineEditMode;
     SHARE_COOKIE_SLOTS.forEach((slot) => {
         const input = el(slot.viewInputId);
@@ -1815,12 +1852,14 @@ function renderCurrentShareSummary(share = null) {
     const expiryInput = el('currentShareExpiryInput');
     const updatedInput = el('currentShareUpdatedDisplay');
     const urlInput = el('currentShareUrlDisplay');
+    const desktopOnlyInput = el('currentShareDesktopOnlyInput');
     const automationInput = el('currentShareSheetAutomationDisabledInput');
     if (idInput) idInput.value = String(share.id || '-');
     if (statusInput) statusInput.value = statusLabel;
     if (expiryInput) expiryInput.value = toDatetimeLocalFromIso(share.expiresAt);
     if (updatedInput) updatedInput.value = formatDateTime(share.updatedAt);
     if (urlInput) urlInput.value = String(share.shareUrl || '');
+    if (desktopOnlyInput) desktopOnlyInput.checked = share.desktopOnly === true;
     if (automationInput) automationInput.checked = share.sheetAutomationDisabled === true;
     setShareNoteInput('currentShareNoteInput', share.note || '');
     setShareCookieViewOutputs(cookies);
@@ -1988,7 +2027,44 @@ function playSheetImportSuccessSound() {
     }
 }
 
-async function applySheetImportResult(scope = 'current', data = {}) {
+function playGetlinkErrorSound() {
+    try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return;
+
+        const audioContext = new AudioContextClass();
+        const oscillator = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        const startedAt = audioContext.currentTime;
+
+        oscillator.type = 'square';
+        oscillator.frequency.setValueAtTime(220, startedAt);
+        oscillator.frequency.setValueAtTime(165, startedAt + 0.11);
+        gain.gain.setValueAtTime(0.0001, startedAt);
+        gain.gain.exponentialRampToValueAtTime(0.08, startedAt + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, startedAt + 0.24);
+
+        oscillator.connect(gain);
+        gain.connect(audioContext.destination);
+        oscillator.start(startedAt);
+        oscillator.stop(startedAt + 0.24);
+        oscillator.addEventListener('ended', () => audioContext.close().catch(() => {}), { once: true });
+    } catch (_) {
+        // Âm thanh chỉ là phản hồi bổ sung; không được làm gián đoạn luồng chính.
+    }
+}
+
+function notifyGetlinkSuccess(message) {
+    showToast(message, 'ok');
+    playSheetImportSuccessSound();
+}
+
+function notifyGetlinkError(message) {
+    showToast(message, 'bad');
+    playGetlinkErrorSound();
+}
+
+async function applySheetImportResult(scope = 'current', data = {}, requestedSlots = null) {
     const context = getSheetImportContext(scope);
     clearSheetImportProgress(scope);
     const assigned = Array.isArray(data.assigned) ? data.assigned : [];
@@ -2057,9 +2133,11 @@ async function applySheetImportResult(scope = 'current', data = {}) {
         context.setInfoState(autoSaveText, 'loading');
         context.setPrimaryState(autoSaveText, 'loading');
         const savedSuccessfully = scope === 'create'
-            ? await saveCreatedShareCookies()
-            : await adminSaveCookies();
-        if (savedSuccessfully) playSheetImportSuccessSound();
+            ? await saveCreatedShareCookies({ slotKeys: requestedSlots })
+            : await adminSaveCookies({ slotKeys: requestedSlots });
+        if (!savedSuccessfully) {
+            setSheetImportState(scope, 'Đã nhập từ Sheet nhưng lưu tự động chưa hoàn tất.', 'warning');
+        }
     }
 }
 
@@ -2120,23 +2198,28 @@ function getSheetImportContext(scope = 'current') {
     };
 }
 
-async function importCookiesFromSheet(scope = 'current') {
+async function importCookiesFromSheet(scope = 'current', requestedSlots = null) {
     if (!isSheetAccessEnabled()) {
         const message = 'Truy cập Google Sheet đang được tắt trong admin.';
         const contextForState = getSheetImportContext(scope);
         setSheetImportState(scope, message, 'warning');
         if (contextForState && contextForState.setInfoState) contextForState.setInfoState(message, 'warning');
+        notifyGetlinkError(message);
         return;
     }
 
     const context = getSheetImportContext(scope);
     if (!context.share || !context.share.id) {
-        if (scope === 'create') setShareState('Hãy tạo link ID server trước khi nhập tài khoản từ Sheet.', 'warning');
-        else setAdminSearchState('Hãy tìm link ID trước khi nhập tài khoản từ Sheet.', 'warning');
+        const message = scope === 'create'
+            ? 'Hãy tạo link ID server trước khi nhập tài khoản từ Sheet.'
+            : 'Hãy tìm link ID trước khi nhập tài khoản từ Sheet.';
+        if (scope === 'create') setShareState(message, 'warning');
+        else setAdminSearchState(message, 'warning');
+        notifyGetlinkError(message);
         return;
     }
 
-    const slots = getSelectedSheetImportSlots(scope);
+    const slots = getSelectedSheetImportSlots(scope, requestedSlots);
     sheetImportProgressTargetCounts[scope] = slots.length;
     clearSheetImportTiming(scope);
 
@@ -2170,6 +2253,7 @@ async function importCookiesFromSheet(scope = 'current') {
                 operationToken: data.operationToken,
                 scope,
                 shareId: context.share && context.share.id ? context.share.id : '',
+                slots,
                 startedAt: Date.now()
             });
             saveSheetImportOperationMeta(scope, operationMeta);
@@ -2211,7 +2295,7 @@ async function importCookiesFromSheet(scope = 'current') {
             setSheetImportState(scope, 'Đã huỷ nhập tài khoản từ Sheet.', 'warning');
             context.setInfoState('Đã huỷ nhập tài khoản từ Sheet.', 'warning');
         } else {
-            await applySheetImportResult(scope, data);
+            await applySheetImportResult(scope, data, slots);
         }
     } catch (error) {
         clearSheetImportOperationMeta(scope);
@@ -2220,6 +2304,7 @@ async function importCookiesFromSheet(scope = 'current') {
         clearSheetImportProgress(scope);
         setSheetImportState(scope, timingText ? `${message} | ${timingText}` : message, 'error');
         context.setInfoState(timingText ? `${message} ${timingText}` : message, 'error');
+        notifyGetlinkError(message);
     } finally {
         clearActiveGetlinkOperationTimer(`sheet-import-${scope}`);
         setButtonBusy(btn, false);
@@ -3687,6 +3772,9 @@ function normalizeGetlinkOperationMeta(meta = {}) {
         operationToken: String(source.operationToken || '').trim(),
         scope: String(source.scope || '').trim(),
         shareId: String(source.shareId || '').trim(),
+        slots: Array.isArray(source.slots) ? source.slots.filter((slot, index, list) => {
+            return SHEET_IMPORT_SLOT_META.some((item) => item.key === slot) && list.indexOf(slot) === index;
+        }) : [],
         startedAt: Math.max(0, Number(source.startedAt || Date.now()) || Date.now())
     };
 }
@@ -3945,7 +4033,7 @@ async function resumePendingSheetImportOperation(scope = 'current') {
             setSheetImportState(scope, 'Đã huỷ nhập tài khoản từ Sheet.', 'warning');
             context.setInfoState('Đã huỷ nhập tài khoản từ Sheet.', 'warning');
         } else {
-            await applySheetImportResult(scope, snapshot);
+            await applySheetImportResult(scope, snapshot, meta.slots);
         }
     } catch (error) {
         const timingText = formatAutoFixTimings(error && error.responseData ? error.responseData.timings : null);
@@ -3953,6 +4041,7 @@ async function resumePendingSheetImportOperation(scope = 'current') {
         clearSheetImportProgress(scope);
         setSheetImportState(scope, timingText ? `${message} | ${timingText}` : message, 'error');
         context.setInfoState(timingText ? `${message} ${timingText}` : message, 'error');
+        notifyGetlinkError(message);
         clearSheetImportOperationMeta(scope);
     } finally {
         clearActiveGetlinkOperationTimer(timerKey);
@@ -4285,16 +4374,20 @@ async function generateShareIdLink() {
     const note = getShareNoteInput('shareCreateNoteInput');
     const quickDaysParse = parseQuickDaysExpiryInput(quickDaysValue);
     if (!quickDaysParse.ok) {
-        setShareState(quickDaysParse.error || 'Hạn lẹ không hợp lệ.', 'warning');
-        setShareCreateExpiryState(quickDaysParse.error || 'Hạn lẹ không hợp lệ. Hãy nhập lại.', 'warning');
+        const message = quickDaysParse.error || 'Hạn lẹ không hợp lệ.';
+        setShareState(message, 'warning');
+        setShareCreateExpiryState(message || 'Hạn lẹ không hợp lệ. Hãy nhập lại.', 'warning');
+        notifyGetlinkError(message);
         return;
     }
     const expiryParse = quickDaysParse.usingQuickDays
         ? quickDaysParse
         : parseCreateExpiryInput(rawDateValue, rawTimeValue);
     if (!expiryParse.ok) {
-        setShareState(expiryParse.error || 'Hạn của link không hợp lệ.', 'warning');
-        setShareCreateExpiryState(expiryParse.error || 'Hạn của link không hợp lệ. Hãy nhập lại.', 'warning');
+        const message = expiryParse.error || 'Hạn của link không hợp lệ.';
+        setShareState(message, 'warning');
+        setShareCreateExpiryState(message || 'Hạn của link không hợp lệ. Hãy nhập lại.', 'warning');
+        notifyGetlinkError(message);
         return;
     }
     const expiresAt = expiryParse.iso;
@@ -4333,12 +4426,15 @@ async function generateShareIdLink() {
             setShareState('Đã tạo link ID server không giới hạn.', 'success');
             setShareCreateExpiryState('', 'idle');
         }
+        notifyGetlinkSuccess('Đã tạo link ID server thành công.');
         renderCreatorCookieCheckCards([]);
         setCreatorCookieInfoState('Tạo hoặc cập nhật tài khoản rồi bấm check để xem kết quả ngay tại đây.', 'idle');
     } catch (error) {
         resetCreatedShareComposer({ keepExpiryInputs: true });
-        setShareState(error.message || 'Không tạo được link chia sẻ.', 'error');
-        setShareCreateExpiryState(error.message || 'Không tạo được link ID server.', 'error');
+        const message = error.message || 'Không tạo được link chia sẻ.';
+        setShareState(message, 'error');
+        setShareCreateExpiryState(message, 'error');
+        notifyGetlinkError(message);
     }
     setButtonBusy(btn, false);
 }
@@ -4476,8 +4572,10 @@ function renderAdminWorkspace() {
     const currentShareSummaryBox = el('currentShareSummaryBox');
     ensureAdminTabFromContext();
     const activeTab = normalizeAdminTab(adminActiveTab);
+    const hasQueryString = String(window.location.search || '').trim().length > 0;
 
     if (fab) {
+        fab.classList.toggle('hidden', hasQueryString && !adminAuthenticated);
         fab.classList.toggle('is-admin', adminAuthenticated);
         fab.title = adminAuthenticated ? 'Tai khoan admin da dang nhap' : 'Dang nhap admin';
         fab.setAttribute('aria-label', adminAuthenticated ? 'Tai khoan admin da dang nhap' : 'Dang nhap admin');
@@ -4716,16 +4814,23 @@ function renderAdminShare(share = null) {
         if (summaryBox) summaryBox.classList.add('hidden');
         isInlineEditMode = false;
         const automationInput = el('currentShareSheetAutomationDisabledInput');
+        const desktopOnlyInput = el('currentShareDesktopOnlyInput');
         if (automationInput) {
             automationInput.checked = false;
             automationInput.disabled = true;
+        }
+        if (desktopOnlyInput) {
+            desktopOnlyInput.checked = false;
+            desktopOnlyInput.disabled = true;
         }
         fixHistoryExpanded = false;
         currentFixHistory = null;
         renderFixHistory(null);
         setShareCookieViewOutputs({ primary: '', backup1: '', backup2: '' });
         const searchAutomationInput = el('adminShareSheetAutomationDisabledInput');
+        const searchDesktopOnlyInput = el('adminShareDesktopOnlyInput');
         if (searchAutomationInput) searchAutomationInput.checked = false;
+        if (searchDesktopOnlyInput) searchDesktopOnlyInput.checked = false;
         setShareNoteInput('currentShareNoteInput', '');
         setShareNoteInput('adminShareNoteInput', '');
         resetShareCookieSlotStates();
@@ -4745,6 +4850,7 @@ function renderAdminShare(share = null) {
     const expiryDisplayInput = el('adminShareExpiryDisplay');
     const expiryInput = el('adminShareExpiryInput');
     const searchAutomationInput = el('adminShareSheetAutomationDisabledInput');
+    const searchDesktopOnlyInput = el('adminShareDesktopOnlyInput');
     const expired = !!(share && (share.expired || isShareExpiredClient(share)));
     const status = String(share.status || 'active');
     let statusLabel = 'Dang hoat dong';
@@ -4758,6 +4864,7 @@ function renderAdminShare(share = null) {
     if (expiryDisplayInput) expiryDisplayInput.value = `Han hien tai: ${formatDateTime(share.expiresAt)}`;
     if (expiryInput) expiryInput.value = toDatetimeLocalFromIso(share.expiresAt);
     if (searchAutomationInput) searchAutomationInput.checked = share.sheetAutomationDisabled === true;
+    if (searchDesktopOnlyInput) searchDesktopOnlyInput.checked = share.desktopOnly === true;
     setShareNoteInput('adminShareNoteInput', share.note || '');
     const shareCookies = share.cookies || { primary: share.cookieRaw || '', backup1: '', backup2: '' };
     setShareCookieViewOutputs(shareCookies);
@@ -4790,8 +4897,11 @@ async function adminSaveExpiry(payload = null, options = {}) {
         const data = await apiRequest(`/api/getlink-admin/shares/${encodeURIComponent(currentAdminShare.id)}/expiry`, 'PUT', body);
         renderAdminShare(data.share || null);
         setAdminSearchState('Da cap nhat han cho link.', 'success');
+        notifyGetlinkSuccess('Đã lưu hạn link thành công.');
     } catch (error) {
-        setAdminSearchState(error.message || 'Khong cap nhat duoc han cho link.', 'error');
+        const message = error.message || 'Khong cap nhat duoc han cho link.';
+        setAdminSearchState(message, 'error');
+        notifyGetlinkError(message);
     } finally {
         setButtonBusy(btn, false);
     }
@@ -4800,21 +4910,27 @@ async function adminSaveExpiry(payload = null, options = {}) {
 async function adminSaveNote() {
     if (!currentAdminShare || !currentAdminShare.id) return;
     const note = getShareNoteInput('adminShareNoteInput');
+    const desktopOnly = !!(el('adminShareDesktopOnlyInput') && el('adminShareDesktopOnlyInput').checked);
     const sheetAutomationDisabled = !!(el('adminShareSheetAutomationDisabledInput') && el('adminShareSheetAutomationDisabledInput').checked);
     const btn = el('adminSaveNoteBtn');
     setButtonBusy(btn, true, 'Dang luu note...');
     try {
         const data = await apiRequest(`/api/getlink-admin/shares/${encodeURIComponent(currentAdminShare.id)}`, 'PUT', {
             note,
+            desktopOnly,
             sheetAutomationDisabled
         });
         renderAdminShare(data.share || null);
         if (pendingShareIdFromUrl && data.share && String(data.share.id || '') === String(pendingShareIdFromUrl)) {
+            setRuntimeShareDesktopOnly(data.share.desktopOnly === true);
             setRuntimeShareSheetAutomationDisabled(data.share.sheetAutomationDisabled === true);
         }
         setAdminSearchState('Da cap nhat note va trang thai tu dong cho link.', 'success');
+        notifyGetlinkSuccess('Đã lưu thông tin link thành công.');
     } catch (error) {
-        setAdminSearchState(error.message || 'Khong cap nhat duoc note cho link.', 'error');
+        const message = error.message || 'Khong cap nhat duoc note cho link.';
+        setAdminSearchState(message, 'error');
+        notifyGetlinkError(message);
     } finally {
         setButtonBusy(btn, false);
     }
@@ -4975,10 +5091,11 @@ async function adminSearchShare() {
     }
 }
 
-async function adminSaveCookies() {
+async function adminSaveCookies(options = {}) {
     if (!currentAdminShare || !currentAdminShare.id) return false;
     const cookies = getCurrentShareEditableCookies();
     const note = getShareNoteInput('currentShareNoteInput');
+    const desktopOnly = !!(el('currentShareDesktopOnlyInput') && el('currentShareDesktopOnlyInput').checked);
     const sheetAutomationDisabled = !!(el('currentShareSheetAutomationDisabledInput') && el('currentShareSheetAutomationDisabledInput').checked);
     const expiryValue = String(el('currentShareExpiryInput') && el('currentShareExpiryInput').value || '').trim();
     const expiresAt = datetimeLocalToIso(expiryValue);
@@ -4993,6 +5110,7 @@ async function adminSaveCookies() {
         const data = await apiRequest(`/api/getlink-admin/shares/${encodeURIComponent(currentAdminShare.id)}`, 'PUT', {
             cookies,
             note,
+            desktopOnly,
             sheetAutomationDisabled
         });
         if (expiresAt && expiresAt !== String(currentAdminShare.expiresAt || '').trim()) {
@@ -5002,30 +5120,37 @@ async function adminSaveCookies() {
         isInlineEditMode = false;
         renderAdminShare(data.share || null);
         if (pendingShareIdFromUrl && data.share && String(data.share.id || '') === String(pendingShareIdFromUrl)) {
+            setRuntimeShareDesktopOnly(data.share.desktopOnly === true);
             setRuntimeShareSheetAutomationDisabled(data.share.sheetAutomationDisabled === true);
         }
         if (cookies.primary) {
             setRuntimeCookie(cookies.primary, { source: 'admin', silent: true });
         }
+        const slotConfigs = Array.isArray(options.slotKeys) && options.slotKeys.length > 0
+            ? SHARE_COOKIE_SLOTS.filter((slot) => options.slotKeys.includes(slot.key))
+            : SHARE_COOKIE_SLOTS;
         const checkResults = await runCookieChecksForShare(
             (data.share && data.share.id) || currentAdminShare.id,
             cookies,
-            SHARE_COOKIE_SLOTS,
+            slotConfigs,
             setShareCookieSlotState,
             { renderCards: renderCookieCheckCards, setInfoState: setAdminCookieInfoState }
         );
         if (cookies.primary) setRuntimeProfiles(extractProfilesFromChecks(checkResults, 'primary'));
         setAdminSearchState('Đã cập nhật tài khoản và tự động check toàn bộ.', 'success');
+        notifyGetlinkSuccess('Đã lưu tài khoản thành công.');
         return checkResults.length > 0 && checkResults.every((item) => item && item.ok === true);
     } catch (error) {
-        setAdminSearchState(error.message || 'Không cập nhật được tài khoản.', 'error');
+        const message = error.message || 'Không cập nhật được tài khoản.';
+        setAdminSearchState(message, 'error');
+        notifyGetlinkError(message);
         return false;
     } finally {
         setButtonBusy(btn, false);
     }
 }
 
-async function saveCreatedShareCookies() {
+async function saveCreatedShareCookies(options = {}) {
     if (!createdAdminShare || !createdAdminShare.id) {
         setShareState('Hãy tạo link ID server trước khi lưu tài khoản.', 'warning');
         return false;
@@ -5041,10 +5166,13 @@ async function saveCreatedShareCookies() {
         if (cookies.primary) {
             setRuntimeCookie(cookies.primary, { source: 'admin', silent: true });
         }
+        const slotConfigs = Array.isArray(options.slotKeys) && options.slotKeys.length > 0
+            ? CREATED_SHARE_COOKIE_SLOTS.filter((slot) => options.slotKeys.includes(slot.key))
+            : CREATED_SHARE_COOKIE_SLOTS;
         const checkResults = await runCookieChecksForShare(
             createdAdminShare.id,
             cookies,
-            CREATED_SHARE_COOKIE_SLOTS,
+            slotConfigs,
             setCreatedShareCookieSlotState,
             { renderCards: renderCreatorCookieCheckCards, setInfoState: setCreatorCookieInfoState }
         );
@@ -5057,9 +5185,12 @@ async function saveCreatedShareCookies() {
                 : 'Đã lưu tài khoản và auto-check xong, nhưng không tự copy lại được. Hãy bấm Sao chép.',
             copied ? 'success' : 'warning'
         );
+        notifyGetlinkSuccess('Đã lưu tài khoản thành công.');
         return checkResults.length > 0 && checkResults.every((item) => item && item.ok === true);
     } catch (error) {
-        setShareState(error.message || 'Không lưu được tài khoản cho link mới.', 'error');
+        const message = error.message || 'Không lưu được tài khoản cho link mới.';
+        setShareState(message, 'error');
+        notifyGetlinkError(message);
         return false;
     } finally {
         setButtonBusy(btn, false);
@@ -5308,11 +5439,27 @@ function bindEvents() {
 
     const creatorImportBtn = el('creatorImportCookiesFromSheetBtn');
     if (creatorImportBtn) creatorImportBtn.addEventListener('click', () => importCookiesFromSheet('create'));
+    [
+        ['creatorImportPrimaryCookieBtn', 'primary'],
+        ['creatorImportBackup1CookieBtn', 'backup1'],
+        ['creatorImportBackup2CookieBtn', 'backup2']
+    ].forEach(([id, slot]) => {
+        const button = el(id);
+        if (button) button.addEventListener('click', () => importCookiesFromSheet('create', [slot]));
+    });
     const creatorCancelImportBtn = el('creatorCancelSheetImportBtn');
     if (creatorCancelImportBtn) creatorCancelImportBtn.addEventListener('click', () => cancelSheetImportOperation('create'));
 
     const currentImportBtn = el('currentImportCookiesFromSheetBtn');
     if (currentImportBtn) currentImportBtn.addEventListener('click', () => importCookiesFromSheet('current'));
+    [
+        ['viewImportPrimaryCookieBtn', 'primary'],
+        ['viewImportBackup1CookieBtn', 'backup1'],
+        ['viewImportBackup2CookieBtn', 'backup2']
+    ].forEach(([id, slot]) => {
+        const button = el(id);
+        if (button) button.addEventListener('click', () => importCookiesFromSheet('current', [slot]));
+    });
     const currentCancelImportBtn = el('currentCancelSheetImportBtn');
     if (currentCancelImportBtn) currentCancelImportBtn.addEventListener('click', () => cancelSheetImportOperation('current'));
 
@@ -5512,6 +5659,12 @@ function bindEvents() {
 
     const adminSaveWarningConfigBtn = el('adminSaveWarningConfigBtn');
     if (adminSaveWarningConfigBtn) adminSaveWarningConfigBtn.addEventListener('click', adminSaveWarningBannerConfig);
+    const showShareInternalNoteInput = el('adminShowShareInternalNoteInput');
+    if (showShareInternalNoteInput) {
+        showShareInternalNoteInput.addEventListener('change', () => {
+            updateShareInternalNoteVisibility(showShareInternalNoteInput.checked);
+        });
+    }
 
     const adminReloadWarningConfigBtn = el('adminReloadWarningConfigBtn');
     if (adminReloadWarningConfigBtn) adminReloadWarningConfigBtn.addEventListener('click', () => loadWarningBannerConfig({ silent: false }));

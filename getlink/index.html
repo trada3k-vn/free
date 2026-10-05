@@ -347,6 +347,37 @@
             gap: 0.5rem;
         }
 
+        .share-create-primary-row {
+            display: grid;
+            grid-template-columns: minmax(120px, 180px) minmax(0, 1fr);
+            gap: 0.5rem;
+            align-items: stretch;
+        }
+
+        .share-advanced-options {
+            border: 1px solid rgba(148, 163, 184, 0.26);
+            border-radius: 9px;
+            background: rgba(148, 163, 184, 0.06);
+        }
+
+        .share-advanced-options > summary {
+            padding: 0.48rem 0.6rem;
+            cursor: pointer;
+            color: #dce8ff;
+            font-size: 0.8rem;
+            font-weight: 800;
+        }
+
+        .share-advanced-options-body {
+            display: grid;
+            gap: 0.4rem;
+            padding: 0 0.6rem 0.55rem;
+        }
+
+        .share-note-row {
+            display: grid;
+        }
+
         .share-expiry-input {
             min-width: 0;
         }
@@ -861,7 +892,7 @@
 
         .cookie-slot-actions {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 0.45rem;
         }
 
@@ -1366,6 +1397,14 @@
             .getlink-sticky-warning-subtitle {
                 font-size: 0.84rem;
             }
+
+            .share-create-primary-row {
+                grid-template-columns: 1fr;
+            }
+
+            .cookie-slot-actions {
+                grid-template-columns: 1fr;
+            }
         }
 
         .modal-backdrop {
@@ -1709,30 +1748,35 @@
                         <section id="shareCreatorBox" class="share-box admin-box hidden">
                             <h3 class="share-box-title">Tạo link ID server (chỉ admin)</h3>
                             <div class="share-expiry-wrap">
-                                <input id="shareCreateQuickDaysInput" class="text-input share-expiry-input" type="text" inputmode="numeric" placeholder="Hạn lẹ: nhập số ngày, ví dụ 7">
+                                <div class="share-create-primary-row">
+                                    <input id="shareCreateQuickDaysInput" class="text-input share-expiry-input" type="text" inputmode="numeric" placeholder="Hạn lẹ: số ngày, ví dụ 7">
+                                    <button id="generateShareLinkBtn" class="btn btn-primary" type="button">Tạo link ID server (?s)</button>
+                                </div>
                                 <div class="share-create-expiry-grid">
                                     <input id="shareCreateDateInput" class="text-input share-expiry-input" type="text" inputmode="numeric" placeholder="Ngày: dd/mm hoặc dd/mm/yyyy">
                                     <input id="shareCreateTimeInput" class="text-input share-expiry-input" type="text" inputmode="numeric" placeholder="Giờ: HH:mm">
                                 </div>
-                                <div class="share-create-option-row">
-                                    <label class="share-option-label" for="shareDesktopOnlyInput">
-                                        <input id="shareDesktopOnlyInput" class="share-option-check" type="checkbox">
-                                        <span>Chỉ cho phép xem trên máy tính</span>
-                                    </label>
-                                    <p class="share-option-hint">Bật mục này nếu link chỉ được dùng trên máy tính.</p>
+                                <details class="share-advanced-options">
+                                    <summary>Tùy chọn nâng cao</summary>
+                                    <div class="share-advanced-options-body">
+                                        <div class="share-create-option-row">
+                                            <label class="share-option-label" for="shareDesktopOnlyInput">
+                                                <input id="shareDesktopOnlyInput" class="share-option-check" type="checkbox">
+                                                <span>Chỉ cho phép xem trên máy tính</span>
+                                            </label>
+                                        </div>
+                                        <div class="share-create-option-row">
+                                            <label class="share-option-label" for="shareSheetAutomationDisabledInput">
+                                                <input id="shareSheetAutomationDisabledInput" class="share-option-check" type="checkbox">
+                                                <span>Không tự động lấy cookie từ Google Sheet và không sửa lỗi tự động</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </details>
+                                <div id="shareCreateNoteRow" class="share-note-row">
+                                    <textarea id="shareCreateNoteInput" class="text-input share-note-input" maxlength="1000" rows="3" placeholder="Note nội bộ cho admin"></textarea>
                                 </div>
-                                <div class="share-create-option-row">
-                                    <label class="share-option-label" for="shareSheetAutomationDisabledInput">
-                                        <input id="shareSheetAutomationDisabledInput" class="share-option-check" type="checkbox">
-                                        <span>Không tự động lấy cookie từ Google Sheet và không sửa lỗi tự động</span>
-                                    </label>
-                                    <p class="share-option-hint">Link vẫn dùng cookie thủ công, nhưng sẽ không tự động lấy cookie hoặc sửa lỗi quá tải.</p>
-                                </div>
-                                <textarea id="shareCreateNoteInput" class="text-input share-note-input" maxlength="1000" rows="3" placeholder="Note nội bộ cho admin"></textarea>
                                 <div id="shareCreateExpiryState" class="state-text state-idle hidden"></div>
-                            </div>
-                            <div class="lookup-actions" style="margin-top:0.45rem;">
-                                <button id="generateShareLinkBtn" class="btn btn-primary" type="button">Tạo link ID server (?s)</button>
                             </div>
                             <div id="shareState" class="state-text state-idle hidden"></div>
                             <div class="share-row">
@@ -1741,7 +1785,6 @@
                                 <a id="openShareLinkBtn" class="btn btn-ghost" href="#" target="_blank" rel="noopener noreferrer">Mở link</a>
                             </div>
                             <div id="shareCreateCookieSection" class="share-create-cookie-section hidden">
-                                <p class="share-create-cookie-hint">Link ID đã tạo xong. Bạn có thể nhập 1, 2 hoặc đủ 3 tài khoản cho link này.</p>
                                 <div class="cookie-slot-grid creator-cookie-grid">
                                     <div class="cookie-slot-card">
                                         <div class="cookie-slot-head">
@@ -1752,6 +1795,7 @@
                                         <div class="cookie-slot-actions">
                                             <button id="creatorCheckPrimaryCookieBtn" class="btn btn-ghost" type="button">Check tài khoản</button>
                                             <button id="creatorUsePrimaryCookieBtn" class="btn btn-ghost" type="button">Dùng runtime</button>
+                                            <button id="creatorImportPrimaryCookieBtn" class="btn btn-ghost" type="button">Nhập từ Sheet</button>
                                         </div>
                                     </div>
                                     <div class="cookie-slot-card">
@@ -1763,6 +1807,7 @@
                                         <div class="cookie-slot-actions">
                                             <button id="creatorCheckBackup1CookieBtn" class="btn btn-ghost" type="button">Check tài khoản</button>
                                             <button id="creatorUseBackup1CookieBtn" class="btn btn-ghost" type="button">Dùng runtime</button>
+                                            <button id="creatorImportBackup1CookieBtn" class="btn btn-ghost" type="button">Nhập từ Sheet</button>
                                         </div>
                                     </div>
                                     <div class="cookie-slot-card">
@@ -1774,6 +1819,7 @@
                                         <div class="cookie-slot-actions">
                                             <button id="creatorCheckBackup2CookieBtn" class="btn btn-ghost" type="button">Check tài khoản</button>
                                             <button id="creatorUseBackup2CookieBtn" class="btn btn-ghost" type="button">Dùng runtime</button>
+                                            <button id="creatorImportBackup2CookieBtn" class="btn btn-ghost" type="button">Nhập từ Sheet</button>
                                         </div>
                                     </div>
                                 </div>
@@ -1819,14 +1865,26 @@
                                     <input id="currentShareUpdatedDisplay" class="text-input" type="text" title="Cập nhật" readonly>
                                 </div>
                                 <input id="currentShareUrlDisplay" class="text-input mono-input" type="text" readonly>
-                                <textarea id="currentShareNoteInput" class="text-input share-note-input" maxlength="1000" rows="3" placeholder="Note nội bộ cho admin" readonly></textarea>
-                                <div class="share-create-option-row">
-                                    <label class="share-option-label" for="currentShareSheetAutomationDisabledInput">
-                                        <input id="currentShareSheetAutomationDisabledInput" class="share-option-check" type="checkbox" disabled>
-                                        <span>Không tự động lấy cookie từ Google Sheet và không sửa lỗi tự động</span>
-                                    </label>
-                                    <p class="share-option-hint">Bấm Sửa để thay đổi trạng thái này.</p>
+                                <div id="currentShareNoteRow" class="share-note-row">
+                                    <textarea id="currentShareNoteInput" class="text-input share-note-input" maxlength="1000" rows="3" placeholder="Note nội bộ cho admin" readonly></textarea>
                                 </div>
+                                <details class="share-advanced-options">
+                                    <summary>Tùy chọn nâng cao</summary>
+                                    <div class="share-advanced-options-body">
+                                        <div class="share-create-option-row">
+                                            <label class="share-option-label" for="currentShareDesktopOnlyInput">
+                                                <input id="currentShareDesktopOnlyInput" class="share-option-check" type="checkbox" disabled>
+                                                <span>Chỉ cho phép xem trên máy tính</span>
+                                            </label>
+                                        </div>
+                                        <div class="share-create-option-row">
+                                            <label class="share-option-label" for="currentShareSheetAutomationDisabledInput">
+                                                <input id="currentShareSheetAutomationDisabledInput" class="share-option-check" type="checkbox" disabled>
+                                                <span>Không tự động lấy cookie từ Google Sheet và không sửa lỗi tự động</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </details>
                                 <div class="cookie-slot-grid current-cookie-grid">
                                     <div class="cookie-slot-card">
                                         <div class="cookie-slot-head">
@@ -1837,6 +1895,7 @@
                                         <div class="cookie-slot-actions">
                                             <button id="viewCheckPrimaryCookieBtn" class="btn btn-ghost" type="button">Check tài khoản</button>
                                             <button id="viewUsePrimaryCookieBtn" class="btn btn-ghost" type="button">Dùng runtime</button>
+                                            <button id="viewImportPrimaryCookieBtn" class="btn btn-ghost" type="button">Nhập từ Sheet</button>
                                         </div>
                                     </div>
                                     <div class="cookie-slot-card">
@@ -1848,6 +1907,7 @@
                                         <div class="cookie-slot-actions">
                                             <button id="viewCheckBackup1CookieBtn" class="btn btn-ghost" type="button">Check tài khoản</button>
                                             <button id="viewUseBackup1CookieBtn" class="btn btn-ghost" type="button">Dùng runtime</button>
+                                            <button id="viewImportBackup1CookieBtn" class="btn btn-ghost" type="button">Nhập từ Sheet</button>
                                         </div>
                                     </div>
                                     <div class="cookie-slot-card">
@@ -1859,6 +1919,7 @@
                                         <div class="cookie-slot-actions">
                                             <button id="viewCheckBackup2CookieBtn" class="btn btn-ghost" type="button">Check tài khoản</button>
                                             <button id="viewUseBackup2CookieBtn" class="btn btn-ghost" type="button">Dùng runtime</button>
+                                            <button id="viewImportBackup2CookieBtn" class="btn btn-ghost" type="button">Nhập từ Sheet</button>
                                         </div>
                                     </div>
                                 </div>
@@ -2252,14 +2313,26 @@
                                 <input id="adminShareExpiryDisplay" class="text-input" type="text" readonly placeholder="Han hien tai">
                                 <input id="adminShareExpiryInput" class="text-input" type="datetime-local">
                             </div>
-                            <textarea id="adminShareNoteInput" class="text-input share-note-input" maxlength="1000" rows="3" placeholder="Note noi bo cho admin"></textarea>
-                            <div class="share-create-option-row">
-                                <label class="share-option-label" for="adminShareSheetAutomationDisabledInput">
-                                    <input id="adminShareSheetAutomationDisabledInput" class="share-option-check" type="checkbox">
-                                    <span>Không tự động lấy cookie từ Google Sheet và không sửa lỗi tự động</span>
-                                </label>
-                                <p class="share-option-hint">Bấm Lưu note để lưu cả trạng thái này.</p>
+                            <div id="adminShareNoteRow" class="share-note-row">
+                                <textarea id="adminShareNoteInput" class="text-input share-note-input" maxlength="1000" rows="3" placeholder="Note noi bo cho admin"></textarea>
                             </div>
+                            <details class="share-advanced-options">
+                                <summary>Tùy chọn nâng cao</summary>
+                                <div class="share-advanced-options-body">
+                                    <div class="share-create-option-row">
+                                        <label class="share-option-label" for="adminShareDesktopOnlyInput">
+                                            <input id="adminShareDesktopOnlyInput" class="share-option-check" type="checkbox">
+                                            <span>Chỉ cho phép xem trên máy tính</span>
+                                        </label>
+                                    </div>
+                                    <div class="share-create-option-row">
+                                        <label class="share-option-label" for="adminShareSheetAutomationDisabledInput">
+                                            <input id="adminShareSheetAutomationDisabledInput" class="share-option-check" type="checkbox">
+                                            <span>Không tự động lấy cookie từ Google Sheet và không sửa lỗi tự động</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </details>
                             <div class="admin-expiry-quick-actions">
                                 <button class="btn btn-ghost admin-expiry-quick-btn" type="button" data-add-days="1">+1 ngay</button>
                                 <button class="btn btn-ghost admin-expiry-quick-btn" type="button" data-add-days="3">+3 ngay</button>
@@ -2349,6 +2422,19 @@
                                 </span>
                                 <span class="admin-toggle-switch">
                                     <input id="adminOverloadFixCooldownEnabledInput" type="checkbox" checked>
+                                    <span class="admin-toggle-slider"></span>
+                                </span>
+                            </label>
+                        </div>
+                        <div class="admin-settings-section">
+                            <p class="admin-settings-section-title">Note nội bộ</p>
+                            <label class="admin-toggle-field" for="adminShowShareInternalNoteInput">
+                                <span class="admin-toggle-copy">
+                                    <span class="admin-toggle-title">Hiện note nội bộ của link</span>
+                                    <span class="admin-toggle-hint">Bật để hiển thị và chỉnh sửa note nội bộ trong các màn hình quản trị link.</span>
+                                </span>
+                                <span class="admin-toggle-switch">
+                                    <input id="adminShowShareInternalNoteInput" type="checkbox">
                                     <span class="admin-toggle-slider"></span>
                                 </span>
                             </label>

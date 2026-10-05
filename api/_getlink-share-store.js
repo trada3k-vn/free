@@ -383,6 +383,9 @@ async function updateShareAdminFields(shareId = '', options = {}, actor = 'admin
     if (options && Object.prototype.hasOwnProperty.call(options, 'sheetAutomationDisabled')) {
         next.sheetAutomationDisabled = sanitizeSheetAutomationDisabled(options.sheetAutomationDisabled);
     }
+    if (options && Object.prototype.hasOwnProperty.call(options, 'desktopOnly')) {
+        next.desktopOnly = sanitizeDesktopOnly(options.desktopOnly);
+    }
 
     return saveShareRecord(next);
 }
