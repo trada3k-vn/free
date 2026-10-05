@@ -50,8 +50,29 @@ function parseBool(field, fallback = false) {
     return field && typeof field.booleanValue === 'boolean' ? field.booleanValue : fallback;
 }
 
-function mapFields(fields = {}) {
+function parseArray(field) {
+    const values = field && field.arrayValue && Array.isArray(field.arrayValue.values) ? field.arrayValue.values : [];
+    return values.map((value) => {
+        const fields = value && value.mapValue && value.mapValue.fields ? value.mapValue.fields : {};
+        return {
+            type: parseString(fields.type),
+            at: parseString(fields.at)
+        };
+    }).filter((item) => item.type && item.at);
+}
+
+function historyValue(items = []) {
     return {
+        arrayValue: {
+            values: items.map((item) => ({
+                mapValue: { fields: { type: stringValue(item.type), at: stringValue(item.at) } }
+            }))
+        }
+    };
+}
+
+function mapFields(fields = {}) {
+    const record = {
         id: parseString(fields.id),
         status: parseString(fields.status) || 'active',
         createdAt: parseString(fields.createdAt),
@@ -65,8 +86,15 @@ function mapFields(fields = {}) {
         lastActionAt: parseString(fields.lastActionAt),
         note: parseString(fields.note),
         popupMessage: parseString(fields.popupMessage),
-        accountAssigned: parseBool(fields.accountAssigned)
+        accountAssigned: parseBool(fields.accountAssigned),
+        assignmentHistory: parseArray(fields.assignmentHistory),
+        warrantyHistory: parseArray(fields.warrantyHistory)
     };
+    if (record.accountAssigned && !record.assignmentHistory.length && !record.warrantyHistory.length && record.lastActionAt) {
+        if (record.lastAction === 'warranty') record.warrantyHistory = [{ type: 'warranty', at: record.lastActionAt }];
+        else record.assignmentHistory = [{ type: 'assigned', at: record.lastActionAt }];
+    }
+    return record;
 }
 
 function mapRecord(record = {}) {
@@ -84,7 +112,9 @@ function mapRecord(record = {}) {
         lastActionAt: stringValue(record.lastActionAt),
         note: stringValue(record.note),
         popupMessage: stringValue(record.popupMessage),
-        accountAssigned: boolValue(record.accountAssigned)
+        accountAssigned: boolValue(record.accountAssigned),
+        assignmentHistory: historyValue(record.assignmentHistory),
+        warrantyHistory: historyValue(record.warrantyHistory)
     };
 }
 
@@ -200,7 +230,9 @@ function adminDto(record, req) {
         accountCreatedAt: record.accountCreatedAt,
         accountExpiresAt: record.accountExpiresAt,
         lastAction: record.lastAction,
-        lastActionAt: record.lastActionAt
+        lastActionAt: record.lastActionAt,
+        assignmentCount: (record.assignmentHistory || []).length,
+        warrantyCount: (record.warrantyHistory || []).length
     };
 }
 
@@ -212,7 +244,18 @@ function adminLinkDto(record, req, config) {
         accountCreatedAt: record.accountCreatedAt,
         accountExpiresAt: record.accountExpiresAt,
         lastAction: record.lastAction,
-        lastActionAt: record.lastActionAt
+        lastActionAt: record.lastActionAt,
+        assignmentCount: (record.assignmentHistory || []).length,
+        warrantyCount: (record.warrantyHistory || []).length
+    };
+}
+
+function adminHistoryDto(record) {
+    return {
+        assignmentHistory: record.assignmentHistory || [],
+        warrantyHistory: record.warrantyHistory || [],
+        assignmentCount: (record.assignmentHistory || []).length,
+        warrantyCount: (record.warrantyHistory || []).length
     };
 }
 
@@ -326,7 +369,8 @@ async function createLink(req, body) {
         id: newId(), status: 'active', createdAt: now.toISOString(), updatedAt: now.toISOString(),
         expiresAt, username: '', password: '',
         accountCreatedAt: '', accountExpiresAt: '', lastAction: 'created', lastActionAt: now.toISOString(),
-        note: '', popupMessage: '', accountAssigned: false
+        note: '', popupMessage: '', accountAssigned: false,
+        assignmentHistory: [], warrantyHistory: []
     };
     await saveLink(record);
     let assignmentError = '';
@@ -338,7 +382,8 @@ async function createLink(req, body) {
                 accountAssigned: true,
                 updatedAt: assignedAt,
                 lastAction: 'assigned-on-create',
-                lastActionAt: assignedAt
+                lastActionAt: assignedAt,
+                assignmentHistory: [{ type: 'assigned', at: assignedAt }]
             });
             await saveLink(record);
         } catch (error) {
@@ -361,7 +406,13 @@ async function assignUnlocked(req, id, action = 'assigned') {
     if (record.status !== 'active' || isExpired(record.expiresAt)) throw Object.assign(new Error('Link CapCut đã hết hạn.'), { httpStatus: 410 });
     const account = await claimAccount();
     const now = new Date().toISOString();
-    const next = { ...record, ...account, accountAssigned: true, updatedAt: now, lastAction: action, lastActionAt: now };
+    const next = {
+        ...record, ...account, accountAssigned: true, updatedAt: now, lastAction: action, lastActionAt: now,
+        assignmentHistory: [...(record.assignmentHistory || [])],
+        warrantyHistory: [...(record.warrantyHistory || [])]
+    };
+    if (action === 'warranty') next.warrantyHistory.push({ type: 'warranty', at: now });
+    else next.assignmentHistory.push({ type: 'assigned', at: now });
     await saveLink(next);
     return next;
 }
@@ -372,7 +423,7 @@ module.exports = async function capcutHandler(req, res) {
     if (req.method === 'OPTIONS') return res.status(200).end();
     try {
         const pathname = String(req.url || '').split('?')[0];
-        const match = pathname.match(/^\/api\/capcut\/links\/([^/]+)(?:\/(assign|warranty))?$/);
+        const match = pathname.match(/^\/api\/capcut\/links\/([^/]+)(?:\/(assign|warranty|history))?$/);
         if (pathname === '/api/capcut/links' && req.method === 'POST') {
             if (!await requireAdmin(req, res)) return;
             const created = await createLink(req, parseBody(req.body));
@@ -404,6 +455,12 @@ module.exports = async function capcutHandler(req, res) {
         if (!match || !validId(decodeURIComponent(match[1]))) return res.status(404).json({ error: 'Not found' });
         const id = decodeURIComponent(match[1]);
         const action = match[2] || '';
+        if (req.method === 'GET' && action === 'history') {
+            if (!await requireAdmin(req, res)) return;
+            const record = await readLink(id);
+            if (!record) return res.status(404).json({ error: 'Link CapCut không tồn tại.' });
+            return res.status(200).json({ success: true, link: adminHistoryDto(record) });
+        }
         if (req.method === 'GET' && !action) {
             const record = await readLink(id);
             if (!record) return res.status(404).json({ error: 'Link CapCut không tồn tại.' });

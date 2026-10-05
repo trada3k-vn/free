@@ -5,6 +5,7 @@ const $ = (selector) => document.querySelector(selector);
 let auth;
 let token = '';
 let current = null;
+let historyState = { linkId: '', visible: false, loading: false, error: '', data: null, assignmentLimit: 10, warrantyLimit: 10 };
 
 async function api(url, options = {}) {
   options.headers = { ...(options.headers || {}), Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
@@ -57,6 +58,88 @@ function setProgress(selector, visible, title = '', detail = '') {
   if (detail) panel.querySelector('[id$="ProgressDetail"]').textContent = detail;
 }
 
+function renderHistory(link) {
+  let panel = $('#historyPanel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'historyPanel';
+    panel.className = 'history-panel';
+    $('#assignAlert').parentElement.insertAdjacentElement('afterend', panel);
+  }
+  historyState = {
+    linkId: String(link?.id || ''), visible: false, loading: false, error: '', data: null,
+    assignmentLimit: 10, warrantyLimit: 10
+  };
+  const assignmentCount = Number(link?.assignmentCount || 0);
+  const warrantyCount = Number(link?.warrantyCount || 0);
+  panel.innerHTML = `<div class="history-heading"><div><span class="info-label">Lịch sử link</span><h3>Nhập tài khoản và bảo hành tự động</h3></div><div class="history-counts"><span><strong data-history-count="assignment">${assignmentCount}</strong> lần nhập acc</span><span><strong data-history-count="warranty">${warrantyCount}</strong> lần bảo hành</span></div></div><button class="button button-secondary history-toggle" type="button" data-history-toggle="true">Xem lịch sử</button><div class="history-content hidden"></div>`;
+}
+
+function updateHistoryView() {
+  const panel = $('#historyPanel');
+  if (!panel) return;
+  const content = panel.querySelector('.history-content');
+  const toggle = panel.querySelector('[data-history-toggle]');
+  content.classList.toggle('hidden', !historyState.visible);
+  toggle.textContent = historyState.visible ? 'Ẩn lịch sử' : 'Xem lịch sử';
+  if (!historyState.visible) return;
+  if (historyState.loading) {
+    content.innerHTML = '<div class="history-loading">Đang tải lịch sử...</div>';
+    return;
+  }
+  if (historyState.error) {
+    content.innerHTML = `<div class="history-error">${historyState.error}</div>`;
+    return;
+  }
+  if (!historyState.data) {
+    content.innerHTML = '<div class="history-loading">Chưa có dữ liệu lịch sử.</div>';
+    return;
+  }
+  const renderMore = (type, limit) => {
+    const items = type === 'assignment' ? historyState.data.assignmentHistory : historyState.data.warrantyHistory;
+    const ordered = (Array.isArray(items) ? items : []).slice().reverse();
+    const visibleItems = ordered.slice(0, limit);
+    return (visibleItems.length
+      ? visibleItems.map((item) => `<div class="history-entry">${formatDate(item.at)}</div>`).join('')
+      : '<span class="muted">Chưa có lịch sử.</span>')
+      + (visibleItems.length < ordered.length ? `<button class="button button-secondary history-more" type="button" data-history-more="${type}">Tiếp tục</button>` : '');
+  };
+  content.innerHTML = `<div class="history-grid"><div><div class="history-label">Thời gian nhập acc</div><div class="history-list">${renderMore('assignment', historyState.assignmentLimit)}</div></div><div><div class="history-label">Thời gian bảo hành tự động</div><div class="history-list">${renderMore('warranty', historyState.warrantyLimit)}</div></div></div>`;
+}
+
+async function loadHistory() {
+  const linkId = historyState.linkId;
+  if (!linkId || historyState.loading || historyState.data) return;
+  historyState.loading = true;
+  historyState.error = '';
+  updateHistoryView();
+  try {
+    const response = await api(`/api/capcut/links/${encodeURIComponent(linkId)}/history`);
+    if (historyState.linkId !== linkId) return;
+    const history = response.link || {};
+    historyState.data = {
+      assignmentHistory: Array.isArray(history.assignmentHistory) ? history.assignmentHistory : [],
+      warrantyHistory: Array.isArray(history.warrantyHistory) ? history.warrantyHistory : []
+    };
+    current.assignmentCount = Number(history.assignmentCount || historyState.data.assignmentHistory.length);
+    current.warrantyCount = Number(history.warrantyCount || historyState.data.warrantyHistory.length);
+    panelCount('#historyPanel [data-history-count="assignment"]', current.assignmentCount);
+    panelCount('#historyPanel [data-history-count="warranty"]', current.warrantyCount);
+  } catch (error) {
+    if (historyState.linkId === linkId) historyState.error = error.message || 'Không tải được lịch sử.';
+  } finally {
+    if (historyState.linkId === linkId) {
+      historyState.loading = false;
+      updateHistoryView();
+    }
+  }
+}
+
+function panelCount(selector, value) {
+  const node = $(selector);
+  if (node) node.textContent = String(value);
+}
+
 function renderResult(link, subtitle = 'Link đã được tạo.') {
   current = link || null;
   $('#resultCard').classList.remove('hidden');
@@ -74,6 +157,7 @@ function renderResult(link, subtitle = 'Link đã được tạo.') {
   $('#accountUsername').value = assigned ? link.username : '';
   $('#accountPassword').value = assigned ? link.password : '';
   $('#assign').disabled = Boolean(link?.expired);
+  renderHistory(link);
 }
 
 async function loadConfig() {
@@ -135,11 +219,13 @@ async function createLink(assignImmediately = true) {
   try {
     const data = await api('/api/capcut/links', { method: 'POST', body: JSON.stringify({ addDays: days, expiryDate, assignImmediately }) });
     renderResult(data.link, data.assignmentError ? 'Link đã tạo nhưng chưa nhập được tài khoản.' : (assignImmediately ? 'Link đã tạo và nhập tài khoản.' : 'Link đã tạo, chưa nhập tài khoản.'));
+    await copyValue(data.link?.shareUrl || '', $('#copyLink'));
+    setMessage('#createState', 'Đã tạo link và tự động copy link.', 'success');
     if (popup && data.link?.shareUrl) popup.location.href = data.link.shareUrl;
     if (data.assignmentError) {
       setAlert(data.assignmentError);
       setMessage('#createState', 'Link vẫn được giữ lại; có thể nhập tài khoản từ tab mới sau.', 'error');
-    } else setMessage('#createState', 'Đã tạo link thành công.', 'success');
+    } else setMessage('#createState', 'Đã tạo link và tự động copy link.', 'success');
   } catch (error) {
     if (popup && !popup.closed) popup.close();
     setMessage('#createState', error.message, 'error');
@@ -212,7 +298,18 @@ async function testSheet() {
 
 async function copyValue(value, button) {
   try {
-    await navigator.clipboard.writeText(value || '');
+    const text = value || '';
+    if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(text);
+    else {
+      const helper = document.createElement('textarea');
+      helper.value = text;
+      helper.style.position = 'fixed';
+      helper.style.opacity = '0';
+      document.body.appendChild(helper);
+      helper.select();
+      document.execCommand('copy');
+      helper.remove();
+    }
     const original = button.textContent;
     button.textContent = 'Đã copy';
     setTimeout(() => { button.textContent = original; }, 1200);
@@ -235,4 +332,16 @@ $('#copyLink').addEventListener('click', (event) => copyValue($('#linkOutput').v
 document.addEventListener('click', (event) => {
   const button = event.target.closest('[data-copy]');
   if (button) copyValue($(`#${button.dataset.copy}`).value, button);
+  const historyToggle = event.target.closest('[data-history-toggle]');
+  if (historyToggle) {
+    historyState.visible = !historyState.visible;
+    updateHistoryView();
+    if (historyState.visible) loadHistory();
+  }
+  const historyMore = event.target.closest('[data-history-more]');
+  if (historyMore) {
+    if (historyMore.dataset.historyMore === 'assignment') historyState.assignmentLimit += 10;
+    if (historyMore.dataset.historyMore === 'warranty') historyState.warrantyLimit += 10;
+    updateHistoryView();
+  }
 });
