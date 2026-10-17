@@ -5305,28 +5305,53 @@ async function creatorCheckAllShareCookies() {
     }
 }
 
-function useShareCookieSlotForRuntime(slotKey) {
-    const cookies = getShareCookiesForCurrentMode();
-    const cookieRaw = normalizeCookie(cookies[slotKey] || '');
-    if (!cookieRaw) {
-        setAdminSearchState('Không có tài khoản để áp dụng.', 'warning');
-        return;
-    }
-    setRuntimeCookie(cookieRaw, { source: 'admin' });
-    refreshRuntimeProfilesForCurrentCookie().catch(() => setRuntimeProfiles('Không rõ'));
-    setAdminSearchState(`Đã áp dụng ${slotKey === 'primary' ? 'tài khoản chính' : (slotKey === 'backup1' ? 'tài khoản phụ 1' : 'tài khoản phụ 2')} vào runtime.`, 'success');
-}
+async function createDesktopLinkFromCookieSlot(slotKey, slotConfigs, options = {}) {
+    const slot = slotConfigs.find((item) => item.key === slotKey);
+    if (!slot) return false;
 
-function useCreatedShareCookieSlotForRuntime(slotKey) {
-    const cookies = getCreatedShareEditableCookies();
+    const cookies = options.created
+        ? getCreatedShareEditableCookies()
+        : getShareCookiesForCurrentMode();
     const cookieRaw = normalizeCookie(cookies[slotKey] || '');
+    const setState = options.created ? setShareState : setAdminSearchState;
+    const button = el(slot.viewUseBtnId);
+
     if (!cookieRaw) {
-        setShareState('Không có tài khoản để áp dụng.', 'warning');
-        return;
+        setState('Ô tài khoản đang để trống, không thể tạo link.', 'warning');
+        showToast('Ô tài khoản đang để trống.', 'warn');
+        return false;
     }
-    setRuntimeCookie(cookieRaw, { source: 'admin' });
-    refreshRuntimeProfilesForCurrentCookie().catch(() => setRuntimeProfiles('Không rõ'));
-    setShareState(`Đã áp dụng ${slotKey === 'primary' ? 'tài khoản chính' : (slotKey === 'backup1' ? 'tài khoản phụ 1' : 'tài khoản phụ 2')} vào runtime.`, 'success');
+
+    setButtonBusy(button, true, 'Đang tạo...');
+    setState('Đang tạo link máy tính...', 'loading');
+    try {
+        const data = await apiRequest('/api/nf-cookie-to-link', 'POST', {
+            cookieStr: cookieRaw,
+            device: 'desktop'
+        });
+        const url = String(data && data.url || '').trim();
+        if (!url) throw new Error('Không tạo được link máy tính.');
+
+        const copied = await copyText(
+            url,
+            'Đã tạo và tự động sao chép link máy tính.',
+            'Đã tạo link máy tính nhưng không copy được. Hãy thử lại hoặc copy thủ công.'
+        );
+        setState(
+            copied
+                ? 'Đã tạo và sao chép link máy tính vào clipboard.'
+                : 'Đã tạo link máy tính nhưng không copy được vào clipboard.',
+            copied ? 'success' : 'warning'
+        );
+        return copied;
+    } catch (error) {
+        const message = error && error.message ? error.message : 'Không tạo được link máy tính.';
+        setState(message, 'error');
+        showToast(message, 'bad');
+        return false;
+    } finally {
+        setButtonBusy(button, false);
+    }
 }
 
 async function adminRotateId() {
@@ -5806,14 +5831,14 @@ function bindEvents() {
         const viewCheckBtn = el(slot.viewCheckBtnId);
         if (viewCheckBtn) viewCheckBtn.addEventListener('click', () => adminCheckCookieSlot(slot.key));
         const viewUseBtn = el(slot.viewUseBtnId);
-        if (viewUseBtn) viewUseBtn.addEventListener('click', () => useShareCookieSlotForRuntime(slot.key));
+        if (viewUseBtn) viewUseBtn.addEventListener('click', () => createDesktopLinkFromCookieSlot(slot.key, SHARE_COOKIE_SLOTS));
     });
 
     CREATED_SHARE_COOKIE_SLOTS.forEach((slot) => {
         const viewCheckBtn = el(slot.viewCheckBtnId);
         if (viewCheckBtn) viewCheckBtn.addEventListener('click', () => creatorCheckCookieSlot(slot.key));
         const viewUseBtn = el(slot.viewUseBtnId);
-        if (viewUseBtn) viewUseBtn.addEventListener('click', () => useCreatedShareCookieSlotForRuntime(slot.key));
+        if (viewUseBtn) viewUseBtn.addEventListener('click', () => createDesktopLinkFromCookieSlot(slot.key, CREATED_SHARE_COOKIE_SLOTS, { created: true }));
         const input = el(slot.viewInputId);
         if (input) {
             input.addEventListener('keydown', (event) => {
