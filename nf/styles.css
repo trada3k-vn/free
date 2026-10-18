@@ -1126,7 +1126,7 @@ body.nf-locked .nf-shell {
     position: fixed;
     right: 1rem;
     bottom: 1rem;
-    z-index: 60;
+    z-index: 110001;
     border-radius: 10px;
     padding: 0.62rem 0.75rem;
     font-size: 0.84rem;
@@ -1306,17 +1306,28 @@ body.nf-locked .nf-shell {
 }
 
 .mobile-guide-link-text {
+    appearance: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    cursor: pointer;
     color: #67e8f9;
     font-weight: 700;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+    background: transparent;
 }
 
-.mobile-guide-copy-btn {
-    min-height: 36px;
-    padding: 0.52rem 0.72rem;
-    font-size: 0.8rem;
-    font-weight: 700;
-    white-space: nowrap;
-    margin-top: 0;
+.mobile-guide-link-text:hover,
+.mobile-guide-link-text:focus-visible {
+    color: #a5f3fc;
+}
+
+.mobile-guide-link-text:focus-visible {
+    outline: 2px solid rgba(103, 232, 249, 0.85);
+    outline-offset: 3px;
+    border-radius: 3px;
 }
 
 .mobile-link-guide .mobile-link-note {
@@ -1381,10 +1392,6 @@ body.nf-locked .nf-shell {
     }
 
     .btn-support {
-        width: 100%;
-    }
-
-    .mobile-guide-copy-btn {
         width: 100%;
     }
 

@@ -823,36 +823,37 @@ function renderWarningBanner() {
     }
 }
 
-function renderCopyGuideSteps(containerId, steps = [], copyButtonId = '', copyButtonText = '', copyValue = '') {
+function renderCopyGuideSteps(containerId, steps = [], copyValue = '') {
     const container = el(containerId);
     if (!container) return;
     container.innerHTML = '';
     const list = Array.isArray(steps) && steps.length > 0 ? steps : [];
+    const copyTarget = String(copyValue || '').trim();
+    const copyLabel = copyTarget.replace(/^https?:\/\//i, '').replace(/^www\./i, '');
     list.forEach((step, index) => {
         const text = String(step || '').trim();
         if (!text) return;
-        const shouldShowCopy = !!copyButtonId && index === 3;
-        if (shouldShowCopy) {
-            const row = document.createElement('div');
-            row.className = 'mobile-link-guide-row';
-            const p = document.createElement('p');
-            p.className = 'mobile-link-guide-step';
-            p.textContent = text;
-            const btn = document.createElement('button');
-            btn.id = copyButtonId;
-            btn.className = 'btn btn-ghost mobile-guide-copy-btn';
-            btn.type = 'button';
-            btn.textContent = String(copyButtonText || 'Sao chép link').trim();
-            btn.addEventListener('click', async () => {
-                await copyText(copyValue, `Đã sao chép ${copyValue}.`);
-            });
-            row.appendChild(p);
-            row.appendChild(btn);
-            container.appendChild(row);
-            return;
-        }
         const p = document.createElement('p');
-        p.textContent = text;
+        if (copyTarget && copyLabel) {
+            const match = text.match(new RegExp(copyLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'));
+            if (match && typeof match.index === 'number') {
+                p.appendChild(document.createTextNode(text.slice(0, match.index)));
+                const link = document.createElement('button');
+                link.type = 'button';
+                link.className = 'mobile-guide-link-text';
+                link.textContent = match[0];
+                link.setAttribute('aria-label', `Sao chép ${match[0]}`);
+                link.addEventListener('click', async () => {
+                    await copyText(copyTarget, `Đã sao chép ${copyLabel}.`);
+                });
+                p.appendChild(link);
+                p.appendChild(document.createTextNode(text.slice(match.index + match[0].length)));
+            } else {
+                p.textContent = text;
+            }
+        } else {
+            p.textContent = text;
+        }
         container.appendChild(p);
     });
 }
@@ -3334,7 +3335,7 @@ function openMobileLinkModal(url, mobileOs = 'android') {
     setText('mobileLinkEyebrow', guide.eyebrow);
     setText('mobileLinkTitle', guide.modalTitle);
     setText('mobileGuideTitle', guide.guideTitle);
-    renderCopyGuideSteps('mobileGuideSteps', guide.steps, 'copyUnsupportedLinkBtn', guide.copyUnsupportedText, UNSUPPORTED_URL);
+    renderCopyGuideSteps('mobileGuideSteps', guide.steps, UNSUPPORTED_URL);
 
     modal.classList.remove('hidden');
     modal.setAttribute('aria-hidden', 'false');
@@ -3375,7 +3376,7 @@ function openTvGuideModal(url = '') {
     setText('tvGuideEyebrow', guide.eyebrow);
     setText('tvGuideTitle', guide.modalTitle);
     setText('tvGuideHeading', guide.guideTitle);
-    renderCopyGuideSteps('tvGuideSteps', guide.steps, 'copyTv2LinkBtn', guide.copyTv2Text, TV2_URL);
+    renderCopyGuideSteps('tvGuideSteps', guide.steps, TV2_URL);
     if (!modal) return;
     modal.classList.remove('hidden');
     modal.setAttribute('aria-hidden', 'false');
@@ -5625,13 +5626,6 @@ function bindEvents() {
         });
     }
 
-    const copyUnsupportedLinkBtn = el('copyUnsupportedLinkBtn');
-    if (copyUnsupportedLinkBtn) {
-        copyUnsupportedLinkBtn.addEventListener('click', async () => {
-            await copyText(UNSUPPORTED_URL, 'Đã sao chép netflix.com/unsupported.');
-        });
-    }
-
     const tvGuideModal = el('tvGuideModal');
     if (tvGuideModal) {
         tvGuideModal.addEventListener('click', (event) => {
@@ -5654,13 +5648,6 @@ function bindEvents() {
                 return;
             }
             await copyText(link, 'Đã sao chép link đăng nhập TV.');
-        });
-    }
-
-    const copyTv2LinkBtn = el('copyTv2LinkBtn');
-    if (copyTv2LinkBtn) {
-        copyTv2LinkBtn.addEventListener('click', async () => {
-            await copyText(TV2_URL, 'Đã sao chép netflix.com/tv2.');
         });
     }
 
