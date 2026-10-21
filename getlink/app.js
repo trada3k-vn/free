@@ -218,6 +218,9 @@ let currentAdminShare = null;
 let currentFixHistory = null;
 let fixHistoryExpanded = false;
 let fixHistorySort = 'desc';
+let globalFixHistory = null;
+let globalFixHistoryExpanded = false;
+let globalFixHistorySort = 'desc';
 let createdAdminShare = null;
 let pendingShareIdFromUrl = '';
 let autoLoadedAdminShareId = '';
@@ -4569,6 +4572,7 @@ function renderAdminWorkspace() {
     const adminTabBar = el('adminTabBar');
     const adminTabSearchBtn = el('adminTabSearchBtn');
     const adminTabCreateBtn = el('adminTabCreateBtn');
+    const globalFixHistoryBox = el('adminGlobalFixHistoryBox');
     const shareCreatorBox = el('shareCreatorBox');
     const cookieInfoPanel = el('adminCookieInfoPanel');
     const cookieInfoTitle = el('adminCookieInfoTitle');
@@ -4589,6 +4593,7 @@ function renderAdminWorkspace() {
     if (workspace) workspace.classList.toggle('hidden', !adminAuthenticated);
     if (inlineLayout) inlineLayout.classList.toggle('hidden', !adminAuthenticated);
     if (adminTabBar) adminTabBar.classList.toggle('hidden', !adminAuthenticated);
+    if (globalFixHistoryBox) globalFixHistoryBox.classList.toggle('hidden', !adminAuthenticated);
     if (adminTabSearchBtn) {
         adminTabSearchBtn.classList.toggle('is-active', adminAuthenticated && activeTab === 'search');
         adminTabSearchBtn.setAttribute('aria-selected', adminAuthenticated && activeTab === 'search' ? 'true' : 'false');
@@ -4622,6 +4627,10 @@ function renderAdminWorkspace() {
         adminTabManuallySelected = false;
         isInlineEditMode = false;
         createdAdminShare = null;
+        globalFixHistory = null;
+        globalFixHistoryExpanded = false;
+        globalFixHistorySort = 'desc';
+        renderGlobalFixHistory(null);
         renderCookieCheckCards([]);
         renderCreatorCookieCheckCards([]);
         setCreatorCookieInfoState('Tạo hoặc cập nhật tài khoản rồi bấm check để xem kết quả ngay tại đây.', 'idle');
@@ -4753,9 +4762,110 @@ function renderFixHistory(history = null) {
     }).join('');
 }
 
+function renderGlobalFixHistory(history = globalFixHistory) {
+    const summary = el('adminGlobalFixHistorySummary');
+    const list = el('adminGlobalFixHistoryList');
+    const content = el('adminGlobalFixHistoryContent');
+    const toggle = el('adminGlobalFixHistoryToggleBtn');
+    globalFixHistory = history;
+
+    if (!adminAuthenticated) {
+        if (summary) summary.textContent = 'Bấm Xem lịch sử để tải dữ liệu.';
+        if (list) list.innerHTML = '';
+        if (content) content.classList.add('hidden');
+        if (toggle) toggle.textContent = 'Xem lịch sử';
+        return;
+    }
+
+    const counts = history && history.counts ? history.counts : { overload: 0, household: 0, total: 0 };
+    const linkCount = Number(history && history.linkCount || 0);
+    if (summary) {
+        summary.textContent = history
+            ? `Quá tải: ${Number(counts.overload || 0)} lần • Hộ gia đình: ${Number(counts.household || 0)} lần • Tổng: ${Number(counts.total || 0)} lần • ${linkCount} link`
+            : 'Bấm Xem lịch sử để tải dữ liệu.';
+    }
+    if (content) content.classList.toggle('hidden', !globalFixHistoryExpanded);
+    if (toggle) toggle.textContent = globalFixHistoryExpanded ? 'Thu gọn' : 'Xem lịch sử';
+    if (!list || !globalFixHistoryExpanded || !history) return;
+
+    const items = Array.isArray(history.items) ? history.items : [];
+    if (items.length === 0) {
+        list.innerHTML = '<p class="admin-warning">Chưa có lần sửa lỗi thành công nào.</p>';
+        return;
+    }
+
+    list.innerHTML = items.map((item) => {
+        const mode = String(item && item.fixMode || '').trim() === 'household'
+            ? 'Sửa lỗi hộ gia đình'
+            : 'Sửa lỗi quá tải';
+        const timestamp = item && (item.completedAt || item.startedAt);
+        const shareId = String(item && item.shareId || '').trim();
+        const shareUrl = String(item && item.shareUrl || '').trim();
+        const link = shareUrl
+            ? `<a href="${escapeHtml(shareUrl)}" target="_blank" rel="noopener">${escapeHtml(shareId)}</a>`
+            : escapeHtml(shareId);
+        return `
+            <div class="admin-fix-history-row">
+                <div>
+                    <strong>${escapeHtml(mode)} · ${link}</strong>
+                    <span>Hoàn tất: ${escapeHtml(formatFixHistoryDateTime(timestamp))}</span>
+                </div>
+                <span>Thành công</span>
+            </div>
+        `;
+    }).join('');
+}
+
+async function loadGlobalFixHistory(options = {}) {
+    if (!adminAuthenticated) return;
+    const previousSort = globalFixHistorySort;
+    const sort = options.sort === 'asc' || options.sort === 'desc' ? options.sort : globalFixHistorySort;
+    const shouldReload = options.force === true || !globalFixHistory || sort !== previousSort;
+    globalFixHistorySort = sort;
+    const select = el('adminGlobalFixHistorySortSelect');
+    if (select) select.value = sort;
+    if (!shouldReload) {
+        renderGlobalFixHistory(globalFixHistory);
+        return;
+    }
+    const state = el('adminGlobalFixHistoryState');
+    if (state) {
+        state.textContent = 'Đang tải lịch sử sửa lỗi...';
+        setStateClass(state, 'loading');
+    }
+    try {
+        const data = await apiRequest(`/api/getlink-admin/fix-history?sort=${encodeURIComponent(sort)}`, 'GET');
+        renderGlobalFixHistory(data || { items: [], counts: { overload: 0, household: 0, total: 0 }, linkCount: 0 });
+        if (state) {
+            state.textContent = Array.isArray(data && data.items) && data.items.length > 0
+                ? `Đã tải ${data.items.length} lần sửa lỗi thành công.`
+                : 'Chưa có lịch sử sửa lỗi thành công.';
+            setStateClass(state, 'success');
+        }
+    } catch (error) {
+        if (state) {
+            state.textContent = error.message || 'Không tải được lịch sử sửa lỗi.';
+            setStateClass(state, 'error');
+        }
+        renderGlobalFixHistory(null);
+    }
+}
+
+async function toggleGlobalFixHistory() {
+    if (!adminAuthenticated) return;
+    globalFixHistoryExpanded = !globalFixHistoryExpanded;
+    renderGlobalFixHistory(globalFixHistory);
+    if (globalFixHistoryExpanded) await loadGlobalFixHistory();
+}
+
 async function loadFixHistory(options = {}) {
     if (!adminAuthenticated || !currentAdminShare || !currentAdminShare.id) return;
+    const previousSort = fixHistorySort;
     const sort = options.sort === 'asc' || options.sort === 'desc' ? options.sort : fixHistorySort;
+    if (options.force !== true && currentFixHistory && sort === previousSort) {
+        renderFixHistory(currentFixHistory);
+        return;
+    }
     fixHistorySort = sort;
     const select = el('adminFixHistorySortSelect');
     if (select) select.value = sort;
@@ -4792,7 +4902,7 @@ async function adminResetFixLimit() {
     try {
         await apiRequest(`/api/getlink-admin/shares/${encodeURIComponent(currentAdminShare.id)}/fix-limit-reset`, 'POST');
         setFixHistoryState('Đã reset limit sửa lỗi cho link này.', 'success');
-        await loadFixHistory({ sort: fixHistorySort });
+        await loadFixHistory({ sort: fixHistorySort, force: true });
     } catch (error) {
         setFixHistoryState(error.message || 'Không reset được limit sửa lỗi.', 'error');
     } finally {
@@ -4877,7 +4987,6 @@ function renderAdminShare(share = null) {
     setInlineEditMode(isInlineEditMode && isViewingPendingShare());
 
     card.classList.remove('hidden');
-    if (adminAuthenticated) loadFixHistory({ sort: fixHistorySort });
 }
 
 async function adminSaveExpiry(payload = null, options = {}) {
@@ -5687,7 +5796,7 @@ function bindEvents() {
     if (adminFixHistoryToggleBtn) adminFixHistoryToggleBtn.addEventListener('click', toggleFixHistory);
 
     const adminFixHistoryReloadBtn = el('adminFixHistoryReloadBtn');
-    if (adminFixHistoryReloadBtn) adminFixHistoryReloadBtn.addEventListener('click', () => loadFixHistory());
+    if (adminFixHistoryReloadBtn) adminFixHistoryReloadBtn.addEventListener('click', () => loadFixHistory({ force: true }));
 
     const adminFixLimitResetBtn = el('adminFixLimitResetBtn');
     if (adminFixLimitResetBtn) adminFixLimitResetBtn.addEventListener('click', adminResetFixLimit);
@@ -5696,6 +5805,22 @@ function bindEvents() {
     if (adminFixHistorySortSelect) {
         adminFixHistorySortSelect.addEventListener('change', () => loadFixHistory({
             sort: adminFixHistorySortSelect.value
+        }));
+    }
+
+    const adminGlobalFixHistoryToggleBtn = el('adminGlobalFixHistoryToggleBtn');
+    if (adminGlobalFixHistoryToggleBtn) adminGlobalFixHistoryToggleBtn.addEventListener('click', toggleGlobalFixHistory);
+
+    const adminGlobalFixHistoryReloadBtn = el('adminGlobalFixHistoryReloadBtn');
+    if (adminGlobalFixHistoryReloadBtn) {
+        adminGlobalFixHistoryReloadBtn.addEventListener('click', () => loadGlobalFixHistory({ force: true }));
+    }
+
+    const adminGlobalFixHistorySortSelect = el('adminGlobalFixHistorySortSelect');
+    if (adminGlobalFixHistorySortSelect) {
+        adminGlobalFixHistorySortSelect.addEventListener('change', () => loadGlobalFixHistory({
+            sort: adminGlobalFixHistorySortSelect.value,
+            force: true
         }));
     }
 

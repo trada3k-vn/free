@@ -327,6 +327,31 @@ async function listSuccessfulFixHistory(shareId = '', sort = 'desc') {
     return { items, counts, limit, sort: direction };
 }
 
+async function listAllSuccessfulFixHistory(sort = 'desc') {
+    const docs = await listDocs();
+    const items = docs
+        .map((doc) => mapFieldsToRecord(doc && doc.fields ? doc.fields : {}))
+        .filter((item) => item.status === 'success' && item.shareId);
+    const direction = String(sort || '').toLowerCase() === 'asc' ? 'asc' : 'desc';
+    items.sort((a, b) => {
+        const aMs = Date.parse(a.completedAt || a.startedAt || '') || 0;
+        const bMs = Date.parse(b.completedAt || b.startedAt || '') || 0;
+        return direction === 'asc' ? aMs - bMs : bMs - aMs;
+    });
+
+    const counts = {
+        overload: items.filter((item) => item.fixMode === 'overload').length,
+        household: items.filter((item) => item.fixMode === 'household').length,
+        total: items.length
+    };
+    return {
+        items,
+        counts,
+        linkCount: new Set(items.map((item) => item.shareId)).size,
+        sort: direction
+    };
+}
+
 module.exports = {
     COLL_GETLINK_FIX_HISTORY,
     COLL_GETLINK_FIX_LIMITS,
@@ -335,5 +360,6 @@ module.exports = {
     getFixLimitState,
     assertFixLimitAllowed,
     resetFixLimit,
-    listSuccessfulFixHistory
+    listSuccessfulFixHistory,
+    listAllSuccessfulFixHistory
 };

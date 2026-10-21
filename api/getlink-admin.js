@@ -30,7 +30,7 @@ const {
     resolveAppsScriptUrlOrThrow: validateAppsScriptUrl,
     requestAppsScriptJsonWithRetry
 } = require('./_getlink-apps-script-client');
-const { listSuccessfulFixHistory, resetFixLimit, getFixLimitState } = require('./_getlink-fix-history-store');
+const { listSuccessfulFixHistory, listAllSuccessfulFixHistory, resetFixLimit, getFixLimitState } = require('./_getlink-fix-history-store');
 
 const FIREBASE_API_KEY = String(process.env.FIREBASE_API_KEY || 'AIzaSyAVV-3HxGFpT_eiAri1SGPWGwu3EL8On58').trim();
 const ENV_GETLINK_SHEET_APPS_SCRIPT_URL = String(process.env.GETLINK_SHEET_APPS_SCRIPT_URL || '').trim();
@@ -707,6 +707,21 @@ module.exports = async function (req, res) {
                 success: true,
                 shareId,
                 ...history
+            });
+        }
+
+        if (pathname === '/api/getlink-admin/fix-history' && req.method === 'GET') {
+            const parsedUrl = new URL(req.url, 'http://localhost');
+            const sort = String(parsedUrl.searchParams.get('sort') || 'desc').toLowerCase() === 'asc' ? 'asc' : 'desc';
+            const history = await listAllSuccessfulFixHistory(sort);
+            const origin = getOrigin(req);
+            return res.status(200).json({
+                success: true,
+                ...history,
+                items: history.items.map((item) => ({
+                    ...item,
+                    shareUrl: `${origin}/getlink?s=${encodeURIComponent(item.shareId)}`
+                }))
             });
         }
 
