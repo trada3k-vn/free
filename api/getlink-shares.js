@@ -245,6 +245,7 @@ module.exports = async function (req, res) {
                 await recordSuccessfulFix({
                     shareId,
                     fixMode: 'overload',
+                    sheetImported: false,
                     operationId: `legacy-${Date.now()}`,
                     startedAt: fixStartedAt,
                     completedAt: new Date().toISOString(),
@@ -298,6 +299,7 @@ module.exports = async function (req, res) {
                         await recordSuccessfulFix({
                             shareId,
                             fixMode,
+                            sheetImported: false,
                             operationId: `direct-${Date.now()}`,
                             startedAt: fixStartedAt,
                             completedAt: new Date().toISOString(),

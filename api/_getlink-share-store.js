@@ -5,6 +5,7 @@ const FIREBASE_PROJECT_ID = 'trada3k-c402a';
 const FIREBASE_API_KEY = 'AIzaSyAVV-3HxGFpT_eiAri1SGPWGwu3EL8On58';
 const COLL_GETLINK_SHARES = 'settings/getlink_shares/items';
 const SHARE_COOKIE_SLOTS = ['primary', 'backup1', 'backup2'];
+const SHARE_ID_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 const MAX_SHARE_NOTE_LENGTH = 1000;
 
 function httpRequest(options, body) {
@@ -233,7 +234,16 @@ function isValidShareId(id = '') {
 }
 
 function generateRandomShareId() {
-    return crypto.randomBytes(12).toString('base64url').slice(0, 16);
+    let id = '';
+    while (id.length < 16) {
+        const bytes = crypto.randomBytes(24);
+        for (const byte of bytes) {
+            if (byte >= 248) continue;
+            id += SHARE_ID_ALPHABET[byte % SHARE_ID_ALPHABET.length];
+            if (id.length >= 16) break;
+        }
+    }
+    return id;
 }
 
 function extractShareIdFromQuery(query = '') {

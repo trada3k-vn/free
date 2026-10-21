@@ -263,6 +263,7 @@ function normalizeSheetImportState(input = {}, slotsFallback = []) {
         nextStartRow: Math.max(1, Number(source.nextStartRow || 1) || 1),
         scannedPhysicalRows: Math.max(0, Number(source.scannedPhysicalRows || 0) || 0),
         hasMore: source.hasMore !== undefined ? Boolean(source.hasMore) : true,
+        historyRecorded: source.historyRecorded === true,
         phase: String(source.phase || 'pending').trim() || 'pending',
         message: String(source.message || '').trim(),
         timings: normalizeTimings(source.timings),

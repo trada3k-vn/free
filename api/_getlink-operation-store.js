@@ -649,6 +649,29 @@ async function advanceGetlinkOperation(operationInput = {}) {
             nextState.phase = 'completed';
             nextState.message = 'Da cap nhat 1 tai khoan hop le cho link.';
             nextResult = buildSheetImportResult(nextState);
+
+            if (nextResult.status === 'completed'
+                && nextState.shareUpdated === true
+                && nextState.historyRecorded !== true) {
+                operation.state = nextState;
+                operation.phase = nextState.phase || nextResult.phase || '';
+                operation.message = nextState.message || nextResult.message || '';
+                operation.status = 'completed';
+                try {
+                    await recordSuccessfulFix({
+                        shareId: operation.shareId,
+                        fixMode: 'auto',
+                        sheetImported: true,
+                        operationId: operation.id,
+                        startedAt: operation.createdAt,
+                        completedAt: new Date().toISOString(),
+                        actor: 'guest'
+                    });
+                    nextState.historyRecorded = true;
+                } catch (_historyError) {
+                    nextState.historyRecorded = false;
+                }
+            }
         }
 
         if (operation.type === 'overload_fix') {
@@ -741,6 +764,7 @@ async function advanceGetlinkOperation(operationInput = {}) {
                     await recordSuccessfulFix({
                         shareId: operation.shareId,
                         fixMode: nextState.fixMode,
+                        sheetImported: true,
                         operationId: operation.id,
                         startedAt: operation.createdAt,
                         completedAt: new Date().toISOString(),

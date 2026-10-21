@@ -5,7 +5,7 @@ const FIREBASE_PROJECT_ID = 'trada3k-c402a';
 const FIREBASE_API_KEY = 'AIzaSyAVV-3HxGFpT_eiAri1SGPWGwu3EL8On58';
 const COLL_GETLINK_FIX_HISTORY = 'settings/getlink_fix_history/items';
 const COLL_GETLINK_FIX_LIMITS = 'settings/getlink_fix_limits/items';
-const FIX_MODES = new Set(['overload', 'household']);
+const FIX_MODES = new Set(['overload', 'household', 'auto']);
 const FIX_LIMIT_MAX_24H = 4;
 const FIX_LIMIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 const FIX_LIMIT_COOLDOWN_MS = 5 * 60 * 1000;
@@ -39,9 +39,20 @@ function toStringValue(value = '') {
     return { stringValue: String(value || '') };
 }
 
+function toBooleanValue(value = null) {
+    if (value === null || value === undefined) return { nullValue: null };
+    return { booleanValue: value === true };
+}
+
 function parseFirestoreString(valueObj = null) {
     if (!valueObj || typeof valueObj !== 'object') return '';
     return typeof valueObj.stringValue === 'string' ? valueObj.stringValue : '';
+}
+
+function parseFirestoreBoolean(valueObj = null) {
+    if (!valueObj || typeof valueObj !== 'object') return null;
+    if (typeof valueObj.booleanValue === 'boolean') return valueObj.booleanValue;
+    return Object.prototype.hasOwnProperty.call(valueObj, 'nullValue') ? null : null;
 }
 
 function normalizeFixMode(value = '') {
@@ -77,7 +88,8 @@ function mapFieldsToRecord(fields = {}) {
         operationId: parseFirestoreString(fields.operationId),
         startedAt: parseFirestoreString(fields.startedAt),
         completedAt: parseFirestoreString(fields.completedAt),
-        actor: parseFirestoreString(fields.actor)
+        actor: parseFirestoreString(fields.actor),
+        sheetImported: parseFirestoreBoolean(fields.sheetImported)
     };
 }
 
@@ -90,7 +102,8 @@ function mapRecordToFields(record = {}) {
         operationId: toStringValue(record.operationId),
         startedAt: toStringValue(record.startedAt),
         completedAt: toStringValue(record.completedAt),
-        actor: toStringValue(record.actor)
+        actor: toStringValue(record.actor),
+        sheetImported: toBooleanValue(record.sheetImported)
     };
 }
 
@@ -194,7 +207,8 @@ async function recordSuccessfulFix(input = {}) {
         operationId: String(input.operationId || '').trim(),
         startedAt: String(input.startedAt || '').trim(),
         completedAt: String(input.completedAt || new Date().toISOString()).trim(),
-        actor: String(input.actor || 'guest').trim()
+        actor: String(input.actor || 'guest').trim(),
+        sheetImported: input.sheetImported === true ? true : input.sheetImported === false ? false : null
     };
     await patchDoc(buildHistoryDocPath(record.id), mapRecordToFields(record));
     return record;
@@ -301,7 +315,7 @@ async function listSuccessfulFixHistory(shareId = '', sort = 'desc') {
     if (!normalizedShareId) {
         return {
             items: [],
-            counts: { overload: 0, household: 0, total: 0 },
+            counts: { overload: 0, household: 0, auto: 0, total: 0 },
             limit: await getFixLimitState(''),
             sort: 'desc'
         };
@@ -320,9 +334,10 @@ async function listSuccessfulFixHistory(shareId = '', sort = 'desc') {
 
     const counts = {
         overload: items.filter((item) => item.fixMode === 'overload').length,
-        household: items.filter((item) => item.fixMode === 'household').length
+        household: items.filter((item) => item.fixMode === 'household').length,
+        auto: items.filter((item) => item.fixMode === 'auto').length
     };
-    counts.total = counts.overload + counts.household;
+    counts.total = counts.overload + counts.household + counts.auto;
     const limit = await getFixLimitState(normalizedShareId);
     return { items, counts, limit, sort: direction };
 }
@@ -342,6 +357,7 @@ async function listAllSuccessfulFixHistory(sort = 'desc') {
     const counts = {
         overload: items.filter((item) => item.fixMode === 'overload').length,
         household: items.filter((item) => item.fixMode === 'household').length,
+        auto: items.filter((item) => item.fixMode === 'auto').length,
         total: items.length
     };
     return {

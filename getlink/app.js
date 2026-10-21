@@ -4686,6 +4686,21 @@ function formatFixHistoryDateTime(value = '') {
     }).format(new Date(ms));
 }
 
+function getFixModeLabel(value = '') {
+    const mode = String(value || '').trim();
+    if (mode === 'household') return 'Sửa lỗi hộ gia đình';
+    if (mode === 'auto') return 'Sửa lỗi tự động';
+    return 'Sửa lỗi quá tải';
+}
+
+function formatSheetImportedText(item = {}) {
+    const mode = String(item && item.fixMode || '').trim();
+    if (mode !== 'overload' && mode !== 'auto') return '';
+    const value = item && item.sheetImported;
+    const label = value === true ? 'Có' : value === false ? 'Không' : 'Chưa ghi nhận';
+    return `Nhập thêm Sheet: ${label}`;
+}
+
 function setFixHistoryState(text, mode = 'idle') {
     const node = el('adminFixHistoryState');
     if (!node) return;
@@ -4725,10 +4740,10 @@ function renderFixHistory(history = null) {
         return;
     }
 
-    const counts = history && history.counts ? history.counts : { overload: 0, household: 0, total: 0 };
+    const counts = history && history.counts ? history.counts : { overload: 0, household: 0, auto: 0, total: 0 };
     const limit = history && history.limit ? history.limit : null;
     if (summary) {
-        const historyText = `Quá tải: ${Number(counts.overload || 0)} lần thành công • Hộ gia đình: ${Number(counts.household || 0)} lần thành công`;
+        const historyText = `Quá tải: ${Number(counts.overload || 0)} lần thành công • Hộ gia đình: ${Number(counts.household || 0)} lần thành công • Tự động: ${Number(counts.auto || 0)} lần thành công`;
         summary.textContent = limit ? `${historyText} • ${formatFixLimitText(limit)}` : historyText;
     }
     if (content) content.classList.toggle('hidden', !fixHistoryExpanded);
@@ -4746,15 +4761,15 @@ function renderFixHistory(history = null) {
     }
 
     list.innerHTML = items.map((item) => {
-        const mode = String(item && item.fixMode || '').trim() === 'household'
-            ? 'Sửa lỗi hộ gia đình'
-            : 'Sửa lỗi quá tải';
+        const mode = getFixModeLabel(item && item.fixMode);
         const timestamp = item && (item.completedAt || item.startedAt);
+        const sheetText = formatSheetImportedText(item);
         return `
             <div class="admin-fix-history-row">
                 <div>
                     <strong>${escapeHtml(mode)}</strong>
                     <span>Hoàn tất: ${escapeHtml(formatFixHistoryDateTime(timestamp))}</span>
+                    ${sheetText ? `<span>${escapeHtml(sheetText)}</span>` : ''}
                 </div>
                 <span>Thành công</span>
             </div>
@@ -4777,11 +4792,11 @@ function renderGlobalFixHistory(history = globalFixHistory) {
         return;
     }
 
-    const counts = history && history.counts ? history.counts : { overload: 0, household: 0, total: 0 };
+    const counts = history && history.counts ? history.counts : { overload: 0, household: 0, auto: 0, total: 0 };
     const linkCount = Number(history && history.linkCount || 0);
     if (summary) {
         summary.textContent = history
-            ? `Quá tải: ${Number(counts.overload || 0)} lần • Hộ gia đình: ${Number(counts.household || 0)} lần • Tổng: ${Number(counts.total || 0)} lần • ${linkCount} link`
+            ? `Quá tải: ${Number(counts.overload || 0)} lần • Hộ gia đình: ${Number(counts.household || 0)} lần • Tự động: ${Number(counts.auto || 0)} lần • Tổng: ${Number(counts.total || 0)} lần • ${linkCount} link`
             : 'Bấm Xem lịch sử để tải dữ liệu.';
     }
     if (content) content.classList.toggle('hidden', !globalFixHistoryExpanded);
@@ -4795,10 +4810,9 @@ function renderGlobalFixHistory(history = globalFixHistory) {
     }
 
     list.innerHTML = items.map((item) => {
-        const mode = String(item && item.fixMode || '').trim() === 'household'
-            ? 'Sửa lỗi hộ gia đình'
-            : 'Sửa lỗi quá tải';
+        const mode = getFixModeLabel(item && item.fixMode);
         const timestamp = item && (item.completedAt || item.startedAt);
+        const sheetText = formatSheetImportedText(item);
         const shareId = String(item && item.shareId || '').trim();
         const shareUrl = String(item && item.shareUrl || '').trim();
         const link = shareUrl
@@ -4809,6 +4823,7 @@ function renderGlobalFixHistory(history = globalFixHistory) {
                 <div>
                     <strong>${escapeHtml(mode)} · ${link}</strong>
                     <span>Hoàn tất: ${escapeHtml(formatFixHistoryDateTime(timestamp))}</span>
+                    ${sheetText ? `<span>${escapeHtml(sheetText)}</span>` : ''}
                 </div>
                 <span>Thành công</span>
             </div>
@@ -4835,7 +4850,7 @@ async function loadGlobalFixHistory(options = {}) {
     }
     try {
         const data = await apiRequest(`/api/getlink-admin/fix-history?sort=${encodeURIComponent(sort)}`, 'GET');
-        renderGlobalFixHistory(data || { items: [], counts: { overload: 0, household: 0, total: 0 }, linkCount: 0 });
+        renderGlobalFixHistory(data || { items: [], counts: { overload: 0, household: 0, auto: 0, total: 0 }, linkCount: 0 });
         if (state) {
             state.textContent = Array.isArray(data && data.items) && data.items.length > 0
                 ? `Đã tải ${data.items.length} lần sửa lỗi thành công.`
@@ -4875,7 +4890,7 @@ async function loadFixHistory(options = {}) {
             `/api/getlink-admin/shares/${encodeURIComponent(currentAdminShare.id)}/fix-history?sort=${encodeURIComponent(sort)}`,
             'GET'
         );
-        renderFixHistory(data || { items: [], counts: { overload: 0, household: 0, total: 0 }, limit: null });
+        renderFixHistory(data || { items: [], counts: { overload: 0, household: 0, auto: 0, total: 0 }, limit: null });
         setFixHistoryState(
             Array.isArray(data && data.items) && data.items.length > 0
                 ? `Đã tải ${data.items.length} lần sửa lỗi thành công.`
@@ -4884,7 +4899,7 @@ async function loadFixHistory(options = {}) {
         );
     } catch (error) {
         setFixHistoryState(error.message || 'Không tải được lịch sử sửa lỗi.', 'error');
-        renderFixHistory({ items: [], counts: { overload: 0, household: 0, total: 0 } });
+        renderFixHistory({ items: [], counts: { overload: 0, household: 0, auto: 0, total: 0 } });
     }
 }
 

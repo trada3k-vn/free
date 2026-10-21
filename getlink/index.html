@@ -694,7 +694,23 @@
         }
 
         .admin-global-fix-history-box {
-            margin: 0.8rem 0;
+            width: 100%;
+            box-sizing: border-box;
+            margin: 1rem 0 0;
+            padding: 0.72rem;
+            border-radius: 12px;
+        }
+
+        .admin-global-fix-history-box .share-box-title {
+            font-size: 0.83rem;
+            font-weight: 800;
+        }
+
+        .admin-global-fix-history-box .text-input,
+        .admin-global-fix-history-box .btn {
+            min-height: 36px;
+            padding: 0.56rem 0.65rem;
+            font-size: 0.78rem;
         }
 
         .admin-global-fix-history-summary {
@@ -1757,29 +1773,6 @@
                         <button id="adminTabSearchBtn" class="btn admin-tab-btn" type="button" data-admin-tab="search" role="tab" aria-selected="true">Tìm/Sửa link</button>
                         <button id="adminTabCreateBtn" class="btn admin-tab-btn" type="button" data-admin-tab="create" role="tab" aria-selected="false">Tạo link</button>
                     </div>
-                    <section id="adminGlobalFixHistoryBox" class="share-box admin-box admin-global-fix-history-box hidden">
-                        <div class="admin-fix-history-head">
-                            <div>
-                                <h3 class="share-box-title">Lịch sử sửa lỗi tất cả link</h3>
-                                <p id="adminGlobalFixHistorySummary" class="admin-global-fix-history-summary">Bấm Xem lịch sử để tải dữ liệu.</p>
-                            </div>
-                            <div class="admin-fix-history-actions">
-                                <button id="adminGlobalFixHistoryToggleBtn" class="btn btn-ghost" type="button">Xem lịch sử</button>
-                            </div>
-                        </div>
-                        <div id="adminGlobalFixHistoryContent" class="hidden">
-                            <div class="admin-fix-history-toolbar">
-                                <label for="adminGlobalFixHistorySortSelect">Sắp xếp</label>
-                                <select id="adminGlobalFixHistorySortSelect" class="text-input">
-                                    <option value="desc">Mới đến cũ</option>
-                                    <option value="asc">Cũ đến mới</option>
-                                </select>
-                                <button id="adminGlobalFixHistoryReloadBtn" class="btn btn-ghost" type="button">Tải lại</button>
-                            </div>
-                            <div id="adminGlobalFixHistoryState" class="state-text state-idle">Bấm Xem lịch sử để tải dữ liệu.</div>
-                            <div id="adminGlobalFixHistoryList" class="admin-fix-history-list"></div>
-                        </div>
-                    </section>
                     <div class="admin-inline-left">
                         <section id="shareCreatorBox" class="share-box admin-box hidden">
                             <h3 class="share-box-title">Tạo link ID server (chỉ admin)</h3>
@@ -2050,6 +2043,30 @@
                 </section>
             </div>
         </section>
+
+                <section id="adminGlobalFixHistoryBox" class="share-box admin-box admin-global-fix-history-box hidden">
+                    <div class="admin-fix-history-head">
+                        <div>
+                            <h3 class="share-box-title">Lịch sử sửa lỗi tất cả link</h3>
+                            <p id="adminGlobalFixHistorySummary" class="admin-global-fix-history-summary">Bấm Xem lịch sử để tải dữ liệu.</p>
+                        </div>
+                        <div class="admin-fix-history-actions">
+                            <button id="adminGlobalFixHistoryToggleBtn" class="btn btn-ghost" type="button">Xem lịch sử</button>
+                        </div>
+                    </div>
+                    <div id="adminGlobalFixHistoryContent" class="hidden">
+                        <div class="admin-fix-history-toolbar">
+                            <label for="adminGlobalFixHistorySortSelect">Sắp xếp</label>
+                            <select id="adminGlobalFixHistorySortSelect" class="text-input">
+                                <option value="desc">Mới đến cũ</option>
+                                <option value="asc">Cũ đến mới</option>
+                            </select>
+                            <button id="adminGlobalFixHistoryReloadBtn" class="btn btn-ghost" type="button">Tải lại</button>
+                        </div>
+                        <div id="adminGlobalFixHistoryState" class="state-text state-idle">Bấm Xem lịch sử để tải dữ liệu.</div>
+                        <div id="adminGlobalFixHistoryList" class="admin-fix-history-list"></div>
+                    </div>
+                </section>
     </main>
 
     <section id="supportModal" class="modal hidden" aria-hidden="true">
