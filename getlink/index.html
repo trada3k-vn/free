@@ -673,24 +673,173 @@
 
         .admin-fix-history-row {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) auto;
-            gap: 0.65rem;
-            align-items: center;
+            gap: 0.35rem;
             padding: 0.6rem 0.7rem;
             border: 1px solid rgba(148, 163, 184, 0.2);
             border-radius: 10px;
             background: rgba(15, 23, 42, 0.38);
         }
 
-        .admin-fix-history-row strong {
-            display: block;
+        .admin-fix-history-row-head,
+        .admin-fix-history-row-meta {
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+            flex-wrap: wrap;
+        }
+
+        .admin-fix-history-row-head {
+            justify-content: space-between;
+        }
+
+        .admin-fix-history-row strong,
+        .admin-fix-history-group summary {
             color: #f8fbff;
             font-size: 0.8rem;
         }
 
-        .admin-fix-history-row span {
+        .admin-fix-history-row-meta > span:not(.admin-fix-history-badge),
+        .admin-fix-history-group-meta {
             color: #c8d5ee;
             font-size: 0.75rem;
+        }
+
+        .admin-fix-history-group {
+            border: 1px solid rgba(148, 163, 184, 0.22);
+            border-radius: 11px;
+            background: rgba(15, 23, 42, 0.42);
+            overflow: hidden;
+        }
+
+        .admin-fix-history-group summary {
+            position: relative;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 0.7rem;
+            align-items: center;
+            padding: 0.65rem 0.75rem 0.65rem 2rem;
+            cursor: pointer;
+            list-style: none;
+        }
+
+        .admin-fix-history-group summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .admin-fix-history-group summary::before {
+            content: '›';
+            position: absolute;
+            left: 0.75rem;
+            top: 50%;
+            color: #9fb4d8;
+            font-size: 1.05rem;
+            font-weight: 800;
+            line-height: 1;
+            margin-top: -0.52rem;
+            transform: rotate(0deg);
+            transition: transform 0.15s ease;
+        }
+
+        .admin-fix-history-group[open] summary::before {
+            transform: rotate(90deg);
+        }
+
+        .admin-fix-history-group summary:hover {
+            background: rgba(51, 65, 85, 0.25);
+        }
+
+        .admin-fix-history-group-title {
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+            min-width: 0;
+        }
+
+        .admin-fix-history-group-title a,
+        .admin-fix-history-link {
+            color: #b9c9ff;
+            text-decoration: none;
+            overflow-wrap: anywhere;
+        }
+
+        .admin-fix-history-group-title a:hover,
+        .admin-fix-history-link:hover {
+            color: #ffffff;
+            text-decoration: underline;
+        }
+
+        .admin-fix-history-group-meta {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 0.35rem;
+            flex-wrap: wrap;
+            text-align: right;
+        }
+
+        .admin-fix-history-badge {
+            display: inline-flex;
+            align-items: center;
+            min-height: 1.35rem;
+            padding: 0.15rem 0.42rem;
+            border: 1px solid rgba(148, 163, 184, 0.28);
+            border-radius: 999px;
+            color: #dce8ff;
+            font-size: 0.7rem;
+            font-weight: 800;
+            line-height: 1.1;
+            white-space: nowrap;
+        }
+
+        .admin-fix-history-badge-overload { color: #ffd6a5; border-color: rgba(251, 146, 60, 0.45); background: rgba(124, 45, 18, 0.25); }
+        .admin-fix-history-badge-household { color: #c4b5fd; border-color: rgba(167, 139, 250, 0.45); background: rgba(76, 29, 149, 0.22); }
+        .admin-fix-history-badge-auto { color: #a7f3d0; border-color: rgba(52, 211, 153, 0.45); background: rgba(6, 78, 59, 0.25); }
+        .admin-fix-history-badge-success { color: #bbf7d0; border-color: rgba(74, 222, 128, 0.45); background: rgba(20, 83, 45, 0.25); }
+        .admin-fix-history-badge-sheet { color: #dbeafe; border-color: rgba(96, 165, 250, 0.4); background: rgba(30, 64, 175, 0.2); }
+
+        .admin-fix-history-group-body {
+            display: grid;
+            gap: 0.4rem;
+            padding: 0 0.55rem 0.55rem 1.85rem;
+        }
+
+        .admin-fix-history-group-body .admin-fix-history-row {
+            padding: 0.5rem 0.6rem;
+            background: rgba(2, 6, 23, 0.28);
+        }
+
+        .admin-fix-history-stat-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 0.45rem;
+            margin-top: 0.65rem;
+        }
+
+        .admin-fix-history-stat {
+            padding: 0.45rem 0.55rem;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 9px;
+            background: rgba(15, 23, 42, 0.34);
+        }
+
+        .admin-fix-history-stat-label {
+            display: block;
+            color: #9fb4d8;
+            font-size: 0.67rem;
+            font-weight: 700;
+        }
+
+        .admin-fix-history-stat-value {
+            display: block;
+            margin-top: 0.12rem;
+            color: #f8fbff;
+            font-size: 0.88rem;
+            font-weight: 800;
+        }
+
+        .admin-global-fix-history-summary > span {
+            display: block;
+            margin-top: 0.45rem;
         }
 
         .admin-global-fix-history-box {
@@ -720,8 +869,21 @@
         }
 
         @media (max-width: 560px) {
-            .admin-fix-history-row {
+            .admin-fix-history-group summary {
                 grid-template-columns: 1fr;
+            }
+
+            .admin-fix-history-group-meta {
+                justify-content: flex-start;
+                text-align: left;
+            }
+
+            .admin-fix-history-stat-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .admin-fix-history-group-body {
+                padding-left: 0.55rem;
             }
         }
 

@@ -4686,21 +4686,6 @@ function formatFixHistoryDateTime(value = '') {
     }).format(new Date(ms));
 }
 
-function getFixModeLabel(value = '') {
-    const mode = String(value || '').trim();
-    if (mode === 'household') return 'Sửa lỗi hộ gia đình';
-    if (mode === 'auto') return 'Sửa lỗi tự động';
-    return 'Sửa lỗi quá tải';
-}
-
-function formatSheetImportedText(item = {}) {
-    const mode = String(item && item.fixMode || '').trim();
-    if (mode !== 'overload' && mode !== 'auto') return '';
-    const value = item && item.sheetImported;
-    const label = value === true ? 'Có' : value === false ? 'Không' : 'Chưa ghi nhận';
-    return `Nhập thêm Sheet: ${label}`;
-}
-
 function setFixHistoryState(text, mode = 'idle') {
     const node = el('adminFixHistoryState');
     if (!node) return;
@@ -4721,6 +4706,124 @@ function formatFixLimitText(limit = null) {
     }
     if (source.limited === true) parts.push('Đã chạm limit');
     return parts.join(' • ');
+}
+
+function fixHistoryModeKey(value = '') {
+    const mode = String(value || '').trim();
+    return mode === 'household' || mode === 'auto' ? mode : 'overload';
+}
+
+function fixHistoryModeBadge(item = {}) {
+    const mode = fixHistoryModeKey(item && item.fixMode);
+    const labels = { overload: 'Quá tải', household: 'Hộ gia đình', auto: 'Tự động' };
+    return `<span class="admin-fix-history-badge admin-fix-history-badge-${mode}">${labels[mode]}</span>`;
+}
+
+function fixHistorySheetBadge(item = {}) {
+    const mode = fixHistoryModeKey(item && item.fixMode);
+    if (mode !== 'overload' && mode !== 'auto') return '';
+    const value = item && item.sheetImported;
+    const label = value === true ? 'Sheet: Có' : value === false ? 'Sheet: Không' : 'Sheet: Chưa ghi nhận';
+    return `<span class="admin-fix-history-badge admin-fix-history-badge-sheet">${label}</span>`;
+}
+
+function renderFixHistoryStats(counts = {}, total = null) {
+    const values = [
+        ['Quá tải', Number(counts.overload || 0)],
+        ['Hộ gia đình', Number(counts.household || 0)],
+        ['Tự động', Number(counts.auto || 0)],
+        ['Tổng số lần', total == null ? Number(counts.total || 0) : Number(total || 0)]
+    ];
+    return `<div class="admin-fix-history-stat-grid">${values.map(([label, value]) => `
+        <div class="admin-fix-history-stat">
+            <span class="admin-fix-history-stat-label">${label}</span>
+            <span class="admin-fix-history-stat-value">${value}</span>
+        </div>
+    `).join('')}</div>`;
+}
+
+function renderFixHistoryDetailRow(item = {}) {
+    const timestamp = item && (item.completedAt || item.startedAt);
+    const sheetBadge = fixHistorySheetBadge(item);
+    return `
+        <div class="admin-fix-history-row">
+            <div class="admin-fix-history-row-head">
+                <div class="admin-fix-history-row-meta">
+                    ${fixHistoryModeBadge(item)}
+                    <span>Hoàn tất: ${escapeHtml(formatFixHistoryDateTime(timestamp))}</span>
+                </div>
+                <span class="admin-fix-history-badge admin-fix-history-badge-success">Thành công</span>
+            </div>
+            ${sheetBadge ? `<div class="admin-fix-history-row-meta">${sheetBadge}</div>` : ''}
+        </div>
+    `;
+}
+
+function groupGlobalFixHistoryItems(items = [], sort = 'desc') {
+    const groups = new Map();
+    items.forEach((item) => {
+        const shareId = String(item && item.shareId || '').trim();
+        const shareUrl = String(item && item.shareUrl || '').trim();
+        const key = shareId || shareUrl || 'unknown';
+        if (!groups.has(key)) {
+            groups.set(key, { shareId, shareUrl, items: [], latestMs: 0, oldestMs: Number.MAX_SAFE_INTEGER });
+        }
+        const group = groups.get(key);
+        group.items.push(item);
+        const timestamp = Date.parse(String(item && (item.completedAt || item.startedAt) || '').trim()) || 0;
+        group.latestMs = Math.max(group.latestMs, timestamp);
+        group.oldestMs = Math.min(group.oldestMs, timestamp);
+    });
+    return Array.from(groups.values()).map((group) => {
+        group.items.sort((a, b) => {
+            const aMs = Date.parse(String(a && (a.completedAt || a.startedAt) || '').trim()) || 0;
+            const bMs = Date.parse(String(b && (b.completedAt || b.startedAt) || '').trim()) || 0;
+            return sort === 'asc' ? aMs - bMs : bMs - aMs;
+        });
+        return group;
+    }).sort((a, b) => {
+        const aMs = sort === 'asc' ? a.oldestMs : a.latestMs;
+        const bMs = sort === 'asc' ? b.oldestMs : b.latestMs;
+        return sort === 'asc' ? aMs - bMs : bMs - aMs;
+    });
+}
+
+function renderGlobalFixHistoryGroup(group = {}, sort = 'desc') {
+    const items = Array.isArray(group.items) ? group.items : [];
+    const first = items[0] || {};
+    const shareId = String(group.shareId || '').trim() || 'Không xác định';
+    const shareUrl = String(group.shareUrl || '').trim();
+    const link = shareUrl
+        ? `<a class="admin-fix-history-link" href="${escapeHtml(shareUrl)}" target="_blank" rel="noopener">${escapeHtml(shareId)}</a>`
+        : `<span class="admin-fix-history-link">${escapeHtml(shareId)}</span>`;
+    const counts = items.reduce((result, item) => {
+        result[fixHistoryModeKey(item && item.fixMode)] += 1;
+        return result;
+    }, { overload: 0, household: 0, auto: 0 });
+    const latestTimestamp = sort === 'asc' ? items[items.length - 1] : first;
+    const latest = latestTimestamp && (latestTimestamp.completedAt || latestTimestamp.startedAt);
+    return `
+        <details class="admin-fix-history-group">
+            <summary>
+                <div class="admin-fix-history-group-title">
+                    ${link}
+                    <span class="admin-fix-history-badge">${items.length} lần</span>
+                </div>
+                <div class="admin-fix-history-group-meta">
+                    <span>${escapeHtml(formatFixHistoryDateTime(latest))}</span>
+                    <span class="admin-fix-history-badge admin-fix-history-badge-success">Thành công</span>
+                </div>
+            </summary>
+            <div class="admin-fix-history-group-body">
+                <div class="admin-fix-history-row-meta">
+                    <span>Quá tải: ${counts.overload}</span>
+                    <span>Hộ gia đình: ${counts.household}</span>
+                    <span>Tự động: ${counts.auto}</span>
+                </div>
+                ${items.map(renderFixHistoryDetailRow).join('')}
+            </div>
+        </details>
+    `;
 }
 
 function renderFixHistory(history = null) {
@@ -4760,21 +4863,7 @@ function renderFixHistory(history = null) {
         return;
     }
 
-    list.innerHTML = items.map((item) => {
-        const mode = getFixModeLabel(item && item.fixMode);
-        const timestamp = item && (item.completedAt || item.startedAt);
-        const sheetText = formatSheetImportedText(item);
-        return `
-            <div class="admin-fix-history-row">
-                <div>
-                    <strong>${escapeHtml(mode)}</strong>
-                    <span>Hoàn tất: ${escapeHtml(formatFixHistoryDateTime(timestamp))}</span>
-                    ${sheetText ? `<span>${escapeHtml(sheetText)}</span>` : ''}
-                </div>
-                <span>Thành công</span>
-            </div>
-        `;
-    }).join('');
+    list.innerHTML = items.map(renderFixHistoryDetailRow).join('');
 }
 
 function renderGlobalFixHistory(history = globalFixHistory) {
@@ -4795,8 +4884,8 @@ function renderGlobalFixHistory(history = globalFixHistory) {
     const counts = history && history.counts ? history.counts : { overload: 0, household: 0, auto: 0, total: 0 };
     const linkCount = Number(history && history.linkCount || 0);
     if (summary) {
-        summary.textContent = history
-            ? `Quá tải: ${Number(counts.overload || 0)} lần • Hộ gia đình: ${Number(counts.household || 0)} lần • Tự động: ${Number(counts.auto || 0)} lần • Tổng: ${Number(counts.total || 0)} lần • ${linkCount} link`
+        summary.innerHTML = history
+            ? `${renderFixHistoryStats(counts, counts.total)}<span>${linkCount} link có lịch sử sửa lỗi</span>`
             : 'Bấm Xem lịch sử để tải dữ liệu.';
     }
     if (content) content.classList.toggle('hidden', !globalFixHistoryExpanded);
@@ -4809,26 +4898,9 @@ function renderGlobalFixHistory(history = globalFixHistory) {
         return;
     }
 
-    list.innerHTML = items.map((item) => {
-        const mode = getFixModeLabel(item && item.fixMode);
-        const timestamp = item && (item.completedAt || item.startedAt);
-        const sheetText = formatSheetImportedText(item);
-        const shareId = String(item && item.shareId || '').trim();
-        const shareUrl = String(item && item.shareUrl || '').trim();
-        const link = shareUrl
-            ? `<a href="${escapeHtml(shareUrl)}" target="_blank" rel="noopener">${escapeHtml(shareId)}</a>`
-            : escapeHtml(shareId);
-        return `
-            <div class="admin-fix-history-row">
-                <div>
-                    <strong>${escapeHtml(mode)} · ${link}</strong>
-                    <span>Hoàn tất: ${escapeHtml(formatFixHistoryDateTime(timestamp))}</span>
-                    ${sheetText ? `<span>${escapeHtml(sheetText)}</span>` : ''}
-                </div>
-                <span>Thành công</span>
-            </div>
-        `;
-    }).join('');
+    list.innerHTML = groupGlobalFixHistoryItems(items, globalFixHistorySort)
+        .map((group) => renderGlobalFixHistoryGroup(group, globalFixHistorySort))
+        .join('');
 }
 
 async function loadGlobalFixHistory(options = {}) {
