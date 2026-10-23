@@ -119,6 +119,21 @@ async function checkShareCookiesHealth(record) {
     };
 }
 
+async function assertPrimaryCookieAllowsOverloadFix(record) {
+    const primaryCookie = getCookieListFromRecord(record)
+        .find((candidate) => candidate.slot === 'primary');
+    if (!primaryCookie || !primaryCookie.cookieRaw) return;
+
+    const result = await evaluateGetlinkCookie(primaryCookie.cookieRaw);
+    const maxStreams = String(result && result.summary && result.summary.maxStreams || '').trim();
+    if (maxStreams !== '2') return;
+
+    const error = new Error('Tai khoan 2 thiet bi khong the su dung sua loi qua tai.');
+    error.code = 'PRIMARY_MAX_STREAMS_TWO';
+    error.httpStatus = 403;
+    throw error;
+}
+
 function getDeadSlotsFromHealth(checks = []) {
     const failedSlots = Array.isArray(checks)
         ? checks
@@ -235,6 +250,7 @@ module.exports = async function (req, res) {
                     return res.status(403).json({ error: 'Link này đã tắt tự động lấy cookie và sửa lỗi.' });
                 }
 
+                await assertPrimaryCookieAllowsOverloadFix(record);
                 const fixStartedAt = new Date().toISOString();
                 const warningConfig = await readWarningConfig();
                 await assertFixLimitAllowed(shareId, {
@@ -285,6 +301,7 @@ module.exports = async function (req, res) {
                 }
 
                 if (fixMode === 'overload') {
+                    await assertPrimaryCookieAllowsOverloadFix(record);
                     await assertFixLimitAllowed(shareId, {
                         limitEnabled: warningConfig.overloadFixLimitEnabled !== false,
                         cooldownEnabled: warningConfig.overloadFixCooldownEnabled !== false

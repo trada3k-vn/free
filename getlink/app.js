@@ -374,6 +374,7 @@ function clearRuntimeProfiles() {
 
 function setRuntimeMaxStreams(value = '') {
     runtimeMaxStreams = String(value || '').trim();
+    updateOverloadFixVisibility();
 }
 
 function shouldShowUpgradeNotice() {
@@ -3272,14 +3273,23 @@ function shouldShowOverloadFix() {
         && !runtimeShareSheetAutomationDisabled;
 }
 
+function isOverloadFixBlockedForTwoStreams() {
+    return runtimeMaxStreams === '2';
+}
+
 function updateOverloadFixVisibility() {
     const button = el('overloadFixBtn');
     const householdButton = el('householdFixBtn');
     const visible = shouldShowOverloadFix();
     if (button) {
         const enabled = visible && isFixModeEnabled('overload');
+        const blockedForTwoStreams = isOverloadFixBlockedForTwoStreams();
         button.classList.toggle('hidden', !enabled);
-        button.disabled = !enabled || overloadFixBusy;
+        button.disabled = !enabled || overloadFixBusy || blockedForTwoStreams;
+        button.title = blockedForTwoStreams
+            ? 'Tài khoản 2 thiết bị không thể sử dụng sửa lỗi quá tải.'
+            : '';
+        button.setAttribute('aria-disabled', String(button.disabled));
     }
     if (householdButton) {
         const enabled = visible && isFixModeEnabled('household');
