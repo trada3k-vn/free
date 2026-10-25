@@ -6,7 +6,7 @@ const {
     isValidShareId,
     readShareById,
     updateShareCookie,
-    updateShareCookies,
+    clearShareCookieSlotsWithoutRead,
     updateShareAdminFields,
     setShareStatus,
     rotateShareId,
@@ -525,6 +525,7 @@ async function buildCookieCheckResult(slot, cookieRaw) {
     return {
         slot,
         ok: !!result.ok,
+        reason: String(result.reason || '').trim(),
         error: String(result.error || '').trim(),
         summary: result.summary || {},
         accountInfo: result.accountInfo || null,
@@ -532,6 +533,10 @@ async function buildCookieCheckResult(slot, cookieRaw) {
         overloadSignal: result.overloadSignal || '',
         overloadMessage: result.overloadMessage || ''
     };
+}
+
+function isSbdBlockedCookieCheck(result = {}) {
+    return String(result.reason || '').trim().toLowerCase() === 'sbd_blocked';
 }
 
 async function resolveCookiesForCheck(shareId, body = {}) {
@@ -809,6 +814,40 @@ module.exports = async function (req, res) {
                 return buildCookieCheckResult(slot, cookies[slot] || '');
             }));
             return res.status(200).json({ success: true, results });
+        }
+
+        const autoCheckMatch = pathname.match(/^\/api\/getlink-admin\/shares\/([^/]+)\/auto-check-and-remove-invalid$/);
+        if (autoCheckMatch && req.method === 'POST') {
+            const shareId = decodeURIComponent(autoCheckMatch[1] || '');
+            if (!isValidShareId(shareId)) return res.status(400).json({ error: 'Invalid share id' });
+
+            // The server, rather than the browser, chooses which stored
+            // cookies are checked and can therefore be removed.
+            const record = await readShareById(shareId);
+            if (!record) return res.status(404).json({ error: 'Share link not found' });
+            const checkedCookies = sanitizeShareCookies(record.cookies || {});
+            const results = await Promise.all(['primary', 'backup1', 'backup2'].map((slot) => {
+                return buildCookieCheckResult(slot, checkedCookies[slot] || '');
+            }));
+            const invalidSlots = results
+                .filter((result) => checkedCookies[result.slot] && isSbdBlockedCookieCheck(result))
+                .map((result) => result.slot);
+
+            let share = record;
+            if (invalidSlots.length > 0) {
+                share = await clearShareCookieSlotsWithoutRead(
+                    record,
+                    invalidSlots,
+                    `${adminUser.email}:auto-remove-sbd-cookie`
+                );
+            }
+
+            return res.status(200).json({
+                success: true,
+                results,
+                removedSlots: invalidSlots,
+                share: toAdminShareDto(share, req)
+            });
         }
 
         const expiryMatch = pathname.match(/^\/api\/getlink-admin\/shares\/([^/]+)\/expiry$/);

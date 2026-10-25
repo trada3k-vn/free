@@ -5236,7 +5236,7 @@ async function loadAdminShareFromPendingUrl(options = {}) {
         renderAdminShare(data.share || null);
         setAdminTab('search', { resetManual: true });
         autoLoadedAdminShareId = shareId;
-        setAdminSearchState('Da tu dong nap link ID tu URL. Ban co the sua tai khoan ngay.', 'success');
+        await adminAutoCheckAndRemoveInvalidCookies();
     } catch (error) {
         renderAdminShare(null);
         autoLoadedAdminShareId = '';
@@ -5366,12 +5366,45 @@ async function adminSearchShare() {
         const data = await apiRequest('/api/getlink-admin/search', 'POST', { query });
         renderAdminShare(data.share || null);
         setAdminTab('search', { resetManual: true });
-        setAdminSearchState('Da tim thay link. Ban co the sua/thu hoi/phuc hoi/doi ID.', 'success');
+        await adminAutoCheckAndRemoveInvalidCookies();
     } catch (error) {
         renderAdminShare(null);
         setAdminSearchState(error.message || 'Khong tim thay link.', 'error');
     } finally {
         setButtonBusy(btn, false);
+    }
+}
+
+async function adminAutoCheckAndRemoveInvalidCookies() {
+    if (!currentAdminShare || !currentAdminShare.id) return;
+    const shareId = String(currentAdminShare.id || '').trim();
+    setAdminSearchState('Đang tự động check 3 tài khoản của link...', 'loading');
+    setAdminCookieInfoState('Đang tự động check 3 tài khoản; chỉ cookie SBD sẽ được xoá.', 'loading');
+    try {
+        const data = await apiRequest(
+            `/api/getlink-admin/shares/${encodeURIComponent(shareId)}/auto-check-and-remove-invalid`,
+            'POST'
+        );
+        const results = Array.isArray(data.results) ? data.results : [];
+        if (data.share) renderAdminShare(data.share);
+        results.forEach((result) => {
+            const empty = String(result && result.reason || '') === 'missing_cookie';
+            setShareCookieSlotState(result.slot, empty ? 'Để trống' : (result.ok ? 'PASS' : 'FAIL'), empty ? null : !!result.ok);
+        });
+        renderCookieCheckCards(results);
+        const removedSlots = Array.isArray(data.removedSlots) ? data.removedSlots : [];
+        if (removedSlots.length > 0) {
+            const labels = removedSlots.map(getCookieSlotLabel).join(', ');
+            setAdminCookieInfoState(`Đã xoá cookie bị SBD: ${labels}.`, 'warning');
+            setAdminSearchState(`Đã check xong và xoá cookie bị SBD: ${labels}.`, 'warning');
+        } else {
+            setAdminCookieInfoState('Đã check xong 3 tài khoản. Chỉ trạng thái SBD mới tự xoá cookie.', 'success');
+            setAdminSearchState('Đã tự động check xong 3 tài khoản.', 'success');
+        }
+    } catch (error) {
+        const message = error.message || 'Không tự động check được tài khoản.';
+        setAdminCookieInfoState(message, 'error');
+        setAdminSearchState(message, 'error');
     }
 }
 

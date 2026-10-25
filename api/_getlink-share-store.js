@@ -203,12 +203,15 @@ async function readDoc(docPath) {
     }
 }
 
-async function patchDoc(docPath, fields) {
+async function patchDoc(docPath, fields, updateMask = []) {
     const payload = JSON.stringify({ fields });
+    const mask = Array.isArray(updateMask) && updateMask.length > 0
+        ? updateMask.map((field) => `&updateMask.fieldPaths=${encodeURIComponent(field)}`).join('')
+        : '';
     const response = await httpRequest({
         hostname: 'firestore.googleapis.com',
         port: 443,
-        path: firestoreDocPath(docPath),
+        path: `${firestoreDocPath(docPath)}${mask}`,
         method: 'PATCH',
         headers: {
             'Content-Type': 'application/json',
@@ -366,6 +369,45 @@ async function updateShareCookies(shareId = '', cookiesInput = {}, actor = 'admi
     };
 
     return saveShareRecord(next);
+}
+
+// Uses the record already read by the caller and patches only cookie fields.
+// It deliberately does not read again: used for the admin SBD cleanup path.
+async function clearShareCookieSlotsWithoutRead(record = {}, slots = [], actor = 'admin') {
+    const id = String(record && record.id || '').trim();
+    if (!isValidShareId(id)) {
+        const err = new Error('Share link not found');
+        err.httpStatus = 404;
+        throw err;
+    }
+    const requested = new Set(Array.isArray(slots) ? slots : []);
+    const currentCookies = sanitizeShareCookies(record.cookies || {});
+    const nextCookies = { ...currentCookies };
+    SHARE_COOKIE_SLOTS.forEach((slot) => {
+        if (requested.has(slot)) nextCookies[slot] = '';
+    });
+    const updatedAt = new Date().toISOString();
+    const fields = {
+        cookieRaw: toStringValue(nextCookies.primary),
+        cookiePrimaryRaw: toStringValue(nextCookies.primary),
+        cookieBackup1Raw: toStringValue(nextCookies.backup1),
+        cookieBackup2Raw: toStringValue(nextCookies.backup2),
+        updatedAt: toStringValue(updatedAt),
+        updatedBy: toStringValue(actor)
+    };
+    const ok = await patchDoc(buildShareDocPath(id), fields, Object.keys(fields));
+    if (!ok) {
+        const err = new Error('Failed to save share');
+        err.httpStatus = 500;
+        throw err;
+    }
+    return {
+        ...record,
+        cookies: nextCookies,
+        cookieRaw: nextCookies.primary || '',
+        updatedAt,
+        updatedBy: String(actor || 'admin').trim()
+    };
 }
 
 async function updateShareAdminFields(shareId = '', options = {}, actor = 'admin') {
@@ -610,6 +652,7 @@ module.exports = {
     updateShareAdminFields,
     updateShareCookie,
     updateShareCookies,
+    clearShareCookieSlotsWithoutRead,
     updateShareCookieSlot,
     promoteShareCookieSlot,
     rotateShareCookies,
