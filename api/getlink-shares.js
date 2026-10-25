@@ -23,6 +23,49 @@ const {
     isFixModeEnabled
 } = require('./_getlink-warning-config-store');
 const { normalizeFixMode, recordSuccessfulFix, assertFixLimitAllowed } = require('./_getlink-fix-history-store');
+const { checkRateLimit } = require('./_security');
+
+// Coalesce identical health checks that arrive together (double click/multiple
+// tabs). This is deliberately in-memory only: no stale share or cookie data is
+// retained after the request has finished.
+const inFlightShareHealth = new Map();
+
+function getClientIp(req) {
+    return String(req.headers && req.headers['x-forwarded-for'] || req.socket && req.socket.remoteAddress || 'unknown')
+        .split(',')[0].trim() || 'unknown';
+}
+
+function assertGuestRequestLimit(req, shareId, action, limit, windowMs) {
+    const result = checkRateLimit(`getlink:${action}:${shareId}:${getClientIp(req)}`, limit, windowMs);
+    if (result.allowed) return;
+    const error = new Error('Vui lòng chờ một lúc trước khi thử lại.');
+    error.httpStatus = 429;
+    error.code = 'GETLINK_RATE_LIMITED';
+    error.retryAfterMs = result.retryAfterMs;
+    throw error;
+}
+
+function readAndCheckShareHealth(req, shareId) {
+    const existing = inFlightShareHealth.get(shareId);
+    if (existing) return existing;
+    assertGuestRequestLimit(req, shareId, 'health', 1, 20 * 1000);
+    const promise = (async () => {
+        const record = await readShareById(shareId);
+        if (!record) {
+            const error = new Error('Share link not found'); error.httpStatus = 404; throw error;
+        }
+        if (record.status !== 'active') {
+            const error = new Error('Share link has been revoked'); error.httpStatus = 410; throw error;
+        }
+        if (isShareExpired(record)) {
+            const error = new Error('Share link has expired'); error.httpStatus = 410; throw error;
+        }
+        return { record, health: await checkShareCookiesHealth(record) };
+    })();
+    inFlightShareHealth.set(shareId, promise);
+    promise.finally(() => inFlightShareHealth.delete(shareId)).catch(() => {});
+    return promise;
+}
 
 function setCors(res) {
     res.setHeader('Access-Control-Allow-Credentials', true);
@@ -93,6 +136,22 @@ async function resolveShareCookie(record) {
         error: 'Het tai khoan hop le. Vui long lien he admin de duoc bao hanh.',
         checks
     };
+}
+
+async function getOverloadFixPreview(record, resolved) {
+    // A direct overload repair rotates backup1 into primary. The primary
+    // cookie was already checked above, so this adds no Firestore read.
+    if (!resolved || resolved.slot !== 'primary') return null;
+    const backup1 = getCookieListFromRecord(record).find((candidate) => candidate.slot === 'backup1');
+    if (!backup1 || !backup1.cookieRaw) return null;
+
+    try {
+        const result = await evaluateGetlinkCookie(backup1.cookieRaw);
+        const profiles = result && result.summary ? String(result.summary.profiles || '').trim() : '';
+        return result && result.ok && profiles ? { profiles } : null;
+    } catch (_error) {
+        return null;
+    }
 }
 
 async function checkShareCookiesHealth(record) {
@@ -198,6 +257,8 @@ module.exports = async function (req, res) {
                 });
             }
 
+            const overloadFixPreview = await getOverloadFixPreview(record, resolved);
+
             return res.status(200).json({
                 success: true,
                 id: record.id,
@@ -206,6 +267,7 @@ module.exports = async function (req, res) {
                 desktopOnly: !!(resolved.share || record).desktopOnly,
                 sheetAutomationDisabled: !!(resolved.share || record).sheetAutomationDisabled,
                 checks: resolved.checks || [],
+                ...(overloadFixPreview ? { overloadFixPreview } : {}),
                 share: shareDto(resolved.share || record, req)
             });
         }
@@ -215,16 +277,7 @@ module.exports = async function (req, res) {
             if (checkHealthMatch) {
                 const shareId = decodeURIComponent(checkHealthMatch[1] || '');
                 if (!isValidShareId(shareId)) return res.status(400).json({ error: 'Invalid share id' });
-
-                const record = await readShareById(shareId);
-                if (!record) return res.status(404).json({ error: 'Share link not found' });
-                if (record.status !== 'active') {
-                    return res.status(410).json({ error: 'Share link has been revoked' });
-                }
-                if (isShareExpired(record)) {
-                    return res.status(410).json({ error: 'Share link has expired' });
-                }
-                const health = await checkShareCookiesHealth(record);
+                const { record, health } = await readAndCheckShareHealth(req, shareId);
                 return res.status(200).json({
                     success: true,
                     id: record.id,
@@ -371,9 +424,11 @@ module.exports = async function (req, res) {
                     refillSlots,
                     health.liveCount,
                     fixMode,
-                    recoveryMode
+                    recoveryMode,
+                    record,
+                    warningConfig
                 );
-                const advanced = await advanceGetlinkOperation(operation);
+                const advanced = operation.reused ? operation : await advanceGetlinkOperation(operation);
                 const payload = shapeOperationPayload(advanced);
                 if (advanced.status === 'failed') {
                     const failureStatus = Number(advanced.errorHttpStatus || 0) || 422;
@@ -389,6 +444,7 @@ module.exports = async function (req, res) {
             if (autoFixMatch) {
                 const shareId = decodeURIComponent(autoFixMatch[1] || '');
                 if (!isValidShareId(shareId)) return res.status(400).json({ error: 'Invalid share id' });
+                assertGuestRequestLimit(req, shareId, 'auto-fix', 1, 60 * 1000);
 
                 const record = await readShareById(shareId);
                 if (!record) return res.status(404).json({ error: 'Share link not found' });
@@ -405,8 +461,8 @@ module.exports = async function (req, res) {
                     return res.status(403).json({ error: 'Truy cap Google Sheet dang duoc tat trong admin.' });
                 }
 
-                const operation = await createAutoFixOperation(shareId);
-                const advanced = await advanceGetlinkOperation(operation);
+                const operation = await createAutoFixOperation(shareId, record, await readWarningConfig());
+                const advanced = operation.reused ? operation : await advanceGetlinkOperation(operation);
                 const payload = shapeOperationPayload(advanced);
                 if (advanced.status === 'failed') {
                     const failureStatus = Number(advanced.errorHttpStatus || 0) || 422;

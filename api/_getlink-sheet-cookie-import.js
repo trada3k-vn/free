@@ -266,6 +266,9 @@ function normalizeSheetImportState(input = {}, slotsFallback = []) {
         // Stored by getlink operations so a share preflight is not repeated
         // for every Google Sheet chunk.
         shareValidated: source.shareValidated === true,
+        configSnapshot: source.configSnapshot && typeof source.configSnapshot === 'object'
+            ? { ...source.configSnapshot }
+            : {},
         historyRecorded: source.historyRecorded === true,
         phase: String(source.phase || 'pending').trim() || 'pending',
         message: String(source.message || '').trim(),

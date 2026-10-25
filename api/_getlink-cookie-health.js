@@ -19,13 +19,23 @@ function isPaymentHoldYes(value = '') {
     return text === 'yes' || text === 'true' || text === '1';
 }
 
+function decodeProfileEscapes(value = '') {
+    return String(value || '')
+        .replace(/\\x([0-9a-fA-F]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+        .replace(/\\u\{([0-9a-fA-F]{1,6})\}/g, (match, hex) => {
+            const codePoint = parseInt(hex, 16);
+            return codePoint <= 0x10FFFF ? String.fromCodePoint(codePoint) : match;
+        })
+        .replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+}
+
 function summarizeCookieCheck(accountInfo = null) {
     const info = accountInfo && typeof accountInfo === 'object' ? accountInfo : {};
     return {
         plan: String(info.plan || '').trim(),
         country: String(info.country || '').trim(),
         paymentHold: String(info.on_payment_hold || '').trim(),
-        profiles: String(info.profiles || '').trim(),
+        profiles: decodeProfileEscapes(info.profiles).trim(),
         maxStreams: String(info.max_streams || '').trim(),
         videoQuality: String(info.video_quality || '').trim()
     };
@@ -160,6 +170,8 @@ async function evaluateGetlinkCookie(cookieRaw = '') {
 
 module.exports = {
     evaluateGetlinkCookie,
+    decodeProfileEscapes,
     isPaymentHoldYes,
-    isUnknownPlan
+    isUnknownPlan,
+    summarizeCookieCheck
 };

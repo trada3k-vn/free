@@ -188,7 +188,7 @@ async function patchDoc(docPath, fields) {
 async function listDocs(collectionPath, options = {}) {
     const pageSize = Math.max(1, Math.min(Number(options.pageSize || 200), 1000));
     const docs = [];
-    let pageToken = '';
+    let pageToken = String(options.pageToken || '').trim();
 
     do {
         const response = await httpRequest({
@@ -200,7 +200,7 @@ async function listDocs(collectionPath, options = {}) {
             }),
             method: 'GET'
         });
-        if (response.statusCode === 404) return [];
+        if (response.statusCode === 404) return { docs: [], nextPageToken: '' };
         if (response.statusCode < 200 || response.statusCode >= 300) {
             const error = new Error('Failed to list getlink fix history');
             error.httpStatus = response.statusCode || 500;
@@ -212,10 +212,10 @@ async function listDocs(collectionPath, options = {}) {
         pageToken = String(parsed.nextPageToken || '').trim();
         // Lists are deliberately bounded.  Admin can show recent records
         // without reads increasing with the age of the project.
-        if (options.paginate !== true) pageToken = '';
+        if (options.paginate !== true) break;
     } while (pageToken);
 
-    return docs;
+    return { docs, nextPageToken: pageToken };
 }
 
 async function recordSuccessfulFix(input = {}) {
@@ -348,7 +348,7 @@ async function resetFixLimit(shareId = '', resetBy = 'admin') {
     return record;
 }
 
-async function listSuccessfulFixHistory(shareId = '', sort = 'desc') {
+async function listSuccessfulFixHistory(shareId = '', sort = 'desc', options = {}) {
     const normalizedShareId = String(shareId || '').trim();
     if (!normalizedShareId) {
         return {
@@ -359,8 +359,10 @@ async function listSuccessfulFixHistory(shareId = '', sort = 'desc') {
         };
     }
 
-    const docs = await listDocs(buildShareHistoryCollectionPath(normalizedShareId), { pageSize: 100 });
-    const items = docs
+    const page = await listDocs(buildShareHistoryCollectionPath(normalizedShareId), {
+        pageSize: Math.max(1, Math.min(Number(options.pageSize || 20), 100)), pageToken: options.pageToken
+    });
+    const items = page.docs
         .map((doc) => mapFieldsToRecord(doc && doc.fields ? doc.fields : {}))
         .filter((item) => item.shareId === normalizedShareId && item.status === 'success');
     const direction = String(sort || '').toLowerCase() === 'asc' ? 'asc' : 'desc';
@@ -377,12 +379,14 @@ async function listSuccessfulFixHistory(shareId = '', sort = 'desc') {
     };
     counts.total = counts.overload + counts.household + counts.auto;
     const limit = await getFixLimitState(normalizedShareId);
-    return { items, counts, limit, sort: direction };
+    return { items, counts, limit, sort: direction, nextPageToken: page.nextPageToken };
 }
 
-async function listAllSuccessfulFixHistory(sort = 'desc') {
-    const docs = await listDocs(COLL_GETLINK_FIX_HISTORY, { pageSize: 100 });
-    const items = docs
+async function listAllSuccessfulFixHistory(sort = 'desc', options = {}) {
+    const page = await listDocs(COLL_GETLINK_FIX_HISTORY, {
+        pageSize: Math.max(1, Math.min(Number(options.pageSize || 20), 100)), pageToken: options.pageToken
+    });
+    const items = page.docs
         .map((doc) => mapFieldsToRecord(doc && doc.fields ? doc.fields : {}))
         .filter((item) => item.status === 'success' && item.shareId);
     const direction = String(sort || '').toLowerCase() === 'asc' ? 'asc' : 'desc';
@@ -402,7 +406,8 @@ async function listAllSuccessfulFixHistory(sort = 'desc') {
         items,
         counts,
         linkCount: new Set(items.map((item) => item.shareId)).size,
-        sort: direction
+        sort: direction,
+        nextPageToken: page.nextPageToken
     };
 }
 

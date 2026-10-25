@@ -702,7 +702,10 @@ module.exports = async function (req, res) {
             if (!isValidShareId(shareId)) return res.status(400).json({ error: 'Invalid share id' });
             const parsedUrl = new URL(req.url, 'http://localhost');
             const sort = String(parsedUrl.searchParams.get('sort') || 'desc').toLowerCase() === 'asc' ? 'asc' : 'desc';
-            const history = await listSuccessfulFixHistory(shareId, sort);
+            const history = await listSuccessfulFixHistory(shareId, sort, {
+                pageSize: 20,
+                pageToken: String(parsedUrl.searchParams.get('pageToken') || '').trim()
+            });
             return res.status(200).json({
                 success: true,
                 shareId,
@@ -713,7 +716,10 @@ module.exports = async function (req, res) {
         if (pathname === '/api/getlink-admin/fix-history' && req.method === 'GET') {
             const parsedUrl = new URL(req.url, 'http://localhost');
             const sort = String(parsedUrl.searchParams.get('sort') || 'desc').toLowerCase() === 'asc' ? 'asc' : 'desc';
-            const history = await listAllSuccessfulFixHistory(sort);
+            const history = await listAllSuccessfulFixHistory(sort, {
+                pageSize: 20,
+                pageToken: String(parsedUrl.searchParams.get('pageToken') || '').trim()
+            });
             const origin = getOrigin(req);
             return res.status(200).json({
                 success: true,

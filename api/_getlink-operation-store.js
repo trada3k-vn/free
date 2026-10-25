@@ -20,7 +20,10 @@ const { normalizeFixMode, recordSuccessfulFix, assertFixLimitAllowed } = require
 const FIREBASE_PROJECT_ID = 'trada3k-c402a';
 const FIREBASE_API_KEY = 'AIzaSyAVV-3HxGFpT_eiAri1SGPWGwu3EL8On58';
 const COLL_GETLINK_OPERATIONS = 'settings/getlink_operations/items';
+const COLL_GETLINK_ACTIVE_OPERATIONS = 'settings/getlink_active_operations/items';
 const COOKIE_SLOT_WRITE_RETRIES = 2;
+const OPERATION_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+const ACTIVE_OPERATION_STALE_MS = Math.max(60 * 1000, Number(process.env.GETLINK_ACTIVE_OPERATION_STALE_MS || 15 * 60 * 1000));
 
 function httpRequest(options, body) {
     return new Promise((resolve, reject) => {
@@ -43,14 +46,28 @@ function buildOperationDocPath(operationId = '') {
     return `${COLL_GETLINK_OPERATIONS}/${encodeURIComponent(String(operationId || '').trim())}`;
 }
 
+function buildActiveOperationDocPath(shareId = '') {
+    return `${COLL_GETLINK_ACTIVE_OPERATIONS}/${encodeURIComponent(String(shareId || '').trim())}`;
+}
+
 function toStringValue(value = '') {
     return { stringValue: String(value || '') };
+}
+
+function toTimestampValue(value = '') {
+    const ms = Date.parse(String(value || ''));
+    return { timestampValue: new Date(Number.isFinite(ms) ? ms : Date.now()).toISOString() };
 }
 
 function parseFirestoreString(valueObj = null) {
     if (!valueObj || typeof valueObj !== 'object') return '';
     if (typeof valueObj.stringValue === 'string') return valueObj.stringValue;
     return '';
+}
+
+function parseFirestoreTimestamp(valueObj = null) {
+    if (!valueObj || typeof valueObj !== 'object') return '';
+    return typeof valueObj.timestampValue === 'string' ? valueObj.timestampValue : '';
 }
 
 async function readDoc(docPath) {
@@ -86,6 +103,22 @@ async function patchDoc(docPath, fields) {
         }
     }, payload);
     return response.statusCode >= 200 && response.statusCode < 300;
+}
+
+async function deleteDoc(docPath) {
+    const response = await httpRequest({
+        hostname: 'firestore.googleapis.com', port: 443,
+        path: firestoreDocPath(docPath), method: 'DELETE'
+    });
+    return response.statusCode === 404 || (response.statusCode >= 200 && response.statusCode < 300);
+}
+
+async function clearActiveOperationPointer(shareId = '', operationId = '') {
+    const doc = await readDoc(buildActiveOperationDocPath(shareId));
+    const pointedId = doc && doc.fields ? parseFirestoreString(doc.fields.operationId) : '';
+    if (pointedId && pointedId === String(operationId || '').trim()) {
+        await deleteDoc(buildActiveOperationDocPath(shareId));
+    }
 }
 
 function generateOperationId() {
@@ -124,6 +157,7 @@ function mapOperationFieldsToRecord(fields = {}) {
         errorAttempts: Math.max(0, Number(parseFirestoreString(fields.errorAttempts) || 0) || 0),
         createdAt: parseFirestoreString(fields.createdAt),
         updatedAt: parseFirestoreString(fields.updatedAt),
+        operationExpiresAt: parseFirestoreTimestamp(fields.operationExpiresAt),
         state: parseOperationState(parseFirestoreString(fields.stateJson))
     };
 }
@@ -145,6 +179,7 @@ function mapOperationRecordToFields(record = {}) {
         errorAttempts: toStringValue(record.errorAttempts || ''),
         createdAt: toStringValue(record.createdAt || ''),
         updatedAt: toStringValue(record.updatedAt || ''),
+        operationExpiresAt: toTimestampValue(record.operationExpiresAt || record.createdAt),
         stateJson: toStringValue(JSON.stringify(record.state && typeof record.state === 'object' ? record.state : {}))
     };
 }
@@ -170,6 +205,10 @@ async function saveGetlinkOperation(record = {}) {
         const err = new Error('Failed to save getlink operation');
         err.httpStatus = 500;
         throw err;
+    }
+    if (next.shareId && (next.type === 'auto_fix' || next.type === 'overload_fix')
+        && (next.status === 'completed' || next.status === 'failed' || next.status === 'cancelled')) {
+        await clearActiveOperationPointer(next.shareId, next.id);
     }
     return next;
 }
@@ -203,6 +242,7 @@ async function createGetlinkOperation(input = {}) {
         throw err;
     }
 
+    const createdAt = new Date().toISOString();
     const operation = {
         id: generateOperationId(),
         token: generateOperationToken(),
@@ -217,11 +257,49 @@ async function createGetlinkOperation(input = {}) {
         errorHttpStatus: 0,
         errorSlot: '',
         errorAttempts: 0,
-        createdAt: new Date().toISOString(),
+        createdAt,
+        operationExpiresAt: new Date(Date.parse(createdAt) + OPERATION_RETENTION_MS).toISOString(),
         updatedAt: '',
         state: input.state && typeof input.state === 'object' ? input.state : {}
     };
     return saveGetlinkOperation(operation);
+}
+
+async function createOrReuseShareOperation(input = {}) {
+    const shareId = String(input.shareId || '').trim();
+    if (!shareId) throw new Error('Missing shareId for getlink operation');
+    const activeDoc = await readDoc(buildActiveOperationDocPath(shareId));
+    const activeId = activeDoc && activeDoc.fields ? parseFirestoreString(activeDoc.fields.operationId) : '';
+    if (activeId) {
+        const existing = await readGetlinkOperationById(activeId);
+        if (existing && (existing.status === 'pending' || existing.status === 'running')) {
+            const updatedMs = Date.parse(existing.updatedAt || existing.createdAt || '');
+            if (Number.isFinite(updatedMs) && Date.now() - updatedMs <= ACTIVE_OPERATION_STALE_MS) {
+                return { ...existing, reused: true };
+            }
+            // A crashed Vercel request cannot update this operation again.
+            // Mark it stale before releasing the link for a fresh operation.
+            await saveGetlinkOperation({
+                ...existing,
+                status: 'failed', phase: 'stale',
+                message: 'Getlink operation expired before completion.',
+                lastError: 'Getlink operation expired before completion.',
+                errorCode: 'OPERATION_STALE', errorHttpStatus: 504
+            });
+        }
+        await deleteDoc(buildActiveOperationDocPath(shareId));
+    }
+    const operation = await createGetlinkOperation(input);
+    const pointerSaved = await patchDoc(buildActiveOperationDocPath(shareId), {
+        operationId: toStringValue(operation.id),
+        updatedAt: toStringValue(operation.updatedAt || operation.createdAt)
+    });
+    if (!pointerSaved) {
+        const error = new Error('Failed to reserve getlink operation');
+        error.httpStatus = 500;
+        throw error;
+    }
+    return operation;
 }
 
 function normalizeOperationResultTimings(result = {}) {
@@ -444,6 +522,7 @@ function normalizeOverloadFixState(input = {}, slotsFallback = []) {
         recoveryMode: String(source.recoveryMode || '').trim(),
         liveCountPrecheck: Math.max(0, Number(source.liveCountPrecheck || 0) || 0),
         shareValidated: source.shareValidated === true,
+        configSnapshot: source.configSnapshot && typeof source.configSnapshot === 'object' ? { ...source.configSnapshot } : {},
         shareUpdated: source.shareUpdated === true,
         rotated: source.rotated === true,
         recovered: source.recovered === true,
@@ -473,6 +552,7 @@ function shapeOperationPayload(operation = {}) {
     const payload = {
         success: operation.status !== 'failed',
         status: operation.status,
+        reused: operation.reused === true,
         operationId: operation.id,
         operationToken: operation.token,
         phase: operation.phase || result.phase || '',
@@ -533,12 +613,13 @@ async function createSheetImportOperation(slots = [], scope = '') {
     });
 }
 
-async function createAutoFixOperation(shareId = '') {
+async function createAutoFixOperation(shareId = '', shareRecord = null, configSnapshot = {}) {
     const state = createSheetImportState(['primary'], {
-        seenCookies: await getExistingShareCookiesById(shareId)
+        seenCookies: shareRecord ? getExistingShareCookies(shareRecord) : await getExistingShareCookiesById(shareId)
     });
     state.shareValidated = true;
-    return createGetlinkOperation({
+    state.configSnapshot = configSnapshot;
+    return createOrReuseShareOperation({
         type: 'auto_fix',
         shareId,
         message: state.message,
@@ -546,17 +627,18 @@ async function createAutoFixOperation(shareId = '') {
     });
 }
 
-async function createOverloadFixOperation(shareId = '', slots = [], liveCountPrecheck = 0, fixMode = 'overload', recoveryMode = '') {
+async function createOverloadFixOperation(shareId = '', slots = [], liveCountPrecheck = 0, fixMode = 'overload', recoveryMode = '', shareRecord = null, configSnapshot = {}) {
     const state = normalizeOverloadFixState({
         ...createSheetImportState(slots, {
-            seenCookies: await getExistingShareCookiesById(shareId)
+            seenCookies: shareRecord ? getExistingShareCookies(shareRecord) : await getExistingShareCookiesById(shareId)
         }),
         liveCountPrecheck,
         fixMode,
         recoveryMode,
-        shareValidated: true
+        shareValidated: true,
+        configSnapshot
     }, normalizeSheetSlots(slots));
-    return createGetlinkOperation({
+    return createOrReuseShareOperation({
         type: 'overload_fix',
         shareId,
         message: state.message,
@@ -703,7 +785,9 @@ async function advanceGetlinkOperation(operationInput = {}) {
                 }
 
                 if (nextState.fixMode === 'overload') {
-                    const warningConfig = await readWarningConfig();
+                    const warningConfig = currentState.configSnapshot && Object.keys(currentState.configSnapshot).length
+                        ? currentState.configSnapshot
+                        : await readWarningConfig();
                     await assertFixLimitAllowed(operation.shareId, {
                         limitEnabled: warningConfig.overloadFixLimitEnabled !== false,
                         cooldownEnabled: warningConfig.overloadFixCooldownEnabled !== false
@@ -847,6 +931,7 @@ async function readAuthorizedGetlinkOperation(operationId = '', token = '') {
 
 module.exports = {
     COLL_GETLINK_OPERATIONS,
+    COLL_GETLINK_ACTIVE_OPERATIONS,
     createSheetImportOperation,
     cancelGetlinkOperation,
     createAutoFixOperation,

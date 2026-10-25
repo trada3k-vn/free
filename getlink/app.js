@@ -223,6 +223,8 @@ let fixHistorySort = 'desc';
 let globalFixHistory = null;
 let globalFixHistoryExpanded = false;
 let globalFixHistorySort = 'desc';
+let globalFixHistoryNextPageToken = '';
+let fixHistoryNextPageToken = '';
 let createdAdminShare = null;
 let pendingShareIdFromUrl = '';
 let autoLoadedAdminShareId = '';
@@ -249,12 +251,17 @@ let overloadFixTimer = null;
 let overloadFixBusy = false;
 let overloadFixLoadingTimer = null;
 let overloadFixLoadingStartedAt = 0;
+let overloadFixPreviewProfiles = '';
 let activeFixMode = 'overload';
 let entryAlertState = null;
 let supportModalState = null;
 let supportLoadingTimer = null;
 let supportLoadingStartedAt = 0;
 let shareAutoFixBusy = false;
+const guestHealthCache = new Map();
+const autoFixRetryBlockedUntil = new Map();
+const GUEST_HEALTH_CACHE_MS = 20 * 1000;
+const AUTO_FIX_ERROR_COOLDOWN_MS = 60 * 1000;
 let warningBannerConfig = {
     message: DEFAULT_GETLINK_WARNING_MESSAGE,
     submessage: DEFAULT_GETLINK_WARNING_SUBMESSAGE,
@@ -358,8 +365,18 @@ function renderRuntimeProfileState() {
     setStateClass(node, text === 'Chưa có' ? 'idle' : (text === 'Đang kiểm tra...' ? 'loading' : 'success'));
 }
 
+function decodeProfileEscapes(value = '') {
+    return String(value || '')
+        .replace(/\\x([0-9a-fA-F]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+        .replace(/\\u\{([0-9a-fA-F]{1,6})\}/g, (match, hex) => {
+            const codePoint = parseInt(hex, 16);
+            return codePoint <= 0x10FFFF ? String.fromCodePoint(codePoint) : match;
+        })
+        .replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+}
+
 function setRuntimeProfiles(value = '') {
-    const normalized = String(value || '').trim();
+    const normalized = decodeProfileEscapes(value).trim();
     runtimeProfiles = normalized || 'Không rõ';
     renderRuntimeProfileState();
 }
@@ -592,7 +609,8 @@ function renderSupportModalContent(payload = null) {
     if (closeBtn) closeBtn.textContent = config.sharedLabels.closeText;
     if (autoFixBtn) {
         autoFixBtn.classList.toggle('hidden', !content.showAutoFix || !isSheetAccessEnabled() || runtimeShareSheetAutomationDisabled);
-        autoFixBtn.disabled = !!content.isLoading || shareAutoFixBusy || !isSheetAccessEnabled() || runtimeShareSheetAutomationDisabled;
+        const retryBlocked = Number(autoFixRetryBlockedUntil.get(String(pendingShareIdFromUrl || '').trim()) || 0) > Date.now();
+        autoFixBtn.disabled = !!content.isLoading || shareAutoFixBusy || retryBlocked || !isSheetAccessEnabled() || runtimeShareSheetAutomationDisabled;
         autoFixBtn.textContent = config.support.autoFixText;
     }
 }
@@ -1588,6 +1606,7 @@ function renderOverloadFixModal(mode = activeFixMode) {
     const rule1 = el('overloadFixRule1');
     const rule2 = el('overloadFixRule2');
     const note = el('overloadFixNote');
+    const preview = el('overloadFixPreview');
     const confirmBtn = el('overloadFixConfirmBtn');
     const cancelBtn = el('overloadFixCancelBtn');
     const closeBtn = el('overloadFixCloseBtn');
@@ -1598,6 +1617,13 @@ function renderOverloadFixModal(mode = activeFixMode) {
     if (rule1) rule1.textContent = config.rule1;
     if (rule2) rule2.textContent = config.rule2;
     if (note) note.textContent = config.mobileNote;
+    if (preview && mode === 'overload' && overloadFixPreviewProfiles) {
+        preview.textContent = `Sau khi sửa xong, bạn sẽ chuyển sang phiên: ${overloadFixPreviewProfiles}`;
+        preview.classList.remove('hidden');
+    } else if (preview) {
+        preview.textContent = '';
+        preview.classList.add('hidden');
+    }
     if (confirmBtn) confirmBtn.textContent = content.fix.common.confirmText;
     if (cancelBtn) cancelBtn.textContent = content.fix.common.cancelText;
     if (closeBtn) closeBtn.textContent = content.sharedLabels.closeText;
@@ -2415,6 +2441,7 @@ function renderCookieInfoSuccess(accountInfo, meta = {}) {
     const statusClass = info.ok ? 'good' : 'bad';
     const paymentHoldText = String(info.on_payment_hold || 'No');
     const paymentHoldClass = isNo(paymentHoldText) ? 'good' : 'bad';
+    const profiles = decodeProfileEscapes(info.profiles).trim();
 
     const topFields = [
         { label: 'Trang thai', value: statusText, tone: statusClass },
@@ -2450,7 +2477,7 @@ function renderCookieInfoSuccess(accountInfo, meta = {}) {
             <strong>Phone:</strong><span>${escapeHtml(info.phone || 'N/A')} (Verified: ${escapeHtml(info.phone_verified || 'No')})</span>
             <strong>Email:</strong><span>${escapeHtml(String(info.email || 'N/A').replace(/\\x40/g, '@'))} (Verified: ${escapeHtml(info.email_verified || 'No')})</span>
             <strong>Thanh vien phu:</strong><span>${escapeHtml(info.extra_member || 'No')}</span>
-            <strong>Profiles:</strong><span>${escapeHtml(info.profiles || '?')}</span>
+            <strong>Profiles:</strong><span>${escapeHtml(profiles || '?')}</span>
             <strong>Gia han toi:</strong><span>${escapeHtml(info.next_billing || 'N/A')}</span>
             ${overloadRow}
         </div>
@@ -3110,8 +3137,12 @@ function setRuntimeCookie(rawCookie, options = {}) {
     const source = String(options.source || 'unknown').trim();
     const silent = !!options.silent;
     const profiles = String(options.profiles || '').trim();
+    const previewProfiles = source === 'share-id'
+        ? decodeProfileEscapes(options.overloadFixPreviewProfiles).trim()
+        : '';
 
     runtimeCookie = next;
+    overloadFixPreviewProfiles = previewProfiles;
     setRuntimeMaxStreams('');
     clearCookieBlockedState();
     if (next) {
@@ -3864,6 +3895,11 @@ async function advanceGetlinkOperation(operationId = '', operationToken = '') {
 async function autoFixShareCookies() {
     const shareId = String(pendingShareIdFromUrl || '').trim();
     if (!shareId || shareAutoFixBusy) return;
+    const retryAt = Number(autoFixRetryBlockedUntil.get(shareId) || 0);
+    if (retryAt > Date.now()) {
+        setLookupState(`Vui lòng thử lại sau ${Math.ceil((retryAt - Date.now()) / 1000)} giây.`, 'warning');
+        return;
+    }
     if (runtimeShareSheetAutomationDisabled) {
         setLookupState('Link này đã tắt tự động lấy cookie và sửa lỗi.', 'warning');
         return;
@@ -3956,6 +3992,13 @@ async function autoFixShareCookies() {
             reloadOnClose: true
         });
     } catch (error) {
+        autoFixRetryBlockedUntil.set(shareId, Date.now() + AUTO_FIX_ERROR_COOLDOWN_MS);
+        window.setTimeout(() => {
+            if (autoFixRetryBlockedUntil.get(shareId) <= Date.now()) {
+                autoFixRetryBlockedUntil.delete(shareId);
+                renderSupportModalContent(supportModalState || getDefaultSupportModalContent());
+            }
+        }, AUTO_FIX_ERROR_COOLDOWN_MS + 50);
         clearAutoFixOperationMeta();
         const status = Number(error && error.httpStatus ? error.httpStatus : 0);
         if (status === 404 || status === 410) {
@@ -4166,6 +4209,8 @@ async function checkOverloadFixCookieHealth(shareId = '') {
         throw error;
     }
 
+    const cached = guestHealthCache.get(normalizedShareId);
+    if (cached && cached.expiresAt > Date.now()) return cached.value;
     let data = null;
     try {
         data = await apiRequest(`/api/getlink-shares/${encodeURIComponent(normalizedShareId)}/check-cookies-health`, 'POST');
@@ -4185,7 +4230,9 @@ async function checkOverloadFixCookieHealth(shareId = '') {
     const checks = Array.isArray(data && data.checks) ? data.checks : [];
     const apiLiveCount = Number(data && data.liveCount);
     const liveCount = Number.isFinite(apiLiveCount) ? apiLiveCount : checks.filter((item) => item && item.ok).length;
-    return { checks, liveCount };
+    const value = { checks, liveCount };
+    guestHealthCache.set(normalizedShareId, { value, expiresAt: Date.now() + GUEST_HEALTH_CACHE_MS });
+    return value;
 }
 
 async function rotateOverloadShareCookie() {
@@ -4491,6 +4538,7 @@ async function applyCookieFromQuery() {
     if (shareId) {
         setRuntimeShareDesktopOnly(false);
         setRuntimeShareSheetAutomationDisabled(false);
+        overloadFixPreviewProfiles = '';
         pendingShareIdFromUrl = shareId;
         showLookupLoadingOverlay('Đang kiểm tra tài khoản của link ID, vui lòng chờ...');
         setLookupState('Đang thử tài khoản phù hợp từ link ID...', 'loading');
@@ -4498,6 +4546,9 @@ async function applyCookieFromQuery() {
             const data = await apiRequest(`/api/getlink-shares/${encodeURIComponent(shareId)}`, 'GET');
             const cookieStr = normalizeCookie(data.cookieStr || '');
             const profiles = extractProfilesFromChecks(data && data.checks, data && data.resolvedSlot);
+            const previewProfiles = data && data.overloadFixPreview
+                ? String(data.overloadFixPreview.profiles || '').trim()
+                : '';
             setRuntimeShareDesktopOnly(!!(data.desktopOnly || (data.share && data.share.desktopOnly)));
             setRuntimeShareSheetAutomationDisabled(!!(data.sheetAutomationDisabled || (data.share && data.share.sheetAutomationDisabled)));
             if (!cookieStr) {
@@ -4517,7 +4568,7 @@ async function applyCookieFromQuery() {
                 showEntryAlertPopup(getEntryAlertPopupContent());
                 return;
             }
-            setRuntimeCookie(cookieStr, { source: 'share-id', profiles });
+            setRuntimeCookie(cookieStr, { source: 'share-id', profiles, overloadFixPreviewProfiles: previewProfiles });
             await runEntryCookieHealthCheck();
             hideLookupLoadingOverlay();
             return;
@@ -4929,7 +4980,8 @@ async function loadGlobalFixHistory(options = {}) {
     if (!adminAuthenticated) return;
     const previousSort = globalFixHistorySort;
     const sort = options.sort === 'asc' || options.sort === 'desc' ? options.sort : globalFixHistorySort;
-    const shouldReload = options.force === true || !globalFixHistory || sort !== previousSort;
+    const append = options.append === true;
+    const shouldReload = append || options.force === true || !globalFixHistory || sort !== previousSort;
     globalFixHistorySort = sort;
     const select = el('adminGlobalFixHistorySortSelect');
     if (select) select.value = sort;
@@ -4943,11 +4995,16 @@ async function loadGlobalFixHistory(options = {}) {
         setStateClass(state, 'loading');
     }
     try {
-        const data = await apiRequest(`/api/getlink-admin/fix-history?sort=${encodeURIComponent(sort)}`, 'GET');
-        renderGlobalFixHistory(data || { items: [], counts: { overload: 0, household: 0, auto: 0, total: 0 }, linkCount: 0 });
+        const pageToken = append ? globalFixHistoryNextPageToken : '';
+        const data = await apiRequest(`/api/getlink-admin/fix-history?sort=${encodeURIComponent(sort)}${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`, 'GET');
+        globalFixHistory = append ? { ...data, items: [...(globalFixHistory.items || []), ...(data.items || [])] } : data;
+        globalFixHistoryNextPageToken = String(data && data.nextPageToken || '');
+        renderGlobalFixHistory(globalFixHistory || { items: [], counts: { overload: 0, household: 0, auto: 0, total: 0 }, linkCount: 0 });
+        const more = el('adminGlobalFixHistoryMoreBtn');
+        if (more) more.classList.toggle('hidden', !globalFixHistoryNextPageToken);
         if (state) {
             state.textContent = Array.isArray(data && data.items) && data.items.length > 0
-                ? `Đã tải ${data.items.length} lần sửa lỗi thành công.`
+                ? `Đã tải ${(globalFixHistory.items || []).length} lần sửa lỗi thành công.`
                 : 'Chưa có lịch sử sửa lỗi thành công.';
             setStateClass(state, 'success');
         }
@@ -4971,7 +5028,8 @@ async function loadFixHistory(options = {}) {
     if (!adminAuthenticated || !currentAdminShare || !currentAdminShare.id) return;
     const previousSort = fixHistorySort;
     const sort = options.sort === 'asc' || options.sort === 'desc' ? options.sort : fixHistorySort;
-    if (options.force !== true && currentFixHistory && sort === previousSort) {
+    const append = options.append === true;
+    if (!append && options.force !== true && currentFixHistory && sort === previousSort) {
         renderFixHistory(currentFixHistory);
         return;
     }
@@ -4980,14 +5038,19 @@ async function loadFixHistory(options = {}) {
     if (select) select.value = sort;
     setFixHistoryState('Đang tải lịch sử sửa lỗi...', 'loading');
     try {
+        const pageToken = append ? fixHistoryNextPageToken : '';
         const data = await apiRequest(
-            `/api/getlink-admin/shares/${encodeURIComponent(currentAdminShare.id)}/fix-history?sort=${encodeURIComponent(sort)}`,
+            `/api/getlink-admin/shares/${encodeURIComponent(currentAdminShare.id)}/fix-history?sort=${encodeURIComponent(sort)}${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`,
             'GET'
         );
-        renderFixHistory(data || { items: [], counts: { overload: 0, household: 0, auto: 0, total: 0 }, limit: null });
+        currentFixHistory = append ? { ...data, items: [...(currentFixHistory.items || []), ...(data.items || [])] } : data;
+        fixHistoryNextPageToken = String(data && data.nextPageToken || '');
+        renderFixHistory(currentFixHistory || { items: [], counts: { overload: 0, household: 0, auto: 0, total: 0 }, limit: null });
+        const more = el('adminFixHistoryMoreBtn');
+        if (more) more.classList.toggle('hidden', !fixHistoryNextPageToken);
         setFixHistoryState(
             Array.isArray(data && data.items) && data.items.length > 0
-                ? `Đã tải ${data.items.length} lần sửa lỗi thành công.`
+                ? `Đã tải ${(currentFixHistory.items || []).length} lần sửa lỗi thành công.`
                 : 'Chưa có lịch sử sửa lỗi thành công.',
             'success'
         );
@@ -5907,6 +5970,9 @@ function bindEvents() {
     const adminFixHistoryReloadBtn = el('adminFixHistoryReloadBtn');
     if (adminFixHistoryReloadBtn) adminFixHistoryReloadBtn.addEventListener('click', () => loadFixHistory({ force: true }));
 
+    const adminFixHistoryMoreBtn = el('adminFixHistoryMoreBtn');
+    if (adminFixHistoryMoreBtn) adminFixHistoryMoreBtn.addEventListener('click', () => loadFixHistory({ append: true }));
+
     const adminFixLimitResetBtn = el('adminFixLimitResetBtn');
     if (adminFixLimitResetBtn) adminFixLimitResetBtn.addEventListener('click', adminResetFixLimit);
 
@@ -5924,6 +5990,9 @@ function bindEvents() {
     if (adminGlobalFixHistoryReloadBtn) {
         adminGlobalFixHistoryReloadBtn.addEventListener('click', () => loadGlobalFixHistory({ force: true }));
     }
+
+    const adminGlobalFixHistoryMoreBtn = el('adminGlobalFixHistoryMoreBtn');
+    if (adminGlobalFixHistoryMoreBtn) adminGlobalFixHistoryMoreBtn.addEventListener('click', () => loadGlobalFixHistory({ append: true }));
 
     const adminGlobalFixHistorySortSelect = el('adminGlobalFixHistorySortSelect');
     if (adminGlobalFixHistorySortSelect) {
