@@ -1607,6 +1607,7 @@ function renderOverloadFixModal(mode = activeFixMode) {
     const rule2 = el('overloadFixRule2');
     const note = el('overloadFixNote');
     const preview = el('overloadFixPreview');
+    const previewProfile = el('overloadFixPreviewProfile');
     const confirmBtn = el('overloadFixConfirmBtn');
     const cancelBtn = el('overloadFixCancelBtn');
     const closeBtn = el('overloadFixCloseBtn');
@@ -1618,10 +1619,10 @@ function renderOverloadFixModal(mode = activeFixMode) {
     if (rule2) rule2.textContent = config.rule2;
     if (note) note.textContent = config.mobileNote;
     if (preview && mode === 'overload' && overloadFixPreviewProfiles) {
-        preview.textContent = `Sau khi sửa xong, bạn sẽ chuyển sang phiên: ${overloadFixPreviewProfiles}`;
+        if (previewProfile) previewProfile.textContent = overloadFixPreviewProfiles;
         preview.classList.remove('hidden');
     } else if (preview) {
-        preview.textContent = '';
+        if (previewProfile) previewProfile.textContent = '';
         preview.classList.add('hidden');
     }
     if (confirmBtn) confirmBtn.textContent = content.fix.common.confirmText;

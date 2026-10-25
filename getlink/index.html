@@ -1783,6 +1783,46 @@
             color: #ffffff;
         }
 
+        .overload-fix-preview {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.45rem;
+            margin: 0;
+            padding: 0.9rem 1rem;
+            border: 1px solid rgba(245, 158, 11, 0.56);
+            border-radius: 16px;
+            background: linear-gradient(135deg, rgba(120, 53, 15, 0.5), rgba(69, 26, 3, 0.42));
+            color: #ffebb8;
+            font-weight: 800;
+            line-height: 1.65;
+        }
+
+        .overload-fix-preview.hidden {
+            display: none;
+        }
+
+        .overload-fix-preview-label {
+            color: #fff1c7;
+        }
+
+        .overload-fix-preview-profile {
+            display: inline-flex;
+            align-items: center;
+            max-width: 100%;
+            min-width: 0;
+            border: 1px solid rgba(253, 230, 138, 0.76);
+            border-radius: 10px;
+            background: rgba(253, 230, 138, 0.14);
+            box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.18), 0 10px 24px rgba(0, 0, 0, 0.22);
+            padding: 0.22rem 0.5rem;
+            color: #fffdf4;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.88rem;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+
         .overload-fix-warning {
             color: #ffdca4;
             font-weight: 700;
@@ -2429,8 +2469,11 @@
                     <li id="overloadFixRule1">CHỈ sử dụng tính năng này khi tài khoản ĐANG BỊ QUÁ TẢI sử dụng dẫn đến không coi được</li>
                     <li id="overloadFixRule2">Nếu sử dụng khi thật sự KHÔNG BỊ QUÁ TẢI sẽ dẫn đến bị TRỪ ĐI HẠN BẢO HÀNH</li>
                 </ol>
+                <p id="overloadFixPreview" class="overload-fix-preview hidden" aria-live="polite">
+                    <span class="overload-fix-preview-label">Sau khi sửa xong, bạn sẽ chuyển sang phiên:</span>
+                    <span id="overloadFixPreviewProfile" class="overload-fix-preview-profile"></span>
+                </p>
                 <p id="overloadFixNote" class="overload-fix-note"><strong>Lưu ý cho thiết bị di động:</strong> Cần <strong>đăng xuất tài khoản</strong> ở trên ứng dụng Netflix trước khi sửa lỗi quá tải.</p>
-                <p id="overloadFixPreview" class="overload-fix-note hidden" aria-live="polite"></p>
                 <div id="overloadFixCountdown" class="state-text state-warning">Vui lòng chờ 10 giây để xác nhận.</div>
                 <div id="overloadFixLoading" class="overload-fix-loading hidden" aria-live="polite">
                     <div class="support-modal-spinner" aria-hidden="true"></div>
