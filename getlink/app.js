@@ -3,7 +3,9 @@ const UNSUPPORTED_URL = 'https://www.netflix.com/unsupported';
 const TV2_URL = 'https://www.netflix.com/tv2';
 const SUPPORT_FANPAGE_URL = 'https://www.facebook.com/trada3k.vn/';
 const GETLINK_ADMIN_AUTH_STORAGE_KEY = 'getlink_admin_auth_v1';
-const GETLINK_OPERATION_POLL_INTERVAL_MS = 1800;
+// Advancing an operation performs a Sheet chunk.  Ten seconds avoids turning
+// progress reporting into the largest source of Firestore reads.
+const GETLINK_OPERATION_POLL_INTERVAL_MS = 10000;
 const GETLINK_LOADING_REASSURANCE_DELAY_MS = 10000;
 const GETLINK_SHEET_IMPORT_OPERATION_STORAGE_PREFIX = 'getlink_sheet_import_operation_';
 const GETLINK_AUTO_FIX_OPERATION_STORAGE_KEY = 'getlink_auto_fix_operation';
@@ -2289,7 +2291,7 @@ async function importCookiesFromSheet(scope = 'current', requestedSlots = null) 
                     await cancelState.cancelPromise;
                 }
                 if (cancelState.requested) break;
-                data = await pollGetlinkOperation(operationMeta.operationId, operationMeta.operationToken);
+                data = await advanceGetlinkOperation(operationMeta.operationId, operationMeta.operationToken);
                 renderPending(data);
             }
 
@@ -3849,6 +3851,16 @@ async function pollGetlinkOperation(operationId = '', operationToken = '') {
     return apiRequest(path, 'GET');
 }
 
+async function advanceGetlinkOperation(operationId = '', operationToken = '') {
+    const safeOperationId = String(operationId || '').trim();
+    const safeOperationToken = String(operationToken || '').trim();
+    if (!safeOperationId || !safeOperationToken) {
+        throw new Error('Thiếu thông tin operation để tiếp tục xử lý.');
+    }
+    const path = `/api/getlink-operations/${encodeURIComponent(safeOperationId)}/advance?token=${encodeURIComponent(safeOperationToken)}`;
+    return apiRequest(path, 'POST');
+}
+
 async function autoFixShareCookies() {
     const shareId = String(pendingShareIdFromUrl || '').trim();
     if (!shareId || shareAutoFixBusy) return;
@@ -3919,7 +3931,7 @@ async function autoFixShareCookies() {
 
             while (String(data && data.status || '').trim() === 'pending') {
                 await sleep(GETLINK_OPERATION_POLL_INTERVAL_MS);
-                data = await pollGetlinkOperation(operationMeta.operationId, operationMeta.operationToken);
+                data = await advanceGetlinkOperation(operationMeta.operationId, operationMeta.operationToken);
                 renderPending();
             }
 
@@ -4033,7 +4045,7 @@ async function resumePendingSheetImportOperation(scope = 'current') {
             renderPending(snapshot);
         });
         while (!cancelState.requested && String(snapshot && snapshot.status || '').trim() === 'pending') {
-            snapshot = await pollGetlinkOperation(meta.operationId, meta.operationToken);
+            snapshot = await advanceGetlinkOperation(meta.operationId, meta.operationToken);
             renderPending(snapshot);
             if (String(snapshot && snapshot.status || '').trim() === 'pending') {
                 await sleep(GETLINK_OPERATION_POLL_INTERVAL_MS);
@@ -4103,7 +4115,7 @@ async function resumePendingAutoFixOperation() {
             renderPending();
         });
         while (String(snapshot && snapshot.status || '').trim() === 'pending') {
-            snapshot = await pollGetlinkOperation(meta.operationId, meta.operationToken);
+            snapshot = await advanceGetlinkOperation(meta.operationId, meta.operationToken);
             renderPending();
             if (String(snapshot && snapshot.status || '').trim() === 'pending') {
                 await sleep(GETLINK_OPERATION_POLL_INTERVAL_MS);
@@ -4237,7 +4249,7 @@ async function rotateOverloadShareCookie() {
 
             while (String(data && data.status || '').trim() === 'pending') {
                 await sleep(GETLINK_OPERATION_POLL_INTERVAL_MS);
-                data = await pollGetlinkOperation(operationMeta.operationId, operationMeta.operationToken);
+                data = await advanceGetlinkOperation(operationMeta.operationId, operationMeta.operationToken);
                 renderPending();
             }
 

@@ -443,6 +443,7 @@ function normalizeOverloadFixState(input = {}, slotsFallback = []) {
         fixMode: normalizeFixMode(source.fixMode),
         recoveryMode: String(source.recoveryMode || '').trim(),
         liveCountPrecheck: Math.max(0, Number(source.liveCountPrecheck || 0) || 0),
+        shareValidated: source.shareValidated === true,
         shareUpdated: source.shareUpdated === true,
         rotated: source.rotated === true,
         recovered: source.recovered === true,
@@ -536,6 +537,7 @@ async function createAutoFixOperation(shareId = '') {
     const state = createSheetImportState(['primary'], {
         seenCookies: await getExistingShareCookiesById(shareId)
     });
+    state.shareValidated = true;
     return createGetlinkOperation({
         type: 'auto_fix',
         shareId,
@@ -551,7 +553,8 @@ async function createOverloadFixOperation(shareId = '', slots = [], liveCountPre
         }),
         liveCountPrecheck,
         fixMode,
-        recoveryMode
+        recoveryMode,
+        shareValidated: true
     }, normalizeSheetSlots(slots));
     return createGetlinkOperation({
         type: 'overload_fix',
@@ -576,7 +579,9 @@ async function advanceGetlinkOperation(operationInput = {}) {
     }
 
     try {
-        if (operation.shareId && (operation.type === 'auto_fix' || operation.type === 'overload_fix')) {
+        // New operations validate the share while they are created.  Legacy
+        // in-flight operations take this one-time preflight path instead.
+        if (operation.shareId && operation.state && operation.state.shareValidated !== true && (operation.type === 'auto_fix' || operation.type === 'overload_fix')) {
             const share = await readShareById(operation.shareId);
             if (share && share.sheetAutomationDisabled) {
                 operation.status = 'failed';
@@ -587,6 +592,7 @@ async function advanceGetlinkOperation(operationInput = {}) {
                 operation.errorHttpStatus = 403;
                 return saveGetlinkOperation(operation);
             }
+            operation.state = { ...operation.state, shareValidated: true };
         }
 
         if (!(await isSheetAccessEnabled())) {
@@ -602,13 +608,9 @@ async function advanceGetlinkOperation(operationInput = {}) {
         let nextState = await runSheetImportChunk(currentState);
         let nextResult = buildSheetImportResult(nextState);
 
-        // A cancel request may arrive while the current Sheet/cookie request is in flight.
-        // Do not start another chunk or apply the result after that request is observed.
-        const latestAfterChunk = await readGetlinkOperationById(operation.id);
-        if (latestAfterChunk && latestAfterChunk.status === 'cancelled') {
-            return latestAfterChunk;
-        }
-        if (operation.shareId && (operation.type === 'auto_fix' || operation.type === 'overload_fix')) {
+        // Only validate the share once a completed chunk is about to update it.
+        // Per-chunk validation previously multiplied reads on long operations.
+        if (nextResult.status === 'completed' && operation.shareId && (operation.type === 'auto_fix' || operation.type === 'overload_fix')) {
             const shareAfterChunk = await readShareById(operation.shareId);
             if (shareAfterChunk && shareAfterChunk.sheetAutomationDisabled) {
                 operation.status = 'failed';
@@ -786,10 +788,6 @@ async function advanceGetlinkOperation(operationInput = {}) {
         operation.errorSlot = '';
         operation.errorAttempts = 0;
         operation.status = nextResult.status === 'completed' ? 'completed' : 'pending';
-        const latestBeforeSave = await readGetlinkOperationById(operation.id);
-        if (latestBeforeSave && latestBeforeSave.status === 'cancelled') {
-            return latestBeforeSave;
-        }
         try {
             return await saveGetlinkOperation(operation);
         } catch (error) {

@@ -3,8 +3,10 @@ const crypto = require('crypto');
 
 const FIREBASE_PROJECT_ID = 'trada3k-c402a';
 const FIREBASE_API_KEY = 'AIzaSyAVV-3HxGFpT_eiAri1SGPWGwu3EL8On58';
-const COLL_GETLINK_FIX_HISTORY = 'settings/getlink_fix_history/items';
-const COLL_GETLINK_FIX_LIMITS = 'settings/getlink_fix_limits/items';
+// v2 is intentionally separate from the legacy flat collections.  Existing
+// records are retained but never scanned by the application again.
+const COLL_GETLINK_FIX_HISTORY = 'settings/getlink_fix_history_v2/global_items';
+const COLL_GETLINK_FIX_LIMITS = 'settings/getlink_fix_history_v2/limit_states';
 const FIX_MODES = new Set(['overload', 'household', 'auto']);
 const FIX_LIMIT_MAX_24H = 4;
 const FIX_LIMIT_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -64,6 +66,14 @@ function buildHistoryDocPath(historyId = '') {
     return `${COLL_GETLINK_FIX_HISTORY}/${encodeURIComponent(String(historyId || '').trim())}`;
 }
 
+function buildShareHistoryCollectionPath(shareId = '') {
+    return `settings/getlink_fix_history_v2/shares/${encodeURIComponent(String(shareId || '').trim())}/items`;
+}
+
+function buildShareHistoryDocPath(shareId = '', historyId = '') {
+    return `${buildShareHistoryCollectionPath(shareId)}/${encodeURIComponent(String(historyId || '').trim())}`;
+}
+
 function buildLimitDocPath(shareId = '') {
     return `${COLL_GETLINK_FIX_LIMITS}/${encodeURIComponent(String(shareId || '').trim())}`;
 }
@@ -112,7 +122,10 @@ function mapLimitFieldsToRecord(fields = {}, fallbackShareId = '') {
         shareId: parseFirestoreString(fields.shareId) || String(fallbackShareId || '').trim(),
         resetAt: parseFirestoreString(fields.resetAt),
         resetBy: parseFirestoreString(fields.resetBy),
-        updatedAt: parseFirestoreString(fields.updatedAt)
+        updatedAt: parseFirestoreString(fields.updatedAt),
+        overloadCompletedAt: Array.isArray(fields.overloadCompletedAt && fields.overloadCompletedAt.arrayValue && fields.overloadCompletedAt.arrayValue.values)
+            ? fields.overloadCompletedAt.arrayValue.values.map(parseFirestoreString).filter(Boolean)
+            : []
     };
 }
 
@@ -121,7 +134,14 @@ function mapLimitRecordToFields(record = {}) {
         shareId: toStringValue(record.shareId),
         resetAt: toStringValue(record.resetAt),
         resetBy: toStringValue(record.resetBy),
-        updatedAt: toStringValue(record.updatedAt)
+        updatedAt: toStringValue(record.updatedAt),
+        overloadCompletedAt: {
+            arrayValue: {
+                values: Array.isArray(record.overloadCompletedAt)
+                    ? record.overloadCompletedAt.filter(Boolean).map(toStringValue)
+                    : []
+            }
+        }
     };
 }
 
@@ -165,7 +185,7 @@ async function patchDoc(docPath, fields) {
     return true;
 }
 
-async function listDocs(options = {}) {
+async function listDocs(collectionPath, options = {}) {
     const pageSize = Math.max(1, Math.min(Number(options.pageSize || 200), 1000));
     const docs = [];
     let pageToken = '';
@@ -174,7 +194,7 @@ async function listDocs(options = {}) {
         const response = await httpRequest({
             hostname: 'firestore.googleapis.com',
             port: 443,
-            path: firestoreCollectionPath(COLL_GETLINK_FIX_HISTORY, {
+            path: firestoreCollectionPath(collectionPath, {
                 pageSize,
                 pageToken: pageToken || undefined
             }),
@@ -190,6 +210,9 @@ async function listDocs(options = {}) {
         try { parsed = JSON.parse(response.body || '{}'); } catch (_error) { parsed = {}; }
         if (Array.isArray(parsed.documents)) docs.push(...parsed.documents);
         pageToken = String(parsed.nextPageToken || '').trim();
+        // Lists are deliberately bounded.  Admin can show recent records
+        // without reads increasing with the age of the project.
+        if (options.paginate !== true) pageToken = '';
     } while (pageToken);
 
     return docs;
@@ -210,7 +233,29 @@ async function recordSuccessfulFix(input = {}) {
         actor: String(input.actor || 'guest').trim(),
         sheetImported: input.sheetImported === true ? true : input.sheetImported === false ? false : null
     };
-    await patchDoc(buildHistoryDocPath(record.id), mapRecordToFields(record));
+    const fields = mapRecordToFields(record);
+    // A per-share collection makes a share history lookup bounded and avoids
+    // the old full-collection scan.  The compact global feed is for admin.
+    await Promise.all([
+        patchDoc(buildShareHistoryDocPath(shareId, record.id), fields),
+        patchDoc(buildHistoryDocPath(record.id), fields)
+    ]);
+
+    if (record.fixMode === 'overload') {
+        const nowMs = parseIsoMillis(record.completedAt) || Date.now();
+        const current = await readFixLimitReset(shareId);
+        const windowStartMs = Math.max(nowMs - FIX_LIMIT_WINDOW_MS, parseIsoMillis(current.resetAt) || 0);
+        const overloadCompletedAt = [...(current.overloadCompletedAt || []), record.completedAt]
+            .filter((value) => parseIsoMillis(value) >= windowStartMs)
+            .sort((a, b) => parseIsoMillis(b) - parseIsoMillis(a))
+            .slice(0, FIX_LIMIT_MAX_24H);
+        await patchDoc(buildLimitDocPath(shareId), mapLimitRecordToFields({
+            ...current,
+            shareId,
+            overloadCompletedAt,
+            updatedAt: record.completedAt
+        }));
+    }
     return record;
 }
 
@@ -245,18 +290,11 @@ async function getFixLimitState(shareId = '', options = {}) {
     const cooldownEnabled = options.cooldownEnabled !== false;
     const resetMs = parseIsoMillis(reset.resetAt);
     const windowStartMs = Math.max(nowMs - FIX_LIMIT_WINDOW_MS, resetMs || 0);
-    const docs = await listDocs();
-    const successes = docs
-        .map((doc) => mapFieldsToRecord(doc && doc.fields ? doc.fields : {}))
-        .filter((item) => item.shareId === normalizedShareId && item.status === 'success' && item.fixMode === 'overload')
-        .map((item) => ({
-            ...item,
-            completedMs: parseIsoMillis(item.completedAt || item.startedAt)
-        }))
-        .filter((item) => item.completedMs >= windowStartMs && item.completedMs <= nowMs)
-        .sort((a, b) => b.completedMs - a.completedMs);
-
-    const lastSuccessMs = successes.length > 0 ? successes[0].completedMs : 0;
+    const successes = (reset.overloadCompletedAt || [])
+        .map(parseIsoMillis)
+        .filter((completedMs) => completedMs >= windowStartMs && completedMs <= nowMs)
+        .sort((a, b) => b - a);
+    const lastSuccessMs = successes.length > 0 ? successes[0] : 0;
     const cooldownUntilMs = cooldownEnabled && lastSuccessMs > 0 ? lastSuccessMs + FIX_LIMIT_COOLDOWN_MS : 0;
     const count24h = successes.length;
     const limited = limitEnabled && count24h >= FIX_LIMIT_MAX_24H;
@@ -306,7 +344,7 @@ async function resetFixLimit(shareId = '', resetBy = 'admin') {
         resetBy: String(resetBy || 'admin').trim(),
         updatedAt: now
     };
-    await patchDoc(buildLimitDocPath(normalizedShareId), mapLimitRecordToFields(record));
+    await patchDoc(buildLimitDocPath(normalizedShareId), mapLimitRecordToFields({ ...record, overloadCompletedAt: [] }));
     return record;
 }
 
@@ -321,7 +359,7 @@ async function listSuccessfulFixHistory(shareId = '', sort = 'desc') {
         };
     }
 
-    const docs = await listDocs();
+    const docs = await listDocs(buildShareHistoryCollectionPath(normalizedShareId), { pageSize: 100 });
     const items = docs
         .map((doc) => mapFieldsToRecord(doc && doc.fields ? doc.fields : {}))
         .filter((item) => item.shareId === normalizedShareId && item.status === 'success');
@@ -343,7 +381,7 @@ async function listSuccessfulFixHistory(shareId = '', sort = 'desc') {
 }
 
 async function listAllSuccessfulFixHistory(sort = 'desc') {
-    const docs = await listDocs();
+    const docs = await listDocs(COLL_GETLINK_FIX_HISTORY, { pageSize: 100 });
     const items = docs
         .map((doc) => mapFieldsToRecord(doc && doc.fields ? doc.fields : {}))
         .filter((item) => item.status === 'success' && item.shareId);

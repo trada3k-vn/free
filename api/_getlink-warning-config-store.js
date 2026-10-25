@@ -3,6 +3,9 @@ const https = require('https');
 const FIREBASE_PROJECT_ID = 'trada3k-c402a';
 const FIREBASE_API_KEY = 'AIzaSyAVV-3HxGFpT_eiAri1SGPWGwu3EL8On58';
 const GETLINK_WARNING_CONFIG_DOC = 'settings/getlink_warning_config';
+const WARNING_CONFIG_CACHE_TTL_MS = 60 * 1000;
+let warningConfigCache = null;
+let warningConfigCacheAt = 0;
 const DEFAULT_SHEET_ACCESS_ENABLED = true;
 const DEFAULT_WARNING_CONFIG = {
     message: 'Hiện tại gói xài chung này đang lỗi và rất thiếu ổn định, hãy cân nhắc nhắn vào page để chuyển đổi sang loại xài riêng mới (Ô riên,g mã pin riêng...) nhé!',
@@ -308,9 +311,16 @@ async function patchDoc(docPath, fields) {
 }
 
 async function readWarningConfig() {
+    if (warningConfigCache && Date.now() - warningConfigCacheAt < WARNING_CONFIG_CACHE_TTL_MS) {
+        return { ...warningConfigCache };
+    }
     const doc = await readDoc(GETLINK_WARNING_CONFIG_DOC);
-    if (!doc || !doc.fields) return { ...DEFAULT_WARNING_CONFIG };
-    return mapWarningConfigFieldsToRecord(doc.fields || {});
+    const config = !doc || !doc.fields
+        ? { ...DEFAULT_WARNING_CONFIG }
+        : mapWarningConfigFieldsToRecord(doc.fields || {});
+    warningConfigCache = config;
+    warningConfigCacheAt = Date.now();
+    return { ...config };
 }
 
 async function saveWarningConfig(input = {}) {
@@ -322,7 +332,12 @@ async function saveWarningConfig(input = {}) {
         err.httpStatus = 500;
         throw err;
     }
-    return normalizeWarningConfig(normalized);
+    const config = normalizeWarningConfig(normalized);
+    // Writes must be visible immediately; do not serve the previous setting
+    // for the remainder of the cache TTL.
+    warningConfigCache = config;
+    warningConfigCacheAt = Date.now();
+    return config;
 }
 
 async function isSheetAccessEnabled() {

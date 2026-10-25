@@ -18,7 +18,7 @@ module.exports = async function (req, res) {
 
     try {
         const pathname = String((req.url || '').split('?')[0] || '').trim();
-        const match = pathname.match(/^\/api\/getlink-operations\/([^/]+)(\/cancel)?$/);
+        const match = pathname.match(/^\/api\/getlink-operations\/([^/]+)(\/(?:cancel|advance))?$/);
         if (!match) return res.status(404).json({ error: 'Not found' });
 
         const operationId = decodeURIComponent(match[1] || '');
@@ -34,20 +34,26 @@ module.exports = async function (req, res) {
             return res.status(200).json(shapeOperationPayload(cancelled));
         }
 
+        if (req.method === 'POST' && match[2] === '/advance') {
+            const advanced = await advanceGetlinkOperation(operation);
+            const payload = shapeOperationPayload(advanced);
+            if (advanced.status === 'failed') {
+                const failureStatus = Number(advanced.errorHttpStatus || 0) || 422;
+                return res.status(failureStatus).json({
+                    ...payload,
+                    error: String(advanced.lastError || advanced.message || 'Getlink operation failed').trim() || 'Getlink operation failed'
+                });
+            }
+            return res.status(200).json(payload);
+        }
+
         if (req.method !== 'GET') {
             return res.status(405).json({ error: 'Method not allowed' });
         }
 
-        const advanced = await advanceGetlinkOperation(operation);
-        const payload = shapeOperationPayload(advanced);
-        if (advanced.status === 'failed') {
-            const failureStatus = Number(advanced.errorHttpStatus || 0) || 422;
-            return res.status(failureStatus).json({
-                ...payload,
-                error: String(advanced.lastError || advanced.message || 'Getlink operation failed').trim() || 'Getlink operation failed'
-            });
-        }
-        return res.status(200).json(payload);
+        // A GET is deliberately status-only.  It is safe for refresh/resume
+        // screens and can never trigger another Sheet chunk or mutation.
+        return res.status(200).json(shapeOperationPayload(operation));
     } catch (error) {
         return res.status(error.httpStatus || 500).json({ error: error.message || 'Internal server error' });
     }
