@@ -12,6 +12,8 @@ const GETLINK_AUTO_FIX_OPERATION_STORAGE_KEY = 'getlink_auto_fix_operation';
 const DEFAULT_GETLINK_WARNING_MESSAGE = 'LƯU Ý';
 const DEFAULT_GETLINK_WARNING_SUBMESSAGE = '';
 const DEFAULT_SHEET_ACCESS_ENABLED = true;
+const LEGACY_AUTO_FIX_BUTTON_TEXT = 'SỬA LỖI TỰ ĐỘNG';
+const ACCOUNT_UPDATE_BUTTON_TEXT = 'CẬP NHẬP TÀI KHOẢN';
 const DEFAULT_GETLINK_CONTENT = {
     disclaimer: {
         eyebrow: 'Lưu ý trước khi sử dụng',
@@ -186,7 +188,7 @@ const DEFAULT_GETLINK_CONTENT = {
         title: 'Cần hỗ trợ tài khoản Netflix?',
         message: 'Vui lòng nhắn tin qua fanpage để được hỗ trợ bảo hành nhanh nhất.',
         bh247Text: 'Hãy nhắn chính xác cú pháp BH247 vào page để được hỗ trợ và bảo hành.',
-        autoFixText: 'SỬA LỖI TỰ ĐỘNG',
+        autoFixText: ACCOUNT_UPDATE_BUTTON_TEXT,
         fanpageText: 'Truy cập fanpage TRÀ ĐÁ 3K',
         warrantyButtonText: 'CẦN HỖ TRỢ / BẢO HÀNH',
         autoFixEyebrow: 'Sửa lỗi tự động',
@@ -718,11 +720,16 @@ function normalizeWarningBannerConfig(input = {}, options = {}) {
     const overloadFixLimitEnabled = source.overloadFixLimitEnabled !== false;
     const overloadFixCooldownEnabled = source.overloadFixCooldownEnabled !== false;
     const showShareInternalNote = source.showShareInternalNote === true;
+    const content = mergeContentDefaults(DEFAULT_GETLINK_CONTENT, source.content);
+    // Migrate only the former built-in label so intentionally customized labels remain unchanged.
+    if (content.support?.autoFixText === LEGACY_AUTO_FIX_BUTTON_TEXT) {
+        content.support.autoFixText = ACCOUNT_UPDATE_BUTTON_TEXT;
+    }
     if (!message && !submessage && !allowBlank) {
         return {
             message: DEFAULT_GETLINK_WARNING_MESSAGE,
             submessage: DEFAULT_GETLINK_WARNING_SUBMESSAGE,
-            content: mergeContentDefaults(DEFAULT_GETLINK_CONTENT, source.content),
+            content,
             sheetAccessEnabled,
             sheetAppsScriptUrl,
             overloadFixEnabled,
@@ -735,7 +742,7 @@ function normalizeWarningBannerConfig(input = {}, options = {}) {
     return {
         message,
         submessage,
-        content: mergeContentDefaults(DEFAULT_GETLINK_CONTENT, source.content),
+        content,
         sheetAccessEnabled,
         sheetAppsScriptUrl,
         overloadFixEnabled,
