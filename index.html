@@ -12933,6 +12933,15 @@
             if (!btnLink) return;
             if (isNetflixDirectLoginLoading) return;
 
+            if (isProbablyMobileDevice()) {
+                showAlert(
+                    'Chỉ xem trên máy tính',
+                    'Gói Netflix miễn phí chỉ hỗ trợ xem trên máy tính. Vui lòng truy cập bằng máy tính hoặc chọn gói VIP để xem trên điện thoại/tivi.',
+                    'warning'
+                );
+                return;
+            }
+
             // Open a tab synchronously from click to avoid popup blockers after async fetch.
             const { popupWindow, wasBlocked } = openDeferredTabAndNavigate({
                 loadingTitle: 'Đang tạo link Netflix...',
