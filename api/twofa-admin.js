@@ -1,13 +1,13 @@
 const https = require('https');
 const { parseBody } = require('./_nf-store');
 const { adminAuthConfig, applyCors, applySecurityHeaders } = require('./_security');
-const { validId, read, create, update, rotate, decrypt, expired } = require('./_twofa-store');
+const { validId, read, create, update, rotate, expired } = require('./_twofa-store');
 const FIREBASE_API_KEY = String(process.env.FIREBASE_API_KEY || 'AIzaSyAVV-3HxGFpT_eiAri1SGPWGwu3EL8On58').trim();
 function request(options, body) { return new Promise((resolve, reject) => { const r = https.request(options, (s) => { let data = ''; s.on('data', (c) => { data += c; }); s.on('end', () => resolve({ status: s.statusCode || 0, body: data })); }); r.on('error', reject); if (body) r.write(body); r.end(); }); }
 function bearer(headers = {}) { const value = String(headers.authorization || headers.Authorization || ''); return value.startsWith('Bearer ') ? value.slice(7).trim() : ''; }
 async function admin(req) { const token = bearer(req.headers); if (!token) return null; const body = JSON.stringify({ idToken: token }); const out = await request({ hostname: 'identitytoolkit.googleapis.com', path: `/v1/accounts:lookup?key=${encodeURIComponent(FIREBASE_API_KEY)}`, method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) } }, body); if (out.status < 200 || out.status >= 300) return null; let json = {}; try { json = JSON.parse(out.body); } catch (_) {} const email = String(json.users && json.users[0] && json.users[0].email || '').toLowerCase(); return (adminAuthConfig().adminEmails || []).includes(email) ? email : null; }
 function origin(req) { const host = String(req.headers.host || 'localhost:3005'); const proto = String(req.headers['x-forwarded-proto'] || 'http'); return `${proto}://${host}`; }
-function dto(record, req, includeSecret = false) { const data = { id: record.id, status: record.status, createdAt: record.createdAt, updatedAt: record.updatedAt, revokedAt: record.revokedAt, expiresAt: record.expiresAt, expired: expired(record), shareUrl: `${origin(req)}/2fa?s=${encodeURIComponent(record.id)}` }; if (includeSecret) data.secret = decrypt(record.secretCiphertext, record.id); return data; }
+function dto(record, req, includeSecret = false) { const data = { id: record.id, status: record.status, createdAt: record.createdAt, updatedAt: record.updatedAt, revokedAt: record.revokedAt, expiresAt: record.expiresAt, expired: expired(record), shareUrl: `${origin(req)}/2fa?s=${encodeURIComponent(record.id)}` }; if (includeSecret) data.secret = record.secret; return data; }
 module.exports = async function (req, res) {
     applyCors(req, res); applySecurityHeaders(res); if (req.method === 'OPTIONS') return res.status(204).end();
     const user = await admin(req); if (!user) return res.status(401).json({ error: 'Cần đăng nhập admin.' });

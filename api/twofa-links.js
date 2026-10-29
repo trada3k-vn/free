@@ -1,4 +1,4 @@
-const { validId, read, decrypt, generateTotp, expired } = require('./_twofa-store');
+const { validId, read, generateTotp, expired } = require('./_twofa-store');
 const { checkRateLimit, applySecurityHeaders } = require('./_security');
 
 function ip(req) { return String(req.headers && req.headers['x-forwarded-for'] || req.socket && req.socket.remoteAddress || 'unknown').split(',')[0].trim(); }
@@ -16,6 +16,6 @@ module.exports = async function (req, res) {
         if (record.status !== 'active') return res.status(410).json({ error: 'Link 2FA đã bị thu hồi.' });
         if (expired(record)) return res.status(410).json({ error: 'Link 2FA đã hết hạn.' });
         const now = Date.now(); const expiresAt = (Math.floor(now / 30000) + 1) * 30000;
-        return res.status(200).json({ code: generateTotp(decrypt(record.secretCiphertext, record.id), now), expiresAt: new Date(expiresAt).toISOString(), remainingSeconds: Math.max(0, Math.ceil((expiresAt - now) / 1000)) });
+        return res.status(200).json({ code: generateTotp(record.secret, now), expiresAt: new Date(expiresAt).toISOString(), remainingSeconds: Math.max(0, Math.ceil((expiresAt - now) / 1000)) });
     } catch (error) { return res.status(error.httpStatus || 500).json({ error: 'Không thể lấy mã 2FA lúc này.' }); }
 };
