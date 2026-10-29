@@ -4,6 +4,8 @@ const { checkRateLimit, applySecurityHeaders } = require('./_security');
 function ip(req) { return String(req.headers && req.headers['x-forwarded-for'] || req.socket && req.socket.remoteAddress || 'unknown').split(',')[0].trim(); }
 module.exports = async function (req, res) {
     applySecurityHeaders(res);
+    res.setHeader('Cache-Control', 'no-store, no-cache, max-age=0, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
     const match = String(req.url || '').split('?')[0].match(/^\/api\/2fa-links\/([^/]+)\/code$/);
     if (req.method !== 'GET' || !match) return res.status(404).json({ error: 'Not found' });
     const id = decodeURIComponent(match[1] || '');

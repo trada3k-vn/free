@@ -13,6 +13,9 @@ module.exports = async function (req, res) {
     const user = await admin(req); if (!user) return res.status(401).json({ error: 'Cần đăng nhập admin.' });
     const path = String(req.url || '').split('?')[0];
     try {
+        if (req.method === 'GET' && path === '/api/2fa-admin/session') {
+            return res.json({ authenticated: true, user: { email: user, role: 'admin' } });
+        }
         if (req.method === 'POST' && path === '/api/2fa-admin/links') { const body = parseBody(req.body); const record = await create(body.secret, body.expiresAt, user); return res.status(201).json({ success: true, link: dto(record, req, true) }); }
         if (req.method === 'POST' && path === '/api/2fa-admin/search') { const query = String(parseBody(req.body).query || '').trim(); let id = query; try { id = new URL(query).searchParams.get('s') || query; } catch (_) {} if (!validId(id)) return res.status(400).json({ error: 'ID hoặc URL không hợp lệ.' }); const record = await read(id); if (!record) return res.status(404).json({ error: 'Không tìm thấy link 2FA.' }); return res.json({ success: true, link: dto(record, req, true) }); }
         const rotateMatch = path.match(/^\/api\/2fa-admin\/links\/([^/]+)\/rotate-id$/);
