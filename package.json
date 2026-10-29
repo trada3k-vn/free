@@ -5,7 +5,7 @@
   "type": "commonjs",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test api/_getlink-cookie-health.test.js"
+    "test": "node --test api/_getlink-cookie-health.test.js api/_twofa-store.test.js"
   },
   "dependencies": {
     "playwright-core": "^1.52.0"

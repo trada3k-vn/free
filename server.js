@@ -14,6 +14,8 @@ const nfTvActivateHandler = require('./api/nf-tv-activate');
 const nftokenHandler = require('./api/nftoken');
 const getlinkSharesHandler = require('./api/getlink-shares');
 const getlinkAdminHandler = require('./api/getlink-admin');
+const twofaLinksHandler = require('./api/twofa-links');
+const twofaAdminHandler = require('./api/twofa-admin');
 const stuProxyHandler = require('./api/stu-proxy');
 const dataHandler = require('./api/data');
 const capcutHandler = require('./api/capcut');
@@ -169,6 +171,12 @@ const server = http.createServer((req, res) => {
     }
     if (requestPath.startsWith('/api/getlink-admin')) {
         return invokeServerlessApi(getlinkAdminHandler, req, res);
+    }
+    if (requestPath === '/api/2fa-links' || requestPath.startsWith('/api/2fa-links/')) {
+        return invokeServerlessApi(twofaLinksHandler, req, res);
+    }
+    if (requestPath.startsWith('/api/2fa-admin')) {
+        return invokeServerlessApi(twofaAdminHandler, req, res);
     }
     if (requestPath.startsWith('/api/data-admin') || requestPath.startsWith('/api/data/')) {
         return invokeServerlessApi(dataHandler, req, res);

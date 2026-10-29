@@ -12,6 +12,8 @@ const nftokenHandler = require('./nftoken');
 const netflixCookieHandler = require('./netflix-cookie');
 const getlinkSharesHandler = require('./getlink-shares');
 const getlinkAdminHandler = require('./getlink-admin');
+const twofaLinksHandler = require('./twofa-links');
+const twofaAdminHandler = require('./twofa-admin');
 const getlinkOperationsHandler = require('./getlink-operations');
 const stuProxyHandler = require('./stu-proxy');
 const dataHandler = require('./data');
@@ -33,6 +35,12 @@ module.exports = async function (req, res) {
         }
         if (requestPath.startsWith('/api/getlink-admin')) {
             return getlinkAdminHandler(req, res);
+        }
+        if (requestPath === '/api/2fa-links' || requestPath.startsWith('/api/2fa-links/')) {
+            return twofaLinksHandler(req, res);
+        }
+        if (requestPath.startsWith('/api/2fa-admin')) {
+            return twofaAdminHandler(req, res);
         }
         if (requestPath.startsWith('/api/data-admin') || requestPath.startsWith('/api/data/')) {
             return dataHandler(req, res);
