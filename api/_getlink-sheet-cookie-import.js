@@ -5,12 +5,15 @@ const {
     resolveAppsScriptUrlOrThrow,
     requestAppsScriptJsonWithRetry
 } = require('./_getlink-apps-script-client');
+const { getSheetImportConfig, getSheetCheckWindow } = require('./_getlink-sheet-config');
 
 const ENV_GETLINK_SHEET_APPS_SCRIPT_URL = String(process.env.GETLINK_SHEET_APPS_SCRIPT_URL || '').trim();
 const GETLINK_SHEET_FETCH_LIMIT = Math.max(20, Math.min(5000, Number(process.env.GETLINK_SHEET_FETCH_LIMIT || 5000) || 5000));
 const GETLINK_SHEET_BATCH_SIZE = Math.max(20, Math.min(500, Number(process.env.GETLINK_SHEET_BATCH_SIZE || 100) || 100));
-const GETLINK_SHEET_CANDIDATE_BATCH = Math.max(1, Math.min(20, Number(process.env.GETLINK_SHEET_CANDIDATE_BATCH || 3) || 3));
-const GETLINK_SHEET_CHECK_CONCURRENCY = Math.max(1, Math.min(10, Number(process.env.GETLINK_SHEET_CHECK_CONCURRENCY || 3) || 3));
+const {
+    candidateBatch: GETLINK_SHEET_CANDIDATE_BATCH,
+    checkConcurrency: GETLINK_SHEET_CHECK_CONCURRENCY
+} = getSheetImportConfig();
 const GETLINK_SHEET_HTTP_TIMEOUT_MS = Math.max(5000, Math.min(300000, Number(process.env.GETLINK_SHEET_HTTP_TIMEOUT_MS || 300000) || 300000));
 const GETLINK_COOKIE_CHECK_TIMEOUT_MS = Math.max(5000, Math.min(120000, Number(process.env.GETLINK_COOKIE_CHECK_TIMEOUT_MS || 25000) || 25000));
 const ALLOWED_SHEET_SLOTS = new Set(['primary', 'backup1', 'backup2']);
@@ -425,7 +428,7 @@ async function runSheetImportChunk(stateInput = {}) {
         return state;
     }
 
-    const windowRows = state.queuedRows.slice(0, GETLINK_SHEET_CHECK_CONCURRENCY);
+    const windowRows = getSheetCheckWindow(state.queuedRows, 0, GETLINK_SHEET_CHECK_CONCURRENCY);
     state.phase = 'checking_candidates';
     state.message = `Dang check ${windowRows.length} tai khoan tu Google Sheet...`;
     const checkStartedAt = Date.now();

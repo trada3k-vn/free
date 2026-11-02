@@ -30,14 +30,17 @@ const {
     resolveAppsScriptUrlOrThrow: validateAppsScriptUrl,
     requestAppsScriptJsonWithRetry
 } = require('./_getlink-apps-script-client');
+const { getSheetImportConfig, getSheetCheckWindow } = require('./_getlink-sheet-config');
 const { listSuccessfulFixHistory, listAllSuccessfulFixHistory, resetFixLimit, getFixLimitState } = require('./_getlink-fix-history-store');
 
 const FIREBASE_API_KEY = String(process.env.FIREBASE_API_KEY || 'AIzaSyAVV-3HxGFpT_eiAri1SGPWGwu3EL8On58').trim();
 const ENV_GETLINK_SHEET_APPS_SCRIPT_URL = String(process.env.GETLINK_SHEET_APPS_SCRIPT_URL || '').trim();
 const GETLINK_SHEET_FETCH_LIMIT = Math.max(20, Math.min(5000, Number(process.env.GETLINK_SHEET_FETCH_LIMIT || 5000) || 5000));
 const GETLINK_SHEET_BATCH_SIZE = Math.max(5, Math.min(200, Number(process.env.GETLINK_SHEET_BATCH_SIZE || 20) || 20));
-const GETLINK_SHEET_CANDIDATE_BATCH = Math.max(1, Math.min(20, Number(process.env.GETLINK_SHEET_CANDIDATE_BATCH || 3) || 3));
-const GETLINK_SHEET_CHECK_CONCURRENCY = Math.max(1, Math.min(10, Number(process.env.GETLINK_SHEET_CHECK_CONCURRENCY || 3) || 3));
+const {
+    candidateBatch: GETLINK_SHEET_CANDIDATE_BATCH,
+    checkConcurrency: GETLINK_SHEET_CHECK_CONCURRENCY
+} = getSheetImportConfig();
 const GETLINK_SHEET_HTTP_TIMEOUT_MS = Math.max(5000, Math.min(300000, Number(process.env.GETLINK_SHEET_HTTP_TIMEOUT_MS || 300000) || 300000));
 const ALLOWED_SHEET_SLOTS = new Set(['primary', 'backup1', 'backup2']);
 
@@ -330,7 +333,7 @@ async function allocateCookiesFromSheetForSlots(slots = []) {
         }
 
         for (let index = 0; index < candidateRows.length && assigned.length < targetSlots.length; index += GETLINK_SHEET_CHECK_CONCURRENCY) {
-            const windowRows = candidateRows.slice(index, index + GETLINK_SHEET_CHECK_CONCURRENCY);
+            const windowRows = getSheetCheckWindow(candidateRows, index, GETLINK_SHEET_CHECK_CONCURRENCY);
             if (windowRows.length === 0) continue;
 
             const checkStartedAt = Date.now();
