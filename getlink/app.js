@@ -281,6 +281,8 @@ let activeSheetCheckCancelState = null;
 let sheetCheckRunning = false;
 let sheetCheckStarting = false;
 let sheetCheckSnapshot = null;
+let activeSheetCheckAbortController = null;
+let sheetCheckPageHiding = false;
 let toastTimer = null;
 let toastNode = null;
 const SHARE_COOKIE_SLOTS = [
@@ -2853,7 +2855,7 @@ function hideLookupLoadingOverlay() {
     overlay.setAttribute('aria-hidden', 'true');
 }
 
-async function apiRequest(path, method = 'GET', body) {
+async function apiRequest(path, method = 'GET', body, options = {}) {
     const requestPath = String(path || '').trim();
     const isAdminRoute = /^\/api\/getlink-admin(?:\/|$)/.test(requestPath);
     async function sendRequest() {
@@ -2865,7 +2867,8 @@ async function apiRequest(path, method = 'GET', body) {
             method,
             headers,
             credentials: 'same-origin',
-            body: body !== undefined ? JSON.stringify(body) : undefined
+            body: body !== undefined ? JSON.stringify(body) : undefined,
+            signal: options && options.signal ? options.signal : undefined
         });
         const data = await response.json().catch(() => ({}));
         return { response, data };
@@ -3879,10 +3882,16 @@ function clearAutoFixOperationMeta() {
 }
 
 function saveSheetCheckOperationMeta(meta = {}) {
-    writeSessionJson(GETLINK_SHEET_CHECK_OPERATION_STORAGE_KEY, normalizeGetlinkOperationMeta({
-        ...meta,
-        scope: 'admin-sheet-check'
-    }));
+    const source = meta && typeof meta === 'object' ? meta : {};
+    const snapshot = source.snapshot && typeof source.snapshot === 'object'
+        ? { ...source.snapshot }
+        : null;
+    if (snapshot) delete snapshot.continuationToken;
+    writeSessionJson(GETLINK_SHEET_CHECK_OPERATION_STORAGE_KEY, {
+        continuationToken: String(source.continuationToken || '').trim(),
+        startedAt: Math.max(0, Number(source.startedAt || Date.now()) || Date.now()),
+        snapshot
+    });
 }
 
 function readSheetCheckOperationMeta() {
@@ -3935,12 +3944,17 @@ function renderSheetCheckPopup(payload = {}, startedAt = Date.now()) {
     const status = String(source.status || 'pending').trim();
     const terminal = isSheetCheckTerminalStatus(status);
     const debug = source.debug && typeof source.debug === 'object' ? source.debug : {};
-    const rows = Math.max(0, Number(debug.rowsScanned || debug.scannedPhysicalRows || 0) || 0);
+    const rows = Math.max(0, Number(source.totalScannedRows || debug.rowsScanned || debug.scannedPhysicalRows || 0) || 0);
     const currentRow = Math.max(0, Number(debug.lastScannedUntilRow || debug.scanStoppedAtRow || 0) || 0);
+    const segmentNumber = Math.max(1, Number(source.segmentNumber || 1) || 1);
+    const segmentStartRow = Math.max(1, Number(source.segmentStartRow || ((segmentNumber - 1) * 5000 + 1)) || 1);
+    const segmentEndRow = Math.max(segmentStartRow, Number(source.segmentEndRow || segmentStartRow + 4999) || segmentStartRow + 4999);
+    const segmentScannedRows = Math.max(0, Number(source.segmentScannedRows || 0) || 0);
     const checked = Math.max(0, Number(source.checkedCount || debug.cookieChecks || 0) || 0);
     const passCount = Math.max(0, Number(source.passCount || debug.passFound || 0) || 0);
     const failCount = Math.max(0, Number(source.failCount || 0) || 0);
     const updatedCount = Math.max(0, Number(source.updatedCount || 0) || 0);
+    const maxStreamsUpdatedCount = Math.max(0, Number(source.maxStreamsUpdatedCount || 0) || 0);
     const elapsedMs = Math.max(0, Date.now() - Math.max(0, Number(startedAt || Date.now()) || Date.now()));
     const phaseLabels = {
         pending: 'Đang chuẩn bị',
@@ -3968,11 +3982,12 @@ function renderSheetCheckPopup(payload = {}, startedAt = Date.now()) {
                 : 'Đang check Google Sheet';
     if (loading) loading.classList.toggle('hidden', terminal);
     if (message) message.textContent = String(source.message || 'Đang kiểm tra cookie trong Google Sheet...');
-    if (el('sheetCheckRows')) el('sheetCheckRows').textContent = `${rows} / ${currentRow || '-'}`;
+    if (el('sheetCheckRows')) el('sheetCheckRows').textContent = `${segmentScannedRows.toLocaleString('vi-VN')} / ${rows.toLocaleString('vi-VN')}`;
     if (el('sheetCheckChecked')) el('sheetCheckChecked').textContent = String(checked);
     if (el('sheetCheckPass')) el('sheetCheckPass').textContent = String(passCount);
     if (el('sheetCheckFailed')) el('sheetCheckFailed').textContent = `${failCount} / ${updatedCount}`;
-    if (el('sheetCheckPhase')) el('sheetCheckPhase').textContent = phaseLabels[phase] || phaseLabels[status] || 'Đang xử lý';
+    if (el('sheetCheckMaxStreamsUpdated')) el('sheetCheckMaxStreamsUpdated').textContent = String(maxStreamsUpdatedCount);
+    if (el('sheetCheckPhase')) el('sheetCheckPhase').textContent = `Đợt ${segmentNumber} · dòng ${segmentStartRow.toLocaleString('vi-VN')}–${segmentEndRow.toLocaleString('vi-VN')}`;
     if (el('sheetCheckElapsed')) el('sheetCheckElapsed').textContent = formatOperationElapsed(elapsedMs);
     if (state) {
         state.textContent = String(source.error || source.message || '');
@@ -3980,7 +3995,7 @@ function renderSheetCheckPopup(payload = {}, startedAt = Date.now()) {
     }
     if (cancelBtn) {
         cancelBtn.classList.toggle('hidden', terminal);
-        cancelBtn.disabled = !terminal && sheetCheckStarting;
+        cancelBtn.disabled = false;
     }
     if (closeBtn) closeBtn.classList.toggle('hidden', !terminal);
     openSheetCheckModal();
@@ -3989,7 +4004,7 @@ function renderSheetCheckPopup(payload = {}, startedAt = Date.now()) {
 async function runSheetCheckOperation(initialData = {}, meta = {}) {
     if (sheetCheckRunning) return;
     sheetCheckRunning = true;
-    const cancelState = { requested: false, cancelling: false };
+    const cancelState = { requested: false, cancelling: false, continuationToken: String(meta.continuationToken || initialData.continuationToken || '').trim() };
     activeSheetCheckCancelState = cancelState;
     const startedAt = Math.max(0, Number(meta.startedAt || Date.now()) || Date.now());
     const button = el('adminCheckSheetBtn');
@@ -4001,22 +4016,38 @@ async function runSheetCheckOperation(initialData = {}, meta = {}) {
 
     try {
         while (!cancelState.requested && !isSheetCheckTerminalStatus(data && data.status)) {
-            await new Promise((resolve) => {
-                const timer = setTimeout(resolve, GETLINK_OPERATION_POLL_INTERVAL_MS);
-                cancelState.wake = () => {
-                    clearTimeout(timer);
-                    resolve();
-                };
-            });
-            cancelState.wake = null;
-            if (cancelState.requested) break;
-            data = await advanceGetlinkOperation(meta.operationId, meta.operationToken);
+            if (!cancelState.continuationToken) throw new Error('Thiếu continuation token của Check Sheet.');
+            activeSheetCheckAbortController = new AbortController();
+            data = await apiRequest('/api/getlink-admin/sheet-check', 'POST', {
+                continuationToken: cancelState.continuationToken
+            }, { signal: activeSheetCheckAbortController.signal });
+            activeSheetCheckAbortController = null;
+            cancelState.continuationToken = String(data && data.continuationToken || '').trim();
+            if (cancelState.continuationToken) {
+                saveSheetCheckOperationMeta({
+                    continuationToken: cancelState.continuationToken,
+                    startedAt,
+                    snapshot: data
+                });
+            }
             render();
         }
         if (cancelState.requested && sheetCheckSnapshot) data = sheetCheckSnapshot;
         if (isSheetCheckTerminalStatus(data && data.status)) clearSheetCheckOperationMeta();
         renderSheetCheckPopup(data, startedAt);
     } catch (error) {
+        if (error && error.name === 'AbortError' && sheetCheckPageHiding) return;
+        if (cancelState.requested || (error && error.name === 'AbortError')) {
+            data = {
+                ...(sheetCheckSnapshot && typeof sheetCheckSnapshot === 'object' ? sheetCheckSnapshot : {}),
+                status: 'cancelled',
+                phase: 'cancelled',
+                message: 'Đã huỷ Check Sheet.'
+            };
+            clearSheetCheckOperationMeta();
+            renderSheetCheckPopup(data, startedAt);
+            return;
+        }
         clearSheetCheckOperationMeta();
         data = {
             ...(error && error.responseData && typeof error.responseData === 'object' ? error.responseData : {}),
@@ -4029,6 +4060,7 @@ async function runSheetCheckOperation(initialData = {}, meta = {}) {
     } finally {
         sheetCheckRunning = false;
         activeSheetCheckCancelState = null;
+        activeSheetCheckAbortController = null;
         clearActiveGetlinkOperationTimer('admin-sheet-check');
         setButtonBusy(button, false);
         setSheetAccessImportControlsEnabled(isSheetAccessEnabled());
@@ -4052,21 +4084,39 @@ async function adminCheckSheet() {
         passCount: 0,
         failCount: 0,
         updatedCount: 0,
+        maxStreamsUpdatedCount: 0,
         debug: {}
     }, startedAt);
     try {
-        const data = await apiRequest('/api/getlink-admin/sheet-check', 'POST');
-        const meta = normalizeGetlinkOperationMeta({
-            operationId: data.operationId,
-            operationToken: data.operationToken,
-            scope: 'admin-sheet-check',
-            startedAt
-        });
-        saveSheetCheckOperationMeta(meta);
+        activeSheetCheckAbortController = new AbortController();
+        const data = await apiRequest('/api/getlink-admin/sheet-check', 'POST', {
+            sheetAppsScriptUrl: String(
+                el('adminSheetAppsScriptUrlInput') && el('adminSheetAppsScriptUrlInput').value
+                || warningBannerConfig && warningBannerConfig.sheetAppsScriptUrl
+                || ''
+            ).trim(),
+            sheetAccessEnabled: isSheetAccessEnabled()
+        }, { signal: activeSheetCheckAbortController.signal });
+        activeSheetCheckAbortController = null;
+        const meta = {
+            continuationToken: String(data && data.continuationToken || '').trim(),
+            startedAt,
+            snapshot: data
+        };
+        if (meta.continuationToken) saveSheetCheckOperationMeta(meta);
         sheetCheckStarting = false;
-        await runSheetCheckOperation(data, meta);
+        if (isSheetCheckTerminalStatus(data && data.status)) {
+            clearSheetCheckOperationMeta();
+            renderSheetCheckPopup(data, startedAt);
+        } else {
+            await runSheetCheckOperation(data, meta);
+        }
     } catch (error) {
+        activeSheetCheckAbortController = null;
         sheetCheckStarting = false;
+        if (error && error.name === 'AbortError' && (sheetCheckPageHiding || String(sheetCheckSnapshot && sheetCheckSnapshot.status || '') === 'cancelled')) {
+            return;
+        }
         clearSheetCheckOperationMeta();
         renderSheetCheckPopup({
             status: 'failed',
@@ -4080,42 +4130,39 @@ async function adminCheckSheet() {
 async function cancelSheetCheckOperation() {
     const state = activeSheetCheckCancelState;
     const meta = readSheetCheckOperationMeta();
-    if (!state || state.requested || state.cancelling || !meta || !meta.operationId || !meta.operationToken) return;
-    state.cancelling = true;
+    if ((!state && !sheetCheckStarting) || (state && (state.requested || state.cancelling))) return;
+    if (state) state.cancelling = true;
     const button = el('sheetCheckCancelBtn');
     setButtonBusy(button, true, 'Đang huỷ...');
     try {
-        const data = await apiRequest(
-            `/api/getlink-operations/${encodeURIComponent(meta.operationId)}/cancel?token=${encodeURIComponent(meta.operationToken)}`,
-            'POST'
-        );
-        state.requested = true;
+        if (state) state.requested = true;
+        if (activeSheetCheckAbortController) activeSheetCheckAbortController.abort();
+        const data = {
+            ...(sheetCheckSnapshot && typeof sheetCheckSnapshot === 'object' ? sheetCheckSnapshot : {}),
+            status: 'cancelled',
+            phase: 'cancelled',
+            message: 'Đã huỷ Check Sheet.'
+        };
         sheetCheckSnapshot = data;
-        if (typeof state.wake === 'function') state.wake();
         clearSheetCheckOperationMeta();
-        renderSheetCheckPopup(data, meta.startedAt);
-    } catch (error) {
-        const stateNode = el('sheetCheckState');
-        if (stateNode) {
-            stateNode.textContent = error.message || 'Không huỷ được Check Sheet.';
-            setStateClass(stateNode, 'error');
-        }
+        renderSheetCheckPopup(data, meta && meta.startedAt ? meta.startedAt : Date.now());
     } finally {
-        state.cancelling = false;
+        if (state) state.cancelling = false;
         setButtonBusy(button, false);
     }
 }
 
 async function resumePendingSheetCheckOperation() {
     const meta = readSheetCheckOperationMeta();
-    if (!meta || !meta.operationId || !meta.operationToken || !adminAuthenticated) return;
+    if (!meta || !adminAuthenticated) return;
+    if (!meta.continuationToken) {
+        clearSheetCheckOperationMeta();
+        return;
+    }
     try {
-        const data = await pollGetlinkOperation(meta.operationId, meta.operationToken);
-        if (isSheetCheckTerminalStatus(data && data.status)) {
-            clearSheetCheckOperationMeta();
-            renderSheetCheckPopup(data, meta.startedAt);
-            return;
-        }
+        const data = meta.snapshot && typeof meta.snapshot === 'object'
+            ? meta.snapshot
+            : { status: 'pending', phase: 'pending', message: 'Đang nối lại Check Sheet...', continuationToken: meta.continuationToken };
         closeAdminModal();
         await runSheetCheckOperation(data, meta);
     } catch (error) {
@@ -6565,6 +6612,15 @@ function bindEvents() {
         }
 
         closeAdminModal();
+    });
+
+    window.addEventListener('pagehide', () => {
+        sheetCheckPageHiding = true;
+        if (activeSheetCheckAbortController) activeSheetCheckAbortController.abort();
+    });
+
+    window.addEventListener('pageshow', () => {
+        sheetCheckPageHiding = false;
     });
 }
 

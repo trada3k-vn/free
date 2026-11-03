@@ -41,7 +41,9 @@ function withTimeout(promise, timeoutMs, message) {
     });
 }
 
-async function getConfiguredAppsScriptUrl() {
+async function getConfiguredAppsScriptUrl(overrideUrl = '') {
+    const override = String(overrideUrl || '').trim();
+    if (override) return resolveAppsScriptUrlOrThrow(override);
     const adminUrl = await readSheetAppsScriptUrl();
     return resolveAppsScriptUrlOrThrow(adminUrl || ENV_GETLINK_SHEET_APPS_SCRIPT_URL);
 }
@@ -105,9 +107,9 @@ function getSheetCheckUpdate(row = {}, cookieResult = {}) {
     };
 }
 
-async function callGetlinkSheetScript(action, payload = {}) {
+async function callGetlinkSheetScript(action, payload = {}, options = {}) {
     const response = await requestAppsScriptJsonWithRetry(
-        await getConfiguredAppsScriptUrl(),
+        await getConfiguredAppsScriptUrl(options.appsScriptUrl),
         {
             action,
             payload,
@@ -120,7 +122,9 @@ async function callGetlinkSheetScript(action, payload = {}) {
 async function listGetlinkSheetRows(options = {}) {
     const startRow = Math.max(1, Number(options.startRow || 1) || 1);
     const limit = Math.max(1, Math.min(GETLINK_SHEET_BATCH_SIZE, Number(options.limit || GETLINK_SHEET_CANDIDATE_BATCH) || GETLINK_SHEET_CANDIDATE_BATCH));
-    const response = await callGetlinkSheetScript('pullRows', { startRow, limit });
+    const response = await callGetlinkSheetScript('pullRows', { startRow, limit }, {
+        appsScriptUrl: options.appsScriptUrl
+    });
     const rows = Array.isArray(response.items) ? response.items.map(normalizeSheetRow).filter(Boolean) : [];
     rows.sort((a, b) => a.rowNumber - b.rowNumber);
     const nextStartRow = Math.max(startRow, Number(response.nextStartRow || (rows.length > 0 ? rows[rows.length - 1].rowNumber + 1 : startRow)) || startRow);
@@ -136,21 +140,51 @@ async function listGetlinkSheetRows(options = {}) {
     };
 }
 
-async function updateGetlinkSheetRows(updates = []) {
-    const normalized = Array.isArray(updates)
+function normalizeSheetUpdates(updates = []) {
+    return Array.isArray(updates)
         ? updates
-            .map((item) => ({
-                rowNumber: Number(item && item.rowNumber),
-                mark: String(item && item.mark !== undefined && item.mark !== null ? item.mark : '').trim()
-            }))
-            .filter((item) => Number.isInteger(item.rowNumber) && item.rowNumber > 0)
+            .map((item) => {
+                const normalized = {
+                    rowNumber: Number(item && item.rowNumber)
+                };
+                if (item && Object.prototype.hasOwnProperty.call(item, 'mark')) {
+                    normalized.mark = String(item.mark !== undefined && item.mark !== null ? item.mark : '').trim();
+                }
+                if (item && Object.prototype.hasOwnProperty.call(item, 'maxStreams')) {
+                    normalized.maxStreams = String(item.maxStreams !== undefined && item.maxStreams !== null ? item.maxStreams : '').trim();
+                }
+                return normalized;
+            })
+            .filter((item) => Number.isInteger(item.rowNumber)
+                && item.rowNumber > 0
+                && (Object.prototype.hasOwnProperty.call(item, 'mark') || Object.prototype.hasOwnProperty.call(item, 'maxStreams')))
         : [];
+}
+
+function assertMaxStreamsUpdateSupport(response = {}, expectedCount = 0) {
+    const expected = Math.max(0, Number(expectedCount || 0) || 0);
+    if (expected === 0) return;
+    const actual = Number(response && response.maxStreamsUpdatedCount);
+    if (!Number.isInteger(actual) || actual < expected) {
+        const error = new Error('Apps Script hien tai chua ho tro ghi Max Streams vao cot M. Hay cap nhat ma Apps Script va deploy lai Web App.');
+        error.httpStatus = 502;
+        throw error;
+    }
+}
+
+async function updateGetlinkSheetRows(updates = [], options = {}) {
+    const normalized = normalizeSheetUpdates(updates);
 
     if (normalized.length === 0) return;
 
-    await callGetlinkSheetScript('updateRows', {
+    const response = await callGetlinkSheetScript('updateRows', {
         updates: JSON.stringify(normalized)
-    });
+    }, { appsScriptUrl: options.appsScriptUrl });
+    assertMaxStreamsUpdateSupport(
+        response,
+        normalized.filter((item) => Object.prototype.hasOwnProperty.call(item, 'maxStreams')).length
+    );
+    return response;
 }
 
 function normalizeTimings(input = {}) {
@@ -581,6 +615,11 @@ async function allocateCookiesFromSheetForSlots(slots = []) {
 module.exports = {
     normalizeSheetSlots,
     getSheetCheckUpdate,
+    getCookieFingerprint,
+    listGetlinkSheetRows,
+    normalizeSheetUpdates,
+    assertMaxStreamsUpdateSupport,
+    updateGetlinkSheetRows,
     createSheetImportState,
     normalizeSheetImportState,
     runSheetImportChunk,

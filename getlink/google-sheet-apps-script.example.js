@@ -41,8 +41,8 @@ const SHEET_NAME = 'Sheet1';
       }
 
       if (action === 'updateRows') {
-        updateRows(payload);
-        return jsonResponse({ success: true });
+        const result = updateRows(payload);
+        return jsonResponse({ success: true, ...result });
       }
 
       return jsonResponse({
@@ -85,8 +85,8 @@ const SHEET_NAME = 'Sheet1';
       }
 
       if (action === 'updateRows') {
-        updateRows(payload);
-        return jsonResponse({ success: true });
+        const result = updateRows(payload);
+        return jsonResponse({ success: true, ...result });
       }
 
       return jsonResponse({
@@ -214,9 +214,19 @@ const SHEET_NAME = 'Sheet1';
     }
 
     const sheet = getSheet_();
+    let markUpdatedCount = 0;
+    let maxStreamsUpdatedCount = 0;
     updates.forEach((item) => {
-      sheet.getRange(item.rowNumber, 2).setValue(item.mark);
+      if (item.hasMark) {
+        sheet.getRange(item.rowNumber, 2).setValue(item.mark);
+        markUpdatedCount += 1;
+      }
+      if (item.hasMaxStreams) {
+        sheet.getRange(item.rowNumber, 13).setValue(item.maxStreams);
+        maxStreamsUpdatedCount += 1;
+      }
     });
+    return { markUpdatedCount, maxStreamsUpdatedCount };
   }
 
   function getVisibleRowsBlock_(sheet, startRow, lastRow) {
@@ -297,9 +307,17 @@ const SHEET_NAME = 'Sheet1';
       if (!Number.isInteger(rowNumber) || rowNumber <= 0) {
         throw new Error('Invalid rowNumber in updates');
       }
+      const hasMark = !!item && Object.prototype.hasOwnProperty.call(item, 'mark');
+      const hasMaxStreams = !!item && Object.prototype.hasOwnProperty.call(item, 'maxStreams');
+      if (!hasMark && !hasMaxStreams) {
+        throw new Error('Missing update fields');
+      }
       return {
         rowNumber,
-        mark: String(item && item.mark !== undefined && item.mark !== null ? item.mark : '').trim()
+        hasMark,
+        mark: hasMark ? String(item.mark !== undefined && item.mark !== null ? item.mark : '').trim() : '',
+        hasMaxStreams,
+        maxStreams: hasMaxStreams ? String(item.maxStreams !== undefined && item.maxStreams !== null ? item.maxStreams : '').trim() : ''
       };
     });
   }

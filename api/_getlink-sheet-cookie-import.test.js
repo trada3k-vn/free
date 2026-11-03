@@ -2,6 +2,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
     getSheetCheckUpdate,
+    normalizeSheetUpdates,
+    assertMaxStreamsUpdateSupport,
     createSheetImportState,
     normalizeSheetImportState,
     buildSheetImportResult
@@ -28,6 +30,26 @@ test('sheet check maps failures to the existing Sheet marks', () => {
             mark
         });
     });
+});
+
+test('Sheet update payload preserves independent mark and Max Streams fields', () => {
+    assert.deepEqual(normalizeSheetUpdates([
+        { rowNumber: 1, maxStreams: '4' },
+        { rowNumber: 2, mark: 'dead', maxStreams: '' },
+        { rowNumber: 3 },
+        { rowNumber: 0, maxStreams: '2' }
+    ]), [
+        { rowNumber: 1, maxStreams: '4' },
+        { rowNumber: 2, mark: 'dead', maxStreams: '' }
+    ]);
+});
+
+test('Sheet update detects Apps Script deployments without Max Streams support', () => {
+    assert.doesNotThrow(() => assertMaxStreamsUpdateSupport({ maxStreamsUpdatedCount: 2 }, 2));
+    assert.throws(
+        () => assertMaxStreamsUpdateSupport({ success: true }, 1),
+        /deploy lai Web App/
+    );
 });
 
 test('sheet check stays pending until the full Sheet scan finishes', () => {

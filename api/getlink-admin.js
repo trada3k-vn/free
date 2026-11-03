@@ -18,9 +18,17 @@ const {
 const { evaluateGetlinkCookie } = require('./_getlink-cookie-health');
 const {
     createSheetImportOperation,
-    createSheetCheckOperation,
     shapeOperationPayload
 } = require('./_getlink-operation-store');
+const {
+    createStatelessSheetCheckState,
+    advanceStatelessSheetCheck,
+    shapeStatelessSheetCheckResult
+} = require('./_getlink-stateless-sheet-check');
+const {
+    sealSheetCheckState,
+    openSheetCheckState
+} = require('./_getlink-sheet-check-token');
 const {
     readWarningConfig,
     saveWarningConfig,
@@ -706,11 +714,25 @@ module.exports = async function (req, res) {
         }
 
         if (pathname === '/api/getlink-admin/sheet-check' && req.method === 'POST') {
-            if (!(await isSheetAccessEnabled())) {
+            const body = parseBody(req.body);
+            if (body && body.sheetAccessEnabled === false) {
                 return res.status(403).json({ error: 'Truy cap Google Sheet dang duoc tat trong admin.' });
             }
-            const operation = await createSheetCheckOperation();
-            return res.status(200).json(shapeOperationPayload(operation));
+            const continuationToken = String(body && body.continuationToken || '').trim();
+            if (!continuationToken) {
+                const initialState = createStatelessSheetCheckState(String(body && body.sheetAppsScriptUrl || ENV_GETLINK_SHEET_APPS_SCRIPT_URL).trim());
+                return res.status(200).json({
+                    ...shapeStatelessSheetCheckResult(initialState, 'pending'),
+                    continuationToken: sealSheetCheckState(initialState)
+                });
+            }
+            const state = openSheetCheckState(continuationToken);
+            const advanced = await advanceStatelessSheetCheck(state);
+            const payload = { ...advanced.result };
+            if (payload.status === 'pending') {
+                payload.continuationToken = sealSheetCheckState(advanced.state);
+            }
+            return res.status(200).json(payload);
         }
 
         const historyMatch = pathname.match(/^\/api\/getlink-admin\/shares\/([^/]+)\/fix-history$/);
