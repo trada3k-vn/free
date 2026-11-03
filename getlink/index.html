@@ -221,6 +221,12 @@
             gap: 0.6rem;
         }
 
+        .sheet-import-box.is-advanced {
+            margin-top: 0.35rem;
+            border-top-color: rgba(148, 163, 184, 0.46);
+            background: rgba(15, 23, 42, 0.24);
+        }
+
         .sheet-import-title {
             margin: 0;
             font-size: 0.84rem;
@@ -1625,6 +1631,75 @@
             letter-spacing: -0.01em;
         }
 
+        .sheet-check-card {
+            width: min(620px, calc(100vw - 1.5rem));
+        }
+
+        #sheetCheckModal {
+            z-index: 100003;
+        }
+
+        .sheet-check-body {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .sheet-check-loading {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            color: #dbe7ff;
+        }
+
+        .sheet-check-loading p {
+            margin: 0;
+        }
+
+        .sheet-check-stats {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.65rem;
+        }
+
+        .sheet-check-stat {
+            padding: 0.75rem;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            border-radius: 12px;
+            background: rgba(15, 23, 42, 0.55);
+        }
+
+        .sheet-check-stat span,
+        .sheet-check-stat strong {
+            display: block;
+        }
+
+        .sheet-check-stat span {
+            color: #9fb0ca;
+            font-size: 0.78rem;
+        }
+
+        .sheet-check-stat strong {
+            margin-top: 0.25rem;
+            color: #f8fafc;
+            font-size: 1.05rem;
+        }
+
+        .sheet-check-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.65rem;
+        }
+
+        @media (max-width: 560px) {
+            .sheet-check-stats {
+                grid-template-columns: 1fr;
+            }
+
+            .sheet-check-actions .btn {
+                flex: 1;
+            }
+        }
+
         .support-body p {
             color: #d7e2f9;
         }
@@ -1987,7 +2062,7 @@
                                     <input id="shareCreateDateInput" class="text-input share-expiry-input" type="text" inputmode="numeric" placeholder="Ngày: dd/mm hoặc dd/mm/yyyy">
                                     <input id="shareCreateTimeInput" class="text-input share-expiry-input" type="text" inputmode="numeric" placeholder="Giờ: HH:mm">
                                 </div>
-                                <details class="share-advanced-options">
+                                <details id="creatorAdvancedOptions" class="share-advanced-options">
                                     <summary>Tùy chọn nâng cao</summary>
                                     <div class="share-advanced-options-body">
                                         <div class="share-create-option-row">
@@ -2001,6 +2076,30 @@
                                                 <input id="shareSheetAutomationDisabledInput" class="share-option-check" type="checkbox">
                                                 <span>Không tự động lấy cookie từ Google Sheet và không sửa lỗi tự động</span>
                                             </label>
+                                        </div>
+                                        <div id="creatorAdvancedSheetImportBox" class="sheet-import-box is-advanced hidden">
+                                            <p class="sheet-import-title">Lấy tài khoản từ Google Sheet</p>
+                                            <div class="sheet-import-check-row">
+                                                <label class="sheet-import-label" for="creatorSheetSlotPrimary">
+                                                    <input id="creatorSheetSlotPrimary" type="checkbox">
+                                                    <span>Tài khoản chính</span>
+                                                </label>
+                                                <label class="sheet-import-label" for="creatorSheetSlotBackup1">
+                                                    <input id="creatorSheetSlotBackup1" type="checkbox">
+                                                    <span>Tài khoản phụ 1</span>
+                                                </label>
+                                                <label class="sheet-import-label" for="creatorSheetSlotBackup2">
+                                                    <input id="creatorSheetSlotBackup2" type="checkbox">
+                                                    <span>Tài khoản phụ 2</span>
+                                                </label>
+                                            </div>
+                                            <div class="sheet-import-actions">
+                                                <button id="creatorImportCookiesFromSheetBtn" class="btn btn-ghost" type="button">Nhập tài khoản từ Sheet</button>
+                                                <button id="creatorCancelSheetImportBtn" class="btn btn-ghost hidden" type="button">Huỷ</button>
+                                            </div>
+                                            <div id="creatorSheetImportProgress" class="sheet-import-progress hidden" aria-live="polite"></div>
+                                            <div id="creatorSheetImportState" class="state-text state-idle hidden sheet-import-state"></div>
+                                            <div id="creatorSheetImportTiming" class="sheet-import-timing hidden" aria-live="polite"></div>
                                         </div>
                                     </div>
                                 </details>
@@ -2048,30 +2147,6 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="sheet-import-box">
-                                    <p class="sheet-import-title">Lấy tài khoản từ Google Sheet</p>
-                                    <div class="sheet-import-check-row">
-                                        <label class="sheet-import-label" for="creatorSheetSlotPrimary">
-                                            <input id="creatorSheetSlotPrimary" type="checkbox">
-                                            <span>Tài khoản chính</span>
-                                        </label>
-                                        <label class="sheet-import-label" for="creatorSheetSlotBackup1">
-                                            <input id="creatorSheetSlotBackup1" type="checkbox">
-                                            <span>Tài khoản phụ 1</span>
-                                        </label>
-                                        <label class="sheet-import-label" for="creatorSheetSlotBackup2">
-                                            <input id="creatorSheetSlotBackup2" type="checkbox">
-                                            <span>Tài khoản phụ 2</span>
-                                        </label>
-                                    </div>
-                                    <div class="sheet-import-actions">
-                                        <button id="creatorImportCookiesFromSheetBtn" class="btn btn-ghost" type="button">Nhập tài khoản từ Sheet</button>
-                                        <button id="creatorCancelSheetImportBtn" class="btn btn-ghost hidden" type="button">Huỷ</button>
-                                    </div>
-                                    <div id="creatorSheetImportProgress" class="sheet-import-progress hidden" aria-live="polite"></div>
-                                    <div id="creatorSheetImportState" class="state-text state-idle hidden sheet-import-state"></div>
-                                    <div id="creatorSheetImportTiming" class="sheet-import-timing hidden" aria-live="polite"></div>
-                                </div>
                                 <div class="share-summary-actions">
                                     <button id="saveCreatedShareCookiesBtn" class="btn btn-primary" type="button">Lưu tài khoản</button>
                                     <button id="creatorCheckAllShareCookiesBtn" class="btn btn-ghost" type="button">Check toàn bộ</button>
@@ -2093,7 +2168,7 @@
                                 <div id="currentShareNoteRow" class="share-note-row">
                                     <textarea id="currentShareNoteInput" class="text-input share-note-input" maxlength="1000" rows="3" placeholder="Note nội bộ cho admin" readonly></textarea>
                                 </div>
-                                <details class="share-advanced-options">
+                                <details id="currentAdvancedOptions" class="share-advanced-options">
                                     <summary>Tùy chọn nâng cao</summary>
                                     <div class="share-advanced-options-body">
                                         <div class="share-create-option-row">
@@ -2107,6 +2182,30 @@
                                                 <input id="currentShareSheetAutomationDisabledInput" class="share-option-check" type="checkbox" disabled>
                                                 <span>Không tự động lấy cookie từ Google Sheet và không sửa lỗi tự động</span>
                                             </label>
+                                        </div>
+                                        <div class="sheet-import-box is-advanced">
+                                            <p class="sheet-import-title">Lấy tài khoản từ Google Sheet</p>
+                                            <div class="sheet-import-check-row">
+                                                <label class="sheet-import-label" for="currentSheetSlotPrimary">
+                                                    <input id="currentSheetSlotPrimary" type="checkbox">
+                                                    <span>Tài khoản chính</span>
+                                                </label>
+                                                <label class="sheet-import-label" for="currentSheetSlotBackup1">
+                                                    <input id="currentSheetSlotBackup1" type="checkbox">
+                                                    <span>Tài khoản phụ 1</span>
+                                                </label>
+                                                <label class="sheet-import-label" for="currentSheetSlotBackup2">
+                                                    <input id="currentSheetSlotBackup2" type="checkbox">
+                                                    <span>Tài khoản phụ 2</span>
+                                                </label>
+                                            </div>
+                                            <div class="sheet-import-actions">
+                                                <button id="currentImportCookiesFromSheetBtn" class="btn btn-ghost" type="button">Nhập tài khoản từ Sheet</button>
+                                                <button id="currentCancelSheetImportBtn" class="btn btn-ghost hidden" type="button">Huỷ</button>
+                                            </div>
+                                            <div id="currentSheetImportProgress" class="sheet-import-progress hidden" aria-live="polite"></div>
+                                            <div id="currentSheetImportState" class="state-text state-idle hidden sheet-import-state"></div>
+                                            <div id="currentSheetImportTiming" class="sheet-import-timing hidden" aria-live="polite"></div>
                                         </div>
                                     </div>
                                 </details>
@@ -2141,30 +2240,6 @@
                                             <button id="viewUseBackup2CookieBtn" class="btn btn-ghost" type="button">Tạo link</button>
                                         </div>
                                     </div>
-                                </div>
-                                <div class="sheet-import-box">
-                                    <p class="sheet-import-title">Lấy tài khoản từ Google Sheet</p>
-                                    <div class="sheet-import-check-row">
-                                        <label class="sheet-import-label" for="currentSheetSlotPrimary">
-                                            <input id="currentSheetSlotPrimary" type="checkbox">
-                                            <span>Tài khoản chính</span>
-                                        </label>
-                                        <label class="sheet-import-label" for="currentSheetSlotBackup1">
-                                            <input id="currentSheetSlotBackup1" type="checkbox">
-                                            <span>Tài khoản phụ 1</span>
-                                        </label>
-                                        <label class="sheet-import-label" for="currentSheetSlotBackup2">
-                                            <input id="currentSheetSlotBackup2" type="checkbox">
-                                            <span>Tài khoản phụ 2</span>
-                                        </label>
-                                    </div>
-                                    <div class="sheet-import-actions">
-                                        <button id="currentImportCookiesFromSheetBtn" class="btn btn-ghost" type="button">Nhập tài khoản từ Sheet</button>
-                                        <button id="currentCancelSheetImportBtn" class="btn btn-ghost hidden" type="button">Huỷ</button>
-                                    </div>
-                                    <div id="currentSheetImportProgress" class="sheet-import-progress hidden" aria-live="polite"></div>
-                                    <div id="currentSheetImportState" class="state-text state-idle hidden sheet-import-state"></div>
-                                    <div id="currentSheetImportTiming" class="sheet-import-timing hidden" aria-live="polite"></div>
                                 </div>
                                  <div class="share-summary-actions">
                                      <button id="editCurrentShareBtn" class="btn btn-primary" type="button">Sửa</button>
@@ -2508,6 +2583,37 @@
         </div>
     </section>
 
+    <section id="sheetCheckModal" class="modal hidden" aria-hidden="true" aria-modal="true" role="dialog">
+        <div class="modal-backdrop"></div>
+        <div class="modal-card support-card sheet-check-card">
+            <header class="modal-head">
+                <div>
+                    <span class="eyebrow">Google Sheet Admin</span>
+                    <h2 id="sheetCheckTitle">Đang check Google Sheet</h2>
+                </div>
+            </header>
+            <div class="support-body sheet-check-body">
+                <div id="sheetCheckLoading" class="sheet-check-loading">
+                    <div class="support-modal-spinner" aria-hidden="true"></div>
+                    <p id="sheetCheckMessage">Đang chuẩn bị kiểm tra cookie...</p>
+                </div>
+                <div class="sheet-check-stats" aria-live="polite">
+                    <div class="sheet-check-stat"><span>Đã quét / dòng hiện tại</span><strong id="sheetCheckRows">0 / -</strong></div>
+                    <div class="sheet-check-stat"><span>Đã kiểm tra</span><strong id="sheetCheckChecked">0</strong></div>
+                    <div class="sheet-check-stat"><span>PASS (không ghi mark)</span><strong id="sheetCheckPass">0</strong></div>
+                    <div class="sheet-check-stat"><span>Lỗi / đã cập nhật</span><strong id="sheetCheckFailed">0 / 0</strong></div>
+                    <div class="sheet-check-stat"><span>Giai đoạn</span><strong id="sheetCheckPhase">Đang chuẩn bị</strong></div>
+                    <div class="sheet-check-stat"><span>Thời gian</span><strong id="sheetCheckElapsed">0 giây</strong></div>
+                </div>
+                <div id="sheetCheckState" class="state-text state-idle"></div>
+                <div class="sheet-check-actions">
+                    <button id="sheetCheckCancelBtn" class="btn btn-ghost" type="button">Huỷ</button>
+                    <button id="sheetCheckCloseBtn" class="btn btn-primary hidden" type="button">Đóng</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <section id="nfAdminModal" class="modal hidden" aria-hidden="true">
         <div class="modal-backdrop" data-close-admin="1"></div>
         <div class="modal-card">
@@ -2629,6 +2735,7 @@
                             </label>
                             <div class="admin-settings-actions">
                                 <button id="adminTestSheetConfigBtn" class="btn btn-ghost" type="button">Test Sheet</button>
+                                <button id="adminCheckSheetBtn" class="btn btn-primary" type="button">Check Sheet</button>
                                 <div id="adminSheetConfigState" class="state-text state-idle"></div>
                             </div>
                         </div>

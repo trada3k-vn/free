@@ -227,7 +227,9 @@ async function cancelGetlinkOperation(operationInput = {}) {
     }
     operation.status = 'cancelled';
     operation.phase = 'cancelled';
-    operation.message = 'Da huy nhap tai khoan tu Google Sheet.';
+    operation.message = operation.type === 'sheet_check'
+        ? 'Da huy check Google Sheet.'
+        : 'Da huy nhap tai khoan tu Google Sheet.';
     operation.lastError = '';
     operation.errorCode = '';
     operation.errorHttpStatus = 0;
@@ -580,6 +582,17 @@ function shapeOperationPayload(operation = {}) {
         return payload;
     }
 
+    if (operation.type === 'sheet_check') {
+        payload.checkOnly = true;
+        payload.passCount = Math.max(0, Number(result.passCount || 0) || 0);
+        payload.failCount = Math.max(0, Number(result.failCount || 0) || 0);
+        payload.updatedCount = Math.max(0, Number(result.updatedCount || 0) || 0);
+        payload.checkedCount = Math.max(0, Number(result.checkedCount || 0) || 0);
+        payload.debug.cookieChecks = payload.checkedCount;
+        payload.debug.passFound = payload.passCount;
+        return payload;
+    }
+
     if (operation.type === 'overload_fix') {
         const overloadState = normalizeOverloadFixState(state, normalizeSheetSlots(state && state.targetSlots));
         payload.assigned = Array.isArray(result.assigned) ? result.assigned : [];
@@ -608,6 +621,17 @@ async function createSheetImportOperation(slots = [], scope = '') {
     return createGetlinkOperation({
         type: 'sheet_import',
         scope,
+        message: state.message,
+        state
+    });
+}
+
+async function createSheetCheckOperation() {
+    const state = createSheetImportState(['primary'], { checkOnly: true });
+    state.message = 'Dang chuan bi check toan bo Google Sheet...';
+    return createGetlinkOperation({
+        type: 'sheet_check',
+        scope: 'admin-sheet-check',
         message: state.message,
         state
     });
@@ -873,6 +897,10 @@ async function advanceGetlinkOperation(operationInput = {}) {
         operation.errorAttempts = 0;
         operation.status = nextResult.status === 'completed' ? 'completed' : 'pending';
         try {
+            const latestBeforeSave = await readGetlinkOperationById(operation.id);
+            if (latestBeforeSave && latestBeforeSave.status === 'cancelled') {
+                return latestBeforeSave;
+            }
             return await saveGetlinkOperation(operation);
         } catch (error) {
             const successState = operation.type === 'overload_fix'
@@ -933,6 +961,7 @@ module.exports = {
     COLL_GETLINK_OPERATIONS,
     COLL_GETLINK_ACTIVE_OPERATIONS,
     createSheetImportOperation,
+    createSheetCheckOperation,
     cancelGetlinkOperation,
     createAutoFixOperation,
     createOverloadFixOperation,

@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const { sanitizeCookieRaw } = require('./_getlink-share-store');
 const { evaluateGetlinkCookie } = require('./_getlink-cookie-health');
 const { readSheetAppsScriptUrl } = require('./_getlink-warning-config-store');
@@ -92,6 +93,16 @@ function getNextSheetUsageMark(mark = '') {
     const current = String(mark || '').trim();
     const count = /^\d+$/.test(current) ? Number(current) : 0;
     return String(count + 1);
+}
+
+function getSheetCheckUpdate(row = {}, cookieResult = {}) {
+    if (cookieResult && cookieResult.ok) return null;
+    const rowNumber = Number(row && row.rowNumber);
+    if (!Number.isInteger(rowNumber) || rowNumber <= 0) return null;
+    return {
+        rowNumber,
+        mark: mapSheetFailReason(cookieResult && cookieResult.reason ? cookieResult.reason : '')
+    };
 }
 
 async function callGetlinkSheetScript(action, payload = {}) {
@@ -213,6 +224,10 @@ function normalizeSeenCookies(input = []) {
     return Array.from(new Set((Array.isArray(input) ? input : []).map((value) => sanitizeCookieRaw(value)).filter(Boolean)));
 }
 
+function getCookieFingerprint(cookieRaw = '') {
+    return crypto.createHash('sha256').update(sanitizeCookieRaw(cookieRaw)).digest('base64url').slice(0, 24);
+}
+
 function createSheetImportState(slots = [], options = {}) {
     const targetSlots = normalizeSheetSlots(slots);
     if (targetSlots.length === 0) {
@@ -222,8 +237,14 @@ function createSheetImportState(slots = [], options = {}) {
     }
     const source = options && typeof options === 'object' ? options : {};
 
+    const checkOnly = source.checkOnly === true;
     return {
         targetSlots,
+        checkOnly,
+        passCount: 0,
+        failCount: 0,
+        updatedCount: 0,
+        checkedCount: 0,
         assigned: [],
         skipped: [],
         seenCookies: normalizeSeenCookies(source.seenCookies),
@@ -249,6 +270,11 @@ function normalizeSheetImportState(input = {}, slotsFallback = []) {
 
     return {
         targetSlots,
+        checkOnly: source.checkOnly === true,
+        passCount: Math.max(0, Number(source.passCount || 0) || 0),
+        failCount: Math.max(0, Number(source.failCount || 0) || 0),
+        updatedCount: Math.max(0, Number(source.updatedCount || 0) || 0),
+        checkedCount: Math.max(0, Number(source.checkedCount || 0) || 0),
         assigned: Array.isArray(source.assigned) ? source.assigned.map((item) => ({
             slot: String(item && item.slot ? item.slot : '').trim(),
             rowNumber: Number(item && item.rowNumber),
@@ -296,7 +322,7 @@ function buildSheetImportResult(state = {}) {
     const scanFinished = (!normalized.hasMore || normalized.scannedPhysicalRows >= GETLINK_SHEET_FETCH_LIMIT) && queueEmpty;
     return {
         success: true,
-        status: getUnfilledSlots(normalized).length === 0 || scanFinished
+        status: (normalized.checkOnly ? scanFinished : getUnfilledSlots(normalized).length === 0 || scanFinished)
             ? 'completed'
             : 'pending',
         phase: normalized.phase || 'pending',
@@ -304,6 +330,11 @@ function buildSheetImportResult(state = {}) {
         assigned: normalized.assigned,
         skipped: normalized.skipped,
         unfilledSlots: getUnfilledSlots(normalized),
+        checkOnly: normalized.checkOnly,
+        passCount: normalized.passCount,
+        failCount: normalized.failCount,
+        updatedCount: normalized.updatedCount,
+        checkedCount: normalized.checkedCount,
         timings: normalizeTimings(normalized.timings),
         debug: normalizeSheetImportDebug({
             ...(normalized.debug && typeof normalized.debug === 'object' ? normalized.debug : {}),
@@ -347,12 +378,14 @@ async function runSheetImportChunk(stateInput = {}) {
         return completedState;
     };
 
-    if (state.assigned.length >= state.targetSlots.length) {
+    if (!state.checkOnly && state.assigned.length >= state.targetSlots.length) {
         return finish(state, `Da tim thay du ${state.assigned.length}/${state.targetSlots.length} tai khoan PASS.`);
     }
 
     if (state.queuedRows.length === 0 && (!state.hasMore || state.scannedPhysicalRows >= GETLINK_SHEET_FETCH_LIMIT)) {
-        return finish(state, state.assigned.length > 0
+        return finish(state, state.checkOnly
+            ? `Da check xong ${state.checkedCount} tai khoan trong Google Sheet.`
+            : state.assigned.length > 0
             ? `Da quet xong va tim thay ${state.assigned.length}/${state.targetSlots.length} tai khoan PASS.`
             : 'Da quet xong Google Sheet nhung khong tim thay tai khoan PASS nao.');
     }
@@ -389,12 +422,13 @@ async function runSheetImportChunk(stateInput = {}) {
                     pushSheetDebugSample(state.debug, row, 'empty_cookie');
                     return;
                 }
-                if (seenSet.has(row.cookie)) {
+                const seenKey = state.checkOnly ? getCookieFingerprint(row.cookie) : row.cookie;
+                if (seenSet.has(seenKey)) {
                     state.debug.rejectedByDuplicate += 1;
                     pushSheetDebugSample(state.debug, row, 'duplicate_cookie');
                     return;
                 }
-                seenSet.add(row.cookie);
+                seenSet.add(seenKey);
                 state.debug.eligibleRowsSeen += 1;
                 nextQueue.push(row);
             });
@@ -404,7 +438,9 @@ async function runSheetImportChunk(stateInput = {}) {
 
         if (batch.rows.length === 0 && state.queuedRows.length === 0) {
             if (!state.hasMore || state.scannedPhysicalRows >= GETLINK_SHEET_FETCH_LIMIT) {
-                return finish(state, state.assigned.length > 0
+                return finish(state, state.checkOnly
+                    ? `Da check xong ${state.checkedCount} tai khoan trong Google Sheet.`
+                    : state.assigned.length > 0
                     ? `Da tim thay ${state.assigned.length}/${state.targetSlots.length} tai khoan PASS.`
                     : 'Da quet xong Google Sheet nhung khong tim thay tai khoan PASS nao.');
             }
@@ -448,14 +484,27 @@ async function runSheetImportChunk(stateInput = {}) {
 
     const pendingUpdates = [];
     for (const { row, cookieResult } of windowResults) {
-        if (state.assigned.length >= state.targetSlots.length) break;
+        if (!state.checkOnly && state.assigned.length >= state.targetSlots.length) break;
+
+        if (state.checkOnly) {
+            state.checkedCount += 1;
+            if (cookieResult.ok) {
+                state.passCount += 1;
+                continue;
+            }
+            const update = getSheetCheckUpdate(row, cookieResult);
+            if (update) {
+                pendingUpdates.push(update);
+                state.failCount += 1;
+                state.updatedCount += 1;
+            }
+            continue;
+        }
 
         if (!cookieResult.ok) {
-            const failReason = mapSheetFailReason(cookieResult.reason || '');
-            pendingUpdates.push({
-                rowNumber: row.rowNumber,
-                mark: failReason
-            });
+            const update = getSheetCheckUpdate(row, cookieResult);
+            const failReason = update ? update.mark : mapSheetFailReason(cookieResult.reason || '');
+            if (update) pendingUpdates.push(update);
             state.skipped.push({
                 rowNumber: row.rowNumber,
                 reason: failReason
@@ -498,12 +547,14 @@ async function runSheetImportChunk(stateInput = {}) {
         state.timings.sheetUpdateMs += Date.now() - updateStartedAt;
     }
 
-    if (state.assigned.length >= state.targetSlots.length) {
+    if (!state.checkOnly && state.assigned.length >= state.targetSlots.length) {
         return finish(state, `Da tim thay du ${state.assigned.length}/${state.targetSlots.length} tai khoan PASS.`);
     }
 
     if (state.queuedRows.length === 0 && (!state.hasMore || state.scannedPhysicalRows >= GETLINK_SHEET_FETCH_LIMIT)) {
-        return finish(state, state.assigned.length > 0
+        return finish(state, state.checkOnly
+            ? `Da check xong ${state.checkedCount} tai khoan: ${state.passCount} PASS, ${state.failCount} loi.`
+            : state.assigned.length > 0
             ? `Da tim thay ${state.assigned.length}/${state.targetSlots.length} tai khoan PASS.`
             : 'Da quet xong Google Sheet nhung khong tim thay tai khoan PASS nao.');
     }
@@ -529,6 +580,7 @@ async function allocateCookiesFromSheetForSlots(slots = []) {
 
 module.exports = {
     normalizeSheetSlots,
+    getSheetCheckUpdate,
     createSheetImportState,
     normalizeSheetImportState,
     runSheetImportChunk,

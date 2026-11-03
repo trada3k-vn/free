@@ -9,6 +9,7 @@ const GETLINK_OPERATION_POLL_INTERVAL_MS = 10000;
 const GETLINK_LOADING_REASSURANCE_DELAY_MS = 10000;
 const GETLINK_SHEET_IMPORT_OPERATION_STORAGE_PREFIX = 'getlink_sheet_import_operation_';
 const GETLINK_AUTO_FIX_OPERATION_STORAGE_KEY = 'getlink_auto_fix_operation';
+const GETLINK_SHEET_CHECK_OPERATION_STORAGE_KEY = 'getlink_sheet_check_operation';
 const DEFAULT_GETLINK_WARNING_MESSAGE = 'LƯU Ý';
 const DEFAULT_GETLINK_WARNING_SUBMESSAGE = '';
 const DEFAULT_SHEET_ACCESS_ENABLED = true;
@@ -276,6 +277,10 @@ let warningBannerConfig = {
 let warningBannerConfigLoaded = false;
 const activeGetlinkOperationTimers = new Map();
 const activeSheetImportCancelStates = new Map();
+let activeSheetCheckCancelState = null;
+let sheetCheckRunning = false;
+let sheetCheckStarting = false;
+let sheetCheckSnapshot = null;
 let toastTimer = null;
 let toastNode = null;
 const SHARE_COOKIE_SLOTS = [
@@ -766,7 +771,8 @@ function setSheetAccessImportControlsEnabled(enabled) {
     [
         'creatorImportCookiesFromSheetBtn', 'currentImportCookiesFromSheetBtn',
         'creatorImportPrimaryCookieBtn', 'creatorImportBackup1CookieBtn', 'creatorImportBackup2CookieBtn',
-        'viewImportPrimaryCookieBtn', 'viewImportBackup1CookieBtn', 'viewImportBackup2CookieBtn'
+        'viewImportPrimaryCookieBtn', 'viewImportBackup1CookieBtn', 'viewImportBackup2CookieBtn',
+        'adminCheckSheetBtn'
     ].forEach((id) => {
         const button = el(id);
         if (!button) return;
@@ -1911,14 +1917,17 @@ function renderCurrentShareSummary(share = null) {
 
 function renderCreatedShareEditor(share = null) {
     const section = el('shareCreateCookieSection');
+    const advancedSheetBox = el('creatorAdvancedSheetImportBox');
     if (!section) return;
     if (!share || !share.id || !adminAuthenticated || isViewingPendingShare()) {
         section.classList.add('hidden');
+        if (advancedSheetBox) advancedSheetBox.classList.add('hidden');
         return;
     }
     setCreatedShareCookieOutputs(share.cookies || { primary: share.cookieRaw || '', backup1: '', backup2: '' });
     setShareNoteInput('shareCreateNoteInput', share.note || '');
     section.classList.remove('hidden');
+    if (advancedSheetBox) advancedSheetBox.classList.remove('hidden');
 }
 
 function resetCreatedShareComposer(options = {}) {
@@ -2241,6 +2250,11 @@ function getSheetImportContext(scope = 'current') {
     };
 }
 
+function openSheetImportAdvancedOptions(scope = 'current') {
+    const details = el(scope === 'create' ? 'creatorAdvancedOptions' : 'currentAdvancedOptions');
+    if (details) details.open = true;
+}
+
 async function importCookiesFromSheet(scope = 'current', requestedSlots = null) {
     if (!isSheetAccessEnabled()) {
         const message = 'Truy cập Google Sheet đang được tắt trong admin.';
@@ -2263,6 +2277,7 @@ async function importCookiesFromSheet(scope = 'current', requestedSlots = null) 
     }
 
     const slots = getSelectedSheetImportSlots(scope, requestedSlots);
+    openSheetImportAdvancedOptions(scope);
     sheetImportProgressTargetCounts[scope] = slots.length;
     clearSheetImportTiming(scope);
 
@@ -3863,6 +3878,21 @@ function clearAutoFixOperationMeta() {
     removeSessionJson(GETLINK_AUTO_FIX_OPERATION_STORAGE_KEY);
 }
 
+function saveSheetCheckOperationMeta(meta = {}) {
+    writeSessionJson(GETLINK_SHEET_CHECK_OPERATION_STORAGE_KEY, normalizeGetlinkOperationMeta({
+        ...meta,
+        scope: 'admin-sheet-check'
+    }));
+}
+
+function readSheetCheckOperationMeta() {
+    return readSessionJson(GETLINK_SHEET_CHECK_OPERATION_STORAGE_KEY);
+}
+
+function clearSheetCheckOperationMeta() {
+    removeSessionJson(GETLINK_SHEET_CHECK_OPERATION_STORAGE_KEY);
+}
+
 function clearActiveGetlinkOperationTimer(key = '') {
     const normalized = String(key || '').trim();
     if (!normalized || !activeGetlinkOperationTimers.has(normalized)) return;
@@ -3878,6 +3908,225 @@ function startActiveGetlinkOperationTimer(key = '', onTick) {
         onTick();
     }, 500);
     activeGetlinkOperationTimers.set(normalized, timerId);
+}
+
+function isSheetCheckTerminalStatus(status = '') {
+    return ['completed', 'failed', 'cancelled'].includes(String(status || '').trim());
+}
+
+function openSheetCheckModal() {
+    const modal = el('sheetCheckModal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+}
+
+function closeSheetCheckModal() {
+    if ((sheetCheckRunning || sheetCheckStarting) && !isSheetCheckTerminalStatus(sheetCheckSnapshot && sheetCheckSnapshot.status)) return;
+    const modal = el('sheetCheckModal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
+}
+
+function renderSheetCheckPopup(payload = {}, startedAt = Date.now()) {
+    const source = payload && typeof payload === 'object' ? payload : {};
+    sheetCheckSnapshot = source;
+    const status = String(source.status || 'pending').trim();
+    const terminal = isSheetCheckTerminalStatus(status);
+    const debug = source.debug && typeof source.debug === 'object' ? source.debug : {};
+    const rows = Math.max(0, Number(debug.rowsScanned || debug.scannedPhysicalRows || 0) || 0);
+    const currentRow = Math.max(0, Number(debug.lastScannedUntilRow || debug.scanStoppedAtRow || 0) || 0);
+    const checked = Math.max(0, Number(source.checkedCount || debug.cookieChecks || 0) || 0);
+    const passCount = Math.max(0, Number(source.passCount || debug.passFound || 0) || 0);
+    const failCount = Math.max(0, Number(source.failCount || 0) || 0);
+    const updatedCount = Math.max(0, Number(source.updatedCount || 0) || 0);
+    const elapsedMs = Math.max(0, Date.now() - Math.max(0, Number(startedAt || Date.now()) || Date.now()));
+    const phaseLabels = {
+        pending: 'Đang chuẩn bị',
+        pulling_sheet: 'Đang đọc Sheet',
+        checking_candidates: 'Đang check cookie',
+        writing_marks: 'Đang ghi lỗi',
+        completed: 'Đã hoàn tất',
+        cancelled: 'Đã huỷ',
+        failed: 'Đã xảy ra lỗi',
+        blocked: 'Đã bị chặn'
+    };
+    const phase = String(source.phase || status || 'pending').trim();
+    const title = el('sheetCheckTitle');
+    const loading = el('sheetCheckLoading');
+    const message = el('sheetCheckMessage');
+    const state = el('sheetCheckState');
+    const cancelBtn = el('sheetCheckCancelBtn');
+    const closeBtn = el('sheetCheckCloseBtn');
+    if (title) title.textContent = status === 'completed'
+        ? 'Check Google Sheet hoàn tất'
+        : status === 'cancelled'
+            ? 'Đã huỷ Check Sheet'
+            : status === 'failed'
+                ? 'Check Google Sheet thất bại'
+                : 'Đang check Google Sheet';
+    if (loading) loading.classList.toggle('hidden', terminal);
+    if (message) message.textContent = String(source.message || 'Đang kiểm tra cookie trong Google Sheet...');
+    if (el('sheetCheckRows')) el('sheetCheckRows').textContent = `${rows} / ${currentRow || '-'}`;
+    if (el('sheetCheckChecked')) el('sheetCheckChecked').textContent = String(checked);
+    if (el('sheetCheckPass')) el('sheetCheckPass').textContent = String(passCount);
+    if (el('sheetCheckFailed')) el('sheetCheckFailed').textContent = `${failCount} / ${updatedCount}`;
+    if (el('sheetCheckPhase')) el('sheetCheckPhase').textContent = phaseLabels[phase] || phaseLabels[status] || 'Đang xử lý';
+    if (el('sheetCheckElapsed')) el('sheetCheckElapsed').textContent = formatOperationElapsed(elapsedMs);
+    if (state) {
+        state.textContent = String(source.error || source.message || '');
+        setStateClass(state, status === 'completed' ? 'success' : status === 'cancelled' ? 'warning' : status === 'failed' ? 'error' : 'loading');
+    }
+    if (cancelBtn) {
+        cancelBtn.classList.toggle('hidden', terminal);
+        cancelBtn.disabled = !terminal && sheetCheckStarting;
+    }
+    if (closeBtn) closeBtn.classList.toggle('hidden', !terminal);
+    openSheetCheckModal();
+}
+
+async function runSheetCheckOperation(initialData = {}, meta = {}) {
+    if (sheetCheckRunning) return;
+    sheetCheckRunning = true;
+    const cancelState = { requested: false, cancelling: false };
+    activeSheetCheckCancelState = cancelState;
+    const startedAt = Math.max(0, Number(meta.startedAt || Date.now()) || Date.now());
+    const button = el('adminCheckSheetBtn');
+    setButtonBusy(button, true, 'Đang check...');
+    let data = initialData;
+    const render = () => renderSheetCheckPopup(data, startedAt);
+    startActiveGetlinkOperationTimer('admin-sheet-check', render);
+    render();
+
+    try {
+        while (!cancelState.requested && !isSheetCheckTerminalStatus(data && data.status)) {
+            await new Promise((resolve) => {
+                const timer = setTimeout(resolve, GETLINK_OPERATION_POLL_INTERVAL_MS);
+                cancelState.wake = () => {
+                    clearTimeout(timer);
+                    resolve();
+                };
+            });
+            cancelState.wake = null;
+            if (cancelState.requested) break;
+            data = await advanceGetlinkOperation(meta.operationId, meta.operationToken);
+            render();
+        }
+        if (cancelState.requested && sheetCheckSnapshot) data = sheetCheckSnapshot;
+        if (isSheetCheckTerminalStatus(data && data.status)) clearSheetCheckOperationMeta();
+        renderSheetCheckPopup(data, startedAt);
+    } catch (error) {
+        clearSheetCheckOperationMeta();
+        data = {
+            ...(error && error.responseData && typeof error.responseData === 'object' ? error.responseData : {}),
+            status: 'failed',
+            phase: 'failed',
+            error: String(error && error.message ? error.message : 'Không thể check Google Sheet.'),
+            message: String(error && error.message ? error.message : 'Không thể check Google Sheet.')
+        };
+        renderSheetCheckPopup(data, startedAt);
+    } finally {
+        sheetCheckRunning = false;
+        activeSheetCheckCancelState = null;
+        clearActiveGetlinkOperationTimer('admin-sheet-check');
+        setButtonBusy(button, false);
+        setSheetAccessImportControlsEnabled(isSheetAccessEnabled());
+    }
+}
+
+async function adminCheckSheet() {
+    if (!adminAuthenticated || sheetCheckRunning || sheetCheckStarting) return;
+    if (!isSheetAccessEnabled()) {
+        setAdminWarningConfigState('Truy cập Google Sheet đang được tắt trong admin.', 'warning');
+        return;
+    }
+    sheetCheckStarting = true;
+    closeAdminModal();
+    const startedAt = Date.now();
+    renderSheetCheckPopup({
+        status: 'pending',
+        phase: 'pending',
+        message: 'Đang khởi tạo tiến trình check Google Sheet...',
+        checkedCount: 0,
+        passCount: 0,
+        failCount: 0,
+        updatedCount: 0,
+        debug: {}
+    }, startedAt);
+    try {
+        const data = await apiRequest('/api/getlink-admin/sheet-check', 'POST');
+        const meta = normalizeGetlinkOperationMeta({
+            operationId: data.operationId,
+            operationToken: data.operationToken,
+            scope: 'admin-sheet-check',
+            startedAt
+        });
+        saveSheetCheckOperationMeta(meta);
+        sheetCheckStarting = false;
+        await runSheetCheckOperation(data, meta);
+    } catch (error) {
+        sheetCheckStarting = false;
+        clearSheetCheckOperationMeta();
+        renderSheetCheckPopup({
+            status: 'failed',
+            phase: 'failed',
+            error: error.message || 'Không khởi tạo được Check Sheet.',
+            message: error.message || 'Không khởi tạo được Check Sheet.'
+        }, startedAt);
+    }
+}
+
+async function cancelSheetCheckOperation() {
+    const state = activeSheetCheckCancelState;
+    const meta = readSheetCheckOperationMeta();
+    if (!state || state.requested || state.cancelling || !meta || !meta.operationId || !meta.operationToken) return;
+    state.cancelling = true;
+    const button = el('sheetCheckCancelBtn');
+    setButtonBusy(button, true, 'Đang huỷ...');
+    try {
+        const data = await apiRequest(
+            `/api/getlink-operations/${encodeURIComponent(meta.operationId)}/cancel?token=${encodeURIComponent(meta.operationToken)}`,
+            'POST'
+        );
+        state.requested = true;
+        sheetCheckSnapshot = data;
+        if (typeof state.wake === 'function') state.wake();
+        clearSheetCheckOperationMeta();
+        renderSheetCheckPopup(data, meta.startedAt);
+    } catch (error) {
+        const stateNode = el('sheetCheckState');
+        if (stateNode) {
+            stateNode.textContent = error.message || 'Không huỷ được Check Sheet.';
+            setStateClass(stateNode, 'error');
+        }
+    } finally {
+        state.cancelling = false;
+        setButtonBusy(button, false);
+    }
+}
+
+async function resumePendingSheetCheckOperation() {
+    const meta = readSheetCheckOperationMeta();
+    if (!meta || !meta.operationId || !meta.operationToken || !adminAuthenticated) return;
+    try {
+        const data = await pollGetlinkOperation(meta.operationId, meta.operationToken);
+        if (isSheetCheckTerminalStatus(data && data.status)) {
+            clearSheetCheckOperationMeta();
+            renderSheetCheckPopup(data, meta.startedAt);
+            return;
+        }
+        closeAdminModal();
+        await runSheetCheckOperation(data, meta);
+    } catch (error) {
+        clearSheetCheckOperationMeta();
+        renderSheetCheckPopup({
+            status: 'failed',
+            phase: 'failed',
+            error: error.message || 'Không nối lại được Check Sheet.',
+            message: error.message || 'Không nối lại được Check Sheet.'
+        }, meta.startedAt);
+    }
 }
 
 async function pollGetlinkOperation(operationId = '', operationToken = '') {
@@ -4069,6 +4318,8 @@ async function resumePendingSheetImportOperation(scope = 'current') {
         clearSheetImportOperationMeta(scope);
         return;
     }
+
+    openSheetImportAdvancedOptions(scope);
 
     const btn = el(scope === 'create' ? 'creatorImportCookiesFromSheetBtn' : 'currentImportCookiesFromSheetBtn');
     const timerKey = `sheet-import-${scope}`;
@@ -6046,6 +6297,15 @@ function bindEvents() {
     const adminTestSheetConfigBtn = el('adminTestSheetConfigBtn');
     if (adminTestSheetConfigBtn) adminTestSheetConfigBtn.addEventListener('click', adminTestSheetConfig);
 
+    const adminCheckSheetBtn = el('adminCheckSheetBtn');
+    if (adminCheckSheetBtn) adminCheckSheetBtn.addEventListener('click', adminCheckSheet);
+
+    const sheetCheckCancelBtn = el('sheetCheckCancelBtn');
+    if (sheetCheckCancelBtn) sheetCheckCancelBtn.addEventListener('click', cancelSheetCheckOperation);
+
+    const sheetCheckCloseBtn = el('sheetCheckCloseBtn');
+    if (sheetCheckCloseBtn) sheetCheckCloseBtn.addEventListener('click', closeSheetCheckModal);
+
     document.querySelectorAll('.admin-settings-box input, .admin-settings-box textarea').forEach((input) => {
         input.addEventListener('input', () => {
             setAdminWarningConfigState('Noi dung da thay doi. Bam Luu noi dung de ap dung.', 'idle');
@@ -6247,6 +6507,12 @@ function bindEvents() {
     window.addEventListener('keydown', (event) => {
         if (event.key !== 'Escape') return;
 
+        const sheetCheckModalNode = el('sheetCheckModal');
+        if (sheetCheckModalNode && !sheetCheckModalNode.classList.contains('hidden')) {
+            closeSheetCheckModal();
+            return;
+        }
+
         const disclaimerModalNode = el('disclaimerModal');
         if (disclaimerModalNode && !disclaimerModalNode.classList.contains('hidden')) {
             if (Date.now() >= disclaimerReadyAt) {
@@ -6334,6 +6600,7 @@ async function bootstrap() {
     if (adminAuthenticated) {
         await resumePendingSheetImportOperation('current');
         await resumePendingSheetImportOperation('create');
+        await resumePendingSheetCheckOperation();
     }
     if (pendingShareIdFromUrl) {
         await resumePendingAutoFixOperation();

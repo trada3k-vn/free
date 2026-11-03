@@ -18,6 +18,7 @@ const {
 const { evaluateGetlinkCookie } = require('./_getlink-cookie-health');
 const {
     createSheetImportOperation,
+    createSheetCheckOperation,
     shapeOperationPayload
 } = require('./_getlink-operation-store');
 const {
@@ -701,6 +702,14 @@ module.exports = async function (req, res) {
             const body = parseBody(req.body);
             const slots = normalizeSheetSlots(body && body.slots);
             const operation = await createSheetImportOperation(slots, String(body && body.scope ? body.scope : '').trim());
+            return res.status(200).json(shapeOperationPayload(operation));
+        }
+
+        if (pathname === '/api/getlink-admin/sheet-check' && req.method === 'POST') {
+            if (!(await isSheetAccessEnabled())) {
+                return res.status(403).json({ error: 'Truy cap Google Sheet dang duoc tat trong admin.' });
+            }
+            const operation = await createSheetCheckOperation();
             return res.status(200).json(shapeOperationPayload(operation));
         }
 
